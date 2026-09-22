@@ -1,0 +1,10 @@
+{
+  "name": "SPWApps 2.0",
+  "description": "SAKA Pariwisata Network (SPWN Apps 2.0) - Digital Tourism Ecosystem Platform Indonesia mengintegrasikan Keanggotaan Digital, Verifikasi KTA, Tourism Explorer, CMS, Tourism Commerce, dan Analytics Dashboard.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
