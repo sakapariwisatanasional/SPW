@@ -62,9 +62,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { role: ROLES.SUPER_ADMIN, label: 'Super Administrator', region: 'Nasional' },
     { role: ROLES.ADMIN_PUSAT, label: 'Admin Pusat (Kwarnas)', region: 'Kwarnas' },
     { role: ROLES.ADMIN_WILAYAH, label: 'Admin Kwarda Jawa Barat', region: 'Jawa Barat' },
-    { role: ROLES.CONTENT_MANAGER, label: 'Content Manager (DIY)', region: 'DI Yogyakarta' },
     { role: ROLES.TOURISM_MANAGER, label: 'Tourism Manager (Bali)', region: 'Bali' },
-    { role: ROLES.COMMERCE_MANAGER, label: 'Commerce Manager (Jateng)', region: 'Jawa Tengah' },
+    { role: ROLES.MEMBER, label: 'Demo Anggota SAKA (Fajar)', region: 'KTA Aktif' },
   ];
 
   const handleNavClick = (id: string) => {
@@ -187,42 +186,51 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {/* Right: Persona Switcher & Logout */}
           <div className="flex items-center gap-3">
-            {/* Quick Persona Switcher for Verification & Simulation */}
-            <div className="relative">
-              <button
-                onClick={() => setRoleSwitcherOpen(!roleSwitcherOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-medium text-slate-700"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <span className="truncate max-w-[130px] sm:max-w-none">{currentUser.roleName}</span>
-              </button>
+            {/* Quick Persona Switcher for Verification & Simulation - KHUSUS SUPERADMIN */}
+            {currentUser.role === ROLES.SUPER_ADMIN && (
+              <div className="relative">
+                <button
+                  onClick={() => setRoleSwitcherOpen(!roleSwitcherOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] text-xs font-semibold text-slate-700 transition-colors cursor-pointer group shadow-2xs"
+                  title="Simulasi Peran Khusus Superadmin"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 group-hover:bg-white" />
+                  <span className="truncate max-w-[130px] sm:max-w-none group-hover:text-white">{currentUser.roleName}</span>
+                </button>
 
-              {roleSwitcherOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50">
-                  <div className="px-3 py-2 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Simulasi Peran Pengurus (RBAC)
+                {roleSwitcherOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50">
+                    <div className="px-3 py-2 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Simulasi Demo (Superadmin)
+                    </div>
+                    {adminRoleOptions.map((opt) => (
+                      <button
+                        key={opt.role}
+                        onClick={() => {
+                          if (opt.role === ROLES.MEMBER) {
+                            sessionStorage.setItem('spwn_simulated_from_superadmin', 'true');
+                            switchRole(opt.role);
+                            if (onNavigate) onNavigate('membership');
+                          } else {
+                            switchRole(opt.role);
+                          }
+                          setRoleSwitcherOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-[#0066B3] hover:text-white text-slate-800 flex items-center justify-between cursor-pointer transition-colors group"
+                      >
+                        <div>
+                          <p className="font-semibold group-hover:text-white">{opt.label}</p>
+                          <p className="text-[10px] text-slate-400 group-hover:text-white/80">{opt.region}</p>
+                        </div>
+                        {currentUser.role === opt.role && (
+                          <CheckCircle className="w-4 h-4 text-[#0066B3] group-hover:text-white" />
+                        )}
+                      </button>
+                    ))}
                   </div>
-                  {adminRoleOptions.map((opt) => (
-                    <button
-                      key={opt.role}
-                      onClick={() => {
-                        switchRole(opt.role);
-                        setRoleSwitcherOpen(false);
-                      }}
-                      className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-800">{opt.label}</p>
-                        <p className="text-[10px] text-slate-400">{opt.region}</p>
-                      </div>
-                      {currentUser.role === opt.role && (
-                        <CheckCircle className="w-4 h-4 text-[#0066B3]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             <Button
               size="sm"

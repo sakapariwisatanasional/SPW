@@ -7,16 +7,16 @@ import { authApi } from '../services/api/auth.api';
 export const MOCK_USERS: Record<UserRole, UserProfile & { permissions: PermissionKey[] }> = {
   [ROLES.SUPER_ADMIN]: {
     id: 'usr-superadmin',
-    username: 'superadmin.spwn',
-    email: 'superadmin@spwn.id',
-    fullName: 'Dr. H. Bambang Soedirman, M.Par',
+    username: 'admin_saka',
+    email: 'admin_saka@spwn.id',
+    fullName: 'Super Administrator SAKA Pariwisata',
     role: ROLES.SUPER_ADMIN,
     roleName: 'Super Administrator',
     province: 'DKI Jakarta',
     provinceId: '00',
     isActive: true,
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-21T08:30:00Z',
+    lastLoginAt: '2026-09-23T08:30:00Z',
     permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.SUPER_ADMIN],
   },
   [ROLES.ADMIN_PUSAT]: {
@@ -145,6 +145,10 @@ function getInitialAuthState(): {
     if (savedToken && savedUserStr) {
       const user = JSON.parse(savedUserStr);
       if (user && user.role && user.role !== ROLES.PUBLIC_USER) {
+        if (user.role === ROLES.SUPER_ADMIN) {
+          user.username = 'admin_saka';
+          user.email = user.email || 'admin_saka@spwn.id';
+        }
         return {
           currentUser: {
             ...user,
@@ -216,11 +220,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const cleanPass = password.trim();
 
     if (!cleanId || !cleanPass) {
-      return { success: false, message: 'Username/Email/No KTA dan Kata Sandi wajib diisi' };
+      return { success: false, message: 'Username / Email / Nomor KTA dan Kata Sandi wajib diisi.' };
+    }
+
+    // 1. Verifikasi Kredensial Khusus Super Administrator (Default Kredensial Resmi)
+    // Username: admin_saka
+    // Password: sakapariwisata#2026!
+    const isSuperAdminAlias = (
+      cleanId === 'admin_saka' ||
+      cleanId === 'admin_saka@spwn.id' ||
+      cleanId === 'sakapariwisatanasional@gmail.com' ||
+      cleanId === 'superadmin.spwn' ||
+      cleanId === 'superadmin@spwn.id' ||
+      cleanId === 'admin'
+    );
+
+    if (isSuperAdminAlias) {
+      if (cleanPass === 'sakapariwisata#2026!') {
+        const superAdminUser = MOCK_USERS[ROLES.SUPER_ADMIN];
+        const token = `SPWN-SESSION-SUPERADMIN-${Date.now().toString(36)}`;
+        get().setSession(superAdminUser, token);
+        return {
+          success: true,
+          message: 'Berhasil masuk sebagai Super Administrator SPWN Nasional!',
+          user: superAdminUser,
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Kata sandi tidak sesuai untuk akun Super Administrator (admin_saka). Silakan periksa kembali.',
+        };
+      }
     }
 
     try {
-      // 1. Coba otentikasi ke backend Google Apps Script API
+      // 2. Coba otentikasi ke backend Google Apps Script API jika online
       const res = await authApi.login({
         username: cleanId,
         password: cleanPass
@@ -250,28 +284,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { success: true, message: 'Login berhasil!', user: mappedProfile };
       }
     } catch (apiErr: any) {
-      console.warn('Otentikasi riil GAS API:', apiErr.message);
+      console.warn('Otentikasi GAS API:', apiErr.message);
     }
 
-    // 2. Kredensial fallback akun resmi terdaftar SPWN
+    // 3. Fallback akun terdaftar resmi lainnya (Member / Pengurus)
     const matchedRole = (Object.keys(MOCK_USERS) as UserRole[]).find((r) => {
+      if (r === ROLES.SUPER_ADMIN || r === ROLES.PUBLIC_USER) return false;
       const u = MOCK_USERS[r];
       return (
         u.email.toLowerCase() === cleanId ||
         u.username.toLowerCase() === cleanId ||
         (u.nomor_kta && u.nomor_kta.toLowerCase() === cleanId) ||
-        (cleanId === 'admin' && r === ROLES.SUPER_ADMIN) ||
         (cleanId === 'member' && r === ROLES.MEMBER) ||
         (cleanId === 'pusat' && r === ROLES.ADMIN_PUSAT) ||
         (cleanId === 'wilayah' && r === ROLES.ADMIN_WILAYAH)
       );
     });
 
-    if (matchedRole && matchedRole !== ROLES.PUBLIC_USER) {
-      const user = MOCK_USERS[matchedRole];
-      const token = `SPWN-SESSION-${matchedRole}-${Date.now().toString(36)}`;
-      get().setSession(user, token);
-      return { success: true, message: `Berhasil masuk sebagai ${user.roleName}`, user };
+    if (matchedRole) {
+      // Verifikasi password untuk akun pengujian lainnya
+      if (cleanPass === 'sakapariwisata#2026!' || cleanPass === 'pramuka123' || cleanPass.length >= 6) {
+        const user = MOCK_USERS[matchedRole];
+        const token = `SPWN-SESSION-${matchedRole}-${Date.now().toString(36)}`;
+        get().setSession(user, token);
+        return { success: true, message: `Berhasil masuk sebagai ${user.roleName}`, user };
+      } else {
+        return {
+          success: false,
+          message: 'Kata sandi tidak sesuai. Silakan coba kembali.',
+        };
+      }
     }
 
     return {

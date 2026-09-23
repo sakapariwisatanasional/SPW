@@ -48,7 +48,7 @@ export const AuthAccessBarrier: React.FC<AuthAccessBarrierProps> = ({
             size="md"
             onClick={() => setLoginModalOpen(true)}
             leftIcon={<LogIn className="w-4 h-4" />}
-            className="w-full sm:w-auto bg-[#0066B3] hover:bg-[#004C85] text-xs font-bold rounded-xl px-6 py-2.5 shadow-xs cursor-pointer"
+            className="w-full sm:w-auto text-xs font-bold rounded-xl px-6 py-2.5 shadow-xs cursor-pointer"
           >
             Masuk ke Akun Anda
           </Button>

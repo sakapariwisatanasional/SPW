@@ -4,13 +4,16 @@
  */
 
 import React from 'react';
-import { Shield, ShieldAlert, ShieldCheck, MapPin, Globe, ChevronRight, Code2 } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MapPin, Globe, ChevronRight, Code2, Users, ArrowRightLeft } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { ROLES } from '../../../config/constants';
 import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
 
 export const AdminScopeBar: React.FC = () => {
   const { setActiveView } = useUIStore();
+  const { switchRole } = useAuthStore();
   const {
     simulatedScope,
     scopeProvinceId,
@@ -80,42 +83,59 @@ export const AdminScopeBar: React.FC = () => {
           </div>
         </div>
 
-        {/* RBAC Role & Scope Switcher Controls */}
-        <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+        {/* RBAC Role & Scope Switcher Controls - Khusus Halaman Superadmin */}
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100/90 p-1.5 rounded-xl border border-slate-200">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1">
+            Simulasi Demo:
+          </span>
           <button
             type="button"
             onClick={() => setSimulatedScope('SUPER_ADMIN')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
               simulatedScope === 'SUPER_ADMIN'
-                ? 'bg-white text-purple-700 shadow-xs border border-purple-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-purple-700 text-white border-purple-700 hover:bg-white hover:text-purple-700'
+                : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-700 hover:text-white hover:border-purple-700'
             }`}
           >
-            Super Admin
+            Demo Super Admin
           </button>
 
           <button
             type="button"
             onClick={() => setSimulatedScope('ADMIN_PUSAT')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
               simulatedScope === 'ADMIN_PUSAT'
-                ? 'bg-white text-[#0066B3] shadow-xs border border-blue-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-[#0066B3] text-white border-[#0066B3] hover:bg-white hover:text-[#0066B3]'
+                : 'bg-white text-[#0066B3] border-blue-200 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3]'
             }`}
           >
-            Admin Nasional
+            Demo Admin Nasional
           </button>
 
           <button
             type="button"
             onClick={() => setSimulatedScope('ADMIN_WILAYAH', '32', 'Jawa Barat', '3201', 'Kabupaten Bogor')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
               simulatedScope === 'ADMIN_WILAYAH'
-                ? 'bg-white text-[#009B4D] shadow-xs border border-emerald-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-[#009B4D] text-white border-[#009B4D] hover:bg-white hover:text-[#009B4D]'
+                : 'bg-white text-[#009B4D] border-emerald-200 hover:bg-[#009B4D] hover:text-white hover:border-[#009B4D]'
             }`}
           >
-            Admin Wilayah (Jabar)
+            Demo Admin Wilayah
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.setItem('spwn_simulated_from_superadmin', 'true');
+              switchRole(ROLES.MEMBER);
+              setActiveView('membership');
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-amber-700 border-2 border-amber-300 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            title="Uji tampilan & fitur Dashboard KTA Anggota SAKA"
+          >
+            <Users className="w-3.5 h-3.5 shrink-0" />
+            <span>Demo Anggota SAKA</span>
           </button>
         </div>
       </div>

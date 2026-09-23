@@ -669,7 +669,6 @@ export const MembershipPage: React.FC = () => {
                 variant="primary"
                 onClick={() => setIsRegisterModalOpen(true)}
                 leftIcon={<Plus className="w-4 h-4" />}
-                className="bg-[#0066B3] hover:bg-[#004C85]"
               >
                 Daftarkan Anggota Baru
               </Button>

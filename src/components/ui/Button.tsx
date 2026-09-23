@@ -20,7 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer";
+  const baseStyles = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer select-none";
 
   const sizeStyles = {
     sm: "text-xs px-3 py-1.5 gap-1.5",
@@ -29,13 +29,13 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantStyles = {
-    primary: "bg-[#0066B3] hover:bg-[#005291] text-white focus:ring-[#0066B3]/40 shadow-sm",
-    secondary: "bg-[#009B4D] hover:bg-[#00803F] text-white focus:ring-[#009B4D]/40 shadow-sm",
-    outline: "border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 focus:ring-slate-400",
-    ghost: "bg-transparent hover:bg-slate-100 text-slate-700 focus:ring-slate-300",
-    danger: "bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-500/40",
-    warning: "bg-[#F7941D] hover:bg-[#DE7F12] text-white focus:ring-[#F7941D]/40 shadow-sm",
-    magenta: "bg-[#D81B60] hover:bg-[#B5144E] text-white focus:ring-[#D81B60]/40 shadow-sm",
+    primary: "bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] focus:ring-[#0066B3]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
+    secondary: "bg-[#009B4D] text-white border-2 border-[#009B4D] hover:bg-white hover:text-[#009B4D] hover:border-[#009B4D] focus:ring-[#009B4D]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
+    outline: "bg-white text-slate-800 border-2 border-slate-300 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] focus:ring-[#0066B3]/40 shadow-xs [&_svg]:transition-colors [&_svg]:stroke-current",
+    ghost: "bg-transparent text-slate-700 border-2 border-transparent hover:bg-slate-900 hover:text-white hover:border-slate-900 focus:ring-slate-300 [&_svg]:transition-colors [&_svg]:stroke-current",
+    danger: "bg-rose-600 text-white border-2 border-rose-600 hover:bg-white hover:text-rose-600 hover:border-rose-600 focus:ring-rose-500/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
+    warning: "bg-[#F7941D] text-white border-2 border-[#F7941D] hover:bg-slate-950 hover:text-white hover:border-slate-950 focus:ring-[#F7941D]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
+    magenta: "bg-[#D81B60] text-white border-2 border-[#D81B60] hover:bg-white hover:text-[#D81B60] hover:border-[#D81B60] focus:ring-[#D81B60]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
   };
 
   return (

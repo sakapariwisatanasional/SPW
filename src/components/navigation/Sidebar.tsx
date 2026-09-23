@@ -227,7 +227,7 @@ export const Sidebar: React.FC = () => {
                 size="sm"
                 onClick={() => setLoginModalOpen(true)}
                 leftIcon={<LogIn className="w-3.5 h-3.5" />}
-                className="w-full justify-center text-xs bg-[#0066B3] hover:bg-[#004C85] rounded-xl font-semibold shadow-xs"
+                className="w-full justify-center text-xs rounded-xl font-semibold shadow-xs"
               >
                 Masuk ke Akun
               </Button>
@@ -235,7 +235,7 @@ export const Sidebar: React.FC = () => {
               <button
                 onClick={() => setLoginModalOpen(true)}
                 title="Masuk ke Akun"
-                className="w-8 h-8 mx-auto rounded-xl bg-[#0066B3] text-white flex items-center justify-center hover:bg-[#004C85] transition-colors cursor-pointer"
+                className="w-8 h-8 mx-auto rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] flex items-center justify-center hover:bg-white hover:text-[#0066B3] transition-colors cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
               </button>

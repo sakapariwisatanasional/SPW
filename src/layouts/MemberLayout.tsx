@@ -32,6 +32,7 @@ import {
   Calendar,
   User,
   LogOut,
+  Shield,
   ShieldCheck,
   CheckCircle2,
   Sparkles,
@@ -61,7 +62,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
   onTabChange,
 }) => {
   const { currentUser, switchRole } = useAuthStore();
-  const { addToast } = useUIStore();
+  const { addToast, setActiveView } = useUIStore();
 
   const [internalTab, setInternalTab] = useState<string>('dashboard');
   const activeTab = controlledTab || internalTab;
@@ -235,32 +236,28 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
           })}
         </div>
 
-        {/* Bottom Switcher & Logout */}
+        {/* Bottom Actions & Logout */}
         <div className="p-3 border-t border-slate-100 space-y-2">
-          {/* Quick Persona Switcher for Evaluator/Testing */}
-          <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 text-[11px] space-y-1">
-            <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-              <ArrowRightLeft className="w-3 h-3 text-[#0066B3]" /> Ganti Persona / Role:
-            </span>
-            <div className="grid grid-cols-2 gap-1 pt-0.5">
-              <button
-                onClick={() => switchRole(ROLES.SUPER_ADMIN)}
-                className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 text-[10px]"
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => switchRole(ROLES.PUBLIC_USER)}
-                className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 text-[10px]"
-              >
-                Publik
-              </button>
-            </div>
-          </div>
+          {sessionStorage.getItem('spwn_simulated_from_superadmin') === 'true' && (
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('spwn_simulated_from_superadmin');
+                switchRole(ROLES.SUPER_ADMIN);
+                setActiveView('admin_portal');
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-[#0066B3] text-white hover:bg-white hover:text-[#0066B3] border-2 border-[#0066B3] transition-colors shadow-2xs cursor-pointer"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Kembali ke Superadmin</span>
+            </button>
+          )}
 
           <button
-            onClick={() => switchRole(ROLES.PUBLIC_USER)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+            onClick={() => {
+              sessionStorage.removeItem('spwn_simulated_from_superadmin');
+              switchRole(ROLES.PUBLIC_USER);
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 border-2 border-transparent hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Keluar Sesi</span>
@@ -272,6 +269,27 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
       {/* MAIN CONTENT WORKSPACE                                         */}
       {/* ============================================================== */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-64 pb-20 lg:pb-8 transition-all overflow-x-hidden w-full max-w-full">
+        {sessionStorage.getItem('spwn_simulated_from_superadmin') === 'true' && (
+          <div className="bg-[#0B1F33] text-white px-4 py-2 text-xs flex items-center justify-between gap-3 shadow-md z-30">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">
+                Mode Simulasi: Sedang melihat portal sebagai <strong>Demo Anggota SAKA ({currentUser.fullName})</strong>
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('spwn_simulated_from_superadmin');
+                switchRole(ROLES.SUPER_ADMIN);
+                setActiveView('admin_portal');
+              }}
+              className="px-3 py-1 rounded-lg text-xs font-bold bg-white text-[#0B1F33] border-2 border-white hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] transition-colors cursor-pointer shrink-0"
+            >
+              Kembali ke Superadmin
+            </button>
+          </div>
+        )}
+
         {/* Mobile & Tablet Sticky Top Bar */}
         <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 h-16 flex items-center justify-between lg:hidden shadow-xs">
           <div className="flex items-center gap-2.5">

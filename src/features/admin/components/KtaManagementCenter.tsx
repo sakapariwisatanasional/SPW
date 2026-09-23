@@ -332,7 +332,7 @@ export const KtaManagementCenter: React.FC = () => {
                           message: `Nomor KTA: ${res.nomorKta} aktif dengan QR Token ${res.qrToken}.`,
                         });
                       }}
-                      className="px-4 py-2 rounded-xl bg-[#0066B3] hover:bg-[#004C85] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <CreditCard className="w-3.5 h-3.5" />
                       Terbitkan KTA Sekarang

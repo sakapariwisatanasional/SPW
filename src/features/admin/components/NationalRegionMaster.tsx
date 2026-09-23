@@ -247,7 +247,7 @@ export const NationalRegionMaster: React.FC = () => {
               type="button"
               disabled={isSeederRunning}
               onClick={() => runRegionSeed(true)}
-              className="px-3.5 py-2 rounded-xl bg-[#0066B3] hover:bg-[#004C85] disabled:opacity-50 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] disabled:opacity-50 font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSeederRunning ? 'animate-spin' : ''}`} />
               {isSeederRunning ? 'Menyinkronkan...' : 'Sinkronkan'}
@@ -733,7 +733,7 @@ export const NationalRegionMaster: React.FC = () => {
                       id="btn-add-manual-district"
                       type="submit"
                       disabled={!manualDistrictName.trim() || !manualDistrictCode3.trim()}
-                      className="w-full h-full py-1.5 px-3 bg-[#0066B3] hover:bg-[#004C85] disabled:opacity-50 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1 shadow-xs"
+                      className="w-full h-full py-1.5 px-3 bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] disabled:opacity-50 rounded-lg font-bold text-xs flex items-center justify-center gap-1 shadow-xs transition-colors cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Simpan
                     </button>

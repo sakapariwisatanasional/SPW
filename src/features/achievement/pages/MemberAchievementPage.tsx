@@ -105,7 +105,7 @@ export const MemberAchievementPage: React.FC = () => {
               variant="primary"
               onClick={() => setViewMode('superadmin')}
               leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
-              className="bg-[#0066B3] hover:bg-[#004C85] text-xs font-bold rounded-xl whitespace-nowrap cursor-pointer"
+              className="text-xs font-bold rounded-xl whitespace-nowrap cursor-pointer"
             >
               Kembali ke Pantauan Seluruh Wilayah
             </Button>

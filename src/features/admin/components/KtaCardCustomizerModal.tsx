@@ -971,7 +971,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                       type="button"
                       onClick={handleAutoArrange}
                       disabled={!isSuperAdmin}
-                      className="px-3.5 py-2 rounded-xl bg-[#0066B3] hover:bg-[#004C85] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+                      className="px-3.5 py-2 rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Auto Arrange</span>
@@ -3667,7 +3667,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                   type="button"
                   disabled={!isSuperAdmin || isSaving}
                   onClick={handleSaveSettings}
-                  className="px-5 py-2 rounded-xl bg-[#0066B3] hover:bg-[#004C85] text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] text-xs font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {isSaving ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -480,7 +480,7 @@ export const ContentPage: React.FC = () => {
               size="sm"
               variant="primary"
               onClick={() => setLoginModalOpen(true)}
-              className="bg-[#0066B3] hover:bg-[#004C85] text-white text-xs font-semibold rounded-xl shrink-0 cursor-pointer"
+              className="text-xs font-semibold rounded-xl shrink-0 cursor-pointer"
             >
               Masuk Akun Anggota
             </Button>

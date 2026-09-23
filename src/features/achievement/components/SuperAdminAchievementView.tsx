@@ -798,7 +798,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                 size="sm"
                 variant="primary"
                 onClick={() => setSelectedMember(null)}
-                className="bg-[#0066B3] hover:bg-[#004C85] text-white text-xs font-bold rounded-xl"
+                className="text-xs font-bold rounded-xl"
               >
                 Tutup Ringkasan
               </Button>

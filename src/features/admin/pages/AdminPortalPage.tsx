@@ -52,16 +52,18 @@ export const AdminPortalPage: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-2 group ${
                   isActive
-                    ? 'bg-[#0066B3] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-[#0066B3] text-white border-[#0066B3] hover:bg-white hover:text-[#0066B3]'
+                    : 'text-slate-700 border-transparent hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3]'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white group-hover:text-[#0066B3]' : 'text-slate-500 group-hover:text-white'}`} />
                 <span>{tab.label}</span>
                 {tab.id === 'admin_assignment' && (
-                  <span className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-semibold ml-0.5">
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ml-0.5 transition-colors ${
+                    isActive ? 'bg-white/20 text-white group-hover:bg-purple-100 group-hover:text-purple-800' : 'bg-purple-100 text-purple-800 group-hover:bg-white group-hover:text-[#0066B3]'
+                  }`}>
                     5 Tingkat
                   </span>
                 )}

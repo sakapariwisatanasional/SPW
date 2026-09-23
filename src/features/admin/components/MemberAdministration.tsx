@@ -1034,7 +1034,7 @@ export const MemberAdministration: React.FC = () => {
             <div className="pt-3 flex justify-end">
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#0066B3] hover:bg-[#004C85] text-white font-bold shadow-xs transition-all flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Simpan & Daftarkan Anggota

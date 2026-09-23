@@ -121,7 +121,7 @@ export const PublicHomePage: React.FC = () => {
             variant="primary"
             onClick={() => setLoginModalOpen(true)}
             leftIcon={<LogIn className="w-4 h-4" />}
-            className="bg-[#0066B3] hover:bg-[#004C85] text-xs font-semibold rounded-xl shrink-0 cursor-pointer"
+            className="text-xs font-semibold rounded-xl shrink-0 cursor-pointer"
           >
             Masuk ke Akun
           </Button>
