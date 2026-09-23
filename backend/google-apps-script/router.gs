@@ -11,6 +11,7 @@
 
 var Router = (function() {
   var _routes = {};
+  var _routesInitialized = false;
 
   /**
    * Mendaftarkan rute action ke registry tabel.
@@ -23,7 +24,7 @@ var Router = (function() {
    * @param {string} [config.permission] - Permission spesifik yang diwajibkan
    */
   function register(action, config) {
-    if (!action || !config || typeof config.handler !== 'function') {
+    if (!action || !config) {
       throw new Error('[ROUTER_CONFIG_ERROR] Definisi rute tidak valid untuk action: ' + action);
     }
     _routes[action] = {
@@ -34,6 +35,14 @@ var Router = (function() {
     };
   }
 
+  var _routesInitialized = false;
+
+  function _ensureRoutesInitialized() {
+    if (_routesInitialized) return;
+    _initializeRoutes();
+    _routesInitialized = true;
+  }
+
   /**
    * Inisialisasi dan pendaftaran seluruh endpoint SPWN Apps 2.0.
    */
@@ -42,15 +51,15 @@ var Router = (function() {
     // 1. AUTH DOMAIN
     // -----------------------------------------------------------------
     register('auth.login', {
-      handler: AuthController.login,
+      handler: function(ctx) { return AuthController.login(ctx); },
       requireAuth: false
     });
     register('auth.me', {
-      handler: AuthController.me,
+      handler: function(ctx) { return AuthController.me(ctx); },
       requireAuth: true
     });
     register('auth.logout', {
-      handler: AuthController.logout,
+      handler: function(ctx) { return AuthController.logout(ctx); },
       requireAuth: true
     });
 
@@ -58,11 +67,11 @@ var Router = (function() {
     // 2. VERIFICATION DOMAIN
     // -----------------------------------------------------------------
     register('verify.kta', {
-      handler: VerificationController.verify,
+      handler: function(ctx) { return VerificationController.verify(ctx); },
       requireAuth: false
     });
     register('verify.internal', {
-      handler: VerificationController.internalVerify,
+      handler: function(ctx) { return VerificationController.internalVerify(ctx); },
       requireAuth: true,
       permission: 'VERIFY_KTA_INTERNAL'
     });
@@ -71,50 +80,50 @@ var Router = (function() {
     // 3. MEMBER DOMAIN
     // -----------------------------------------------------------------
     register('member.list', {
-      handler: MemberController.list,
+      handler: function(ctx) { return MemberController.list(ctx); },
       requireAuth: true,
       permission: 'MEMBER_READ'
     });
     register('member.detail', {
-      handler: MemberController.detail,
+      handler: function(ctx) { return MemberController.detail(ctx); },
       requireAuth: true,
       permission: 'MEMBER_READ'
     });
     register('member.register', {
-      handler: MemberController.register,
+      handler: function(ctx) { return MemberController.register(ctx); },
       requireAuth: true,
       permission: 'MEMBER_CREATE'
     });
     register('public.member.register', {
-      handler: MemberController.register,
+      handler: function(ctx) { return MemberController.register(ctx); },
       requireAuth: false
     });
     register('member.update', {
-      handler: MemberController.update,
+      handler: function(ctx) { return MemberController.update(ctx); },
       requireAuth: true,
       permission: 'MEMBER_UPDATE'
     });
     register('member.deactivate', {
-      handler: MemberController.deactivate,
+      handler: function(ctx) { return MemberController.deactivate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT']
     });
 
     // Sub-domain: Member Achievement & Read Model
     register('member.achievement', {
-      handler: AchievementController.getAchievement,
+      handler: function(ctx) { return AchievementController.getAchievement(ctx); },
       requireAuth: true
     });
     register('member.skk.status', {
-      handler: AchievementController.getSkkStatus,
+      handler: function(ctx) { return AchievementController.getSkkStatus(ctx); },
       requireAuth: true
     });
     register('member.badges', {
-      handler: AchievementController.getBadges,
+      handler: function(ctx) { return AchievementController.getBadges(ctx); },
       requireAuth: true
     });
     register('member.activities', {
-      handler: AchievementController.getActivities,
+      handler: function(ctx) { return AchievementController.getActivities(ctx); },
       requireAuth: true
     });
 
@@ -122,28 +131,28 @@ var Router = (function() {
     // 4. TOURISM DOMAIN
     // -----------------------------------------------------------------
     register('tourism.destinations', {
-      handler: TourismController.listDestinations,
+      handler: function(ctx) { return TourismController.listDestinations(ctx); },
       requireAuth: false
     });
     register('tourism.destination', {
-      handler: TourismController.getDestination,
+      handler: function(ctx) { return TourismController.getDestination(ctx); },
       requireAuth: false
     });
     register('tourism.createDestination', {
-      handler: TourismController.createDestination,
+      handler: function(ctx) { return TourismController.createDestination(ctx); },
       requireAuth: true,
       permission: 'TOURISM_MANAGE'
     });
     register('tourism.packages', {
-      handler: TourismController.listPackages,
+      handler: function(ctx) { return TourismController.listPackages(ctx); },
       requireAuth: false
     });
     register('tourism.review', {
-      handler: TourismController.submitReview,
+      handler: function(ctx) { return TourismController.submitReview(ctx); },
       requireAuth: false // Public dual-gate (dengan rate limit) atau authenticated
     });
     register('tourism.partners', {
-      handler: TourismController.listPartners,
+      handler: function(ctx) { return TourismController.listPartners(ctx); },
       requireAuth: false
     });
 
@@ -151,38 +160,38 @@ var Router = (function() {
     // 5. CONTENT DOMAIN
     // -----------------------------------------------------------------
     register('content.articles', {
-      handler: ContentController.listArticles,
+      handler: function(ctx) { return ContentController.listArticles(ctx); },
       requireAuth: false
     });
     register('content.article', {
-      handler: ContentController.getArticle,
+      handler: function(ctx) { return ContentController.getArticle(ctx); },
       requireAuth: false
     });
     register('content.draft', {
-      handler: ContentController.createDraft,
+      handler: function(ctx) { return ContentController.createDraft(ctx); },
       requireAuth: true,
       permission: 'CONTENT_CREATE'
     });
     register('content.submitReview', {
-      handler: ContentController.submitReview,
+      handler: function(ctx) { return ContentController.submitReview(ctx); },
       requireAuth: true,
       permission: 'CONTENT_CREATE'
     });
     register('content.publish', {
-      handler: ContentController.publish,
+      handler: function(ctx) { return ContentController.publish(ctx); },
       requireAuth: true,
       permission: 'CONTENT_PUBLISH'
     });
     register('content.events', {
-      handler: ContentController.listEvents,
+      handler: function(ctx) { return ContentController.listEvents(ctx); },
       requireAuth: false
     });
     register('content.gallery', {
-      handler: ContentController.listGallery,
+      handler: function(ctx) { return ContentController.listGallery(ctx); },
       requireAuth: false
     });
     register('content.announcements', {
-      handler: ContentController.listAnnouncements,
+      handler: function(ctx) { return ContentController.listAnnouncements(ctx); },
       requireAuth: false
     });
 
@@ -190,33 +199,33 @@ var Router = (function() {
     // 6. COMMERCE DOMAIN
     // -----------------------------------------------------------------
     register('commerce.products', {
-      handler: CommerceController.listProducts,
+      handler: function(ctx) { return CommerceController.listProducts(ctx); },
       requireAuth: false
     });
     register('commerce.product', {
-      handler: CommerceController.getProduct,
+      handler: function(ctx) { return CommerceController.getProduct(ctx); },
       requireAuth: false
     });
     register('commerce.createProduct', {
-      handler: CommerceController.createProduct,
+      handler: function(ctx) { return CommerceController.createProduct(ctx); },
       requireAuth: true,
       permission: 'COMMERCE_MANAGE'
     });
     register('commerce.categories', {
-      handler: CommerceController.listCategories,
+      handler: function(ctx) { return CommerceController.listCategories(ctx); },
       requireAuth: false
     });
     register('commerce.order', {
-      handler: CommerceController.checkout,
+      handler: function(ctx) { return CommerceController.checkout(ctx); },
       requireAuth: true,
       permission: 'COMMERCE_BUY'
     });
     register('commerce.orderDetail', {
-      handler: CommerceController.getOrderDetail,
+      handler: function(ctx) { return CommerceController.getOrderDetail(ctx); },
       requireAuth: true
     });
     register('commerce.updateOrder', {
-      handler: CommerceController.updateOrderStatus,
+      handler: function(ctx) { return CommerceController.updateOrderStatus(ctx); },
       requireAuth: true,
       permission: 'COMMERCE_MANAGE'
     });
@@ -225,42 +234,42 @@ var Router = (function() {
     // 7. ADMIN MEMBER DOMAIN (RBAC & Regional Scoping)
     // -----------------------------------------------------------------
     register('admin.member.list', {
-      handler: AdminMemberController.list,
+      handler: function(ctx) { return AdminMemberController.list(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.member.detail', {
-      handler: AdminMemberController.detail,
+      handler: function(ctx) { return AdminMemberController.detail(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.member.update', {
-      handler: AdminMemberController.update,
+      handler: function(ctx) { return AdminMemberController.update(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.member.review', {
-      handler: AdminMemberController.review,
+      handler: function(ctx) { return AdminMemberController.review(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.member.approve', {
-      handler: AdminMemberController.approve,
+      handler: function(ctx) { return AdminMemberController.approve(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
     register('admin.member.activate', {
-      handler: AdminMemberController.activate,
+      handler: function(ctx) { return AdminMemberController.activate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
     register('admin.member.reject', {
-      handler: AdminMemberController.reject,
+      handler: function(ctx) { return AdminMemberController.reject(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.member.resetPassword', {
-      handler: AdminMemberController.resetPassword,
+      handler: function(ctx) { return AdminMemberController.resetPassword(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
@@ -269,22 +278,22 @@ var Router = (function() {
     // 7b. ADMIN ASSIGNMENT DOMAIN (Super Admin Hierarchical Appointment)
     // -----------------------------------------------------------------
     register('admin.assignment.list', {
-      handler: AdminMemberController.listAppointments,
+      handler: function(ctx) { return AdminMemberController.listAppointments(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.assignment.create', {
-      handler: AdminMemberController.assignAdmin,
+      handler: function(ctx) { return AdminMemberController.assignAdmin(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT']
     });
     register('admin.assignment.revoke', {
-      handler: AdminMemberController.revokeAdmin,
+      handler: function(ctx) { return AdminMemberController.revokeAdmin(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT']
     });
     register('admin.assignment.resetPassword', {
-      handler: AdminMemberController.resetAdminPassword,
+      handler: function(ctx) { return AdminMemberController.resetAdminPassword(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT']
     });
@@ -293,42 +302,42 @@ var Router = (function() {
     // 8. ADMIN KTA MANAGEMENT DOMAIN (RBAC: ADMIN_PUSAT & SUPER_ADMIN)
     // -----------------------------------------------------------------
     register('admin.kta.generate', {
-      handler: AdminKtaController.generate,
+      handler: function(ctx) { return AdminKtaController.generate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
     register('admin.kta.regenerate', {
-      handler: AdminKtaController.regenerate,
+      handler: function(ctx) { return AdminKtaController.regenerate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
     register('admin.kta.preview', {
-      handler: AdminKtaController.preview,
+      handler: function(ctx) { return AdminKtaController.preview(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.kta.history', {
-      handler: AdminKtaController.history,
+      handler: function(ctx) { return AdminKtaController.history(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.kta.batch', {
-      handler: AdminKtaController.batch,
+      handler: function(ctx) { return AdminKtaController.batch(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.kta.template.get', {
-      handler: AdminKtaController.getTemplate,
+      handler: function(ctx) { return AdminKtaController.getTemplate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
     register('admin.kta.template.save', {
-      handler: AdminKtaController.saveTemplate,
+      handler: function(ctx) { return AdminKtaController.saveTemplate(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
     register('admin.kta.template.uploadAsset', {
-      handler: AdminKtaController.uploadAsset,
+      handler: function(ctx) { return AdminKtaController.uploadAsset(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
@@ -337,28 +346,28 @@ var Router = (function() {
     // 9. REGION & SEEDER DOMAIN
     // -----------------------------------------------------------------
     register('region.provinces', {
-      handler: RegionController.provinces,
+      handler: function(ctx) { return RegionController.provinces(ctx); },
       requireAuth: false
     });
     register('region.regencies', {
-      handler: RegionController.regencies,
+      handler: function(ctx) { return RegionController.regencies(ctx); },
       requireAuth: false
     });
     register('region.districts', {
-      handler: RegionController.districts,
+      handler: function(ctx) { return RegionController.districts(ctx); },
       requireAuth: false
     });
     register('region.villages', {
-      handler: RegionController.villages,
+      handler: function(ctx) { return RegionController.villages(ctx); },
       requireAuth: false
     });
     register('region.seedStatus', {
-      handler: RegionController.seedStatus,
+      handler: function(ctx) { return RegionController.seedStatus(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
     });
     register('region.runSeed', {
-      handler: RegionController.runSeed,
+      handler: function(ctx) { return RegionController.runSeed(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
@@ -367,27 +376,27 @@ var Router = (function() {
     // 10. DEVELOPER CODE REGISTRY DOMAIN (Phase 7.1 - SUPER_ADMIN Only)
     // -----------------------------------------------------------------
     register('developer.code.list', {
-      handler: DeveloperController.list,
+      handler: function(ctx) { return DeveloperController.list(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
     register('developer.code.detail', {
-      handler: DeveloperController.detail,
+      handler: function(ctx) { return DeveloperController.detail(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
     register('developer.code.copy', {
-      handler: DeveloperController.copy,
+      handler: function(ctx) { return DeveloperController.copy(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
     register('developer.code.history', {
-      handler: DeveloperController.history,
+      handler: function(ctx) { return DeveloperController.history(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
     register('developer.code.approve', {
-      handler: DeveloperController.approve,
+      handler: function(ctx) { return DeveloperController.approve(ctx); },
       requireAuth: true,
       roles: ['SUPER_ADMIN']
     });
@@ -400,6 +409,9 @@ var Router = (function() {
    * @returns {Object} JSON Response Contract
    */
   function dispatch(rawRequest) {
+    // Pastikan seluruh rute terdaftar setelah seluruh berkas controller selesai dimuat Apps Script
+    _ensureRoutesInitialized();
+
     // Bangun RequestContext
     var context = RequestContext.create(rawRequest);
     var action = context.action;
@@ -480,12 +492,12 @@ var Router = (function() {
     }
   }
 
-  // Muat daftar rute saat modul diinisialisasi
-  _initializeRoutes();
-
   return {
     register: register,
     dispatch: dispatch,
-    getRoutes: function() { return Object.keys(_routes); }
+    getRoutes: function() {
+      _ensureRoutesInitialized();
+      return Object.keys(_routes);
+    }
   };
 })();

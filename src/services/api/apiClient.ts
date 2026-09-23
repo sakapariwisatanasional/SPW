@@ -50,9 +50,9 @@ class SpwnApiClient {
 
   constructor() {
     this.baseUrl = import.meta.env.VITE_SPWN_API_URL || '';
-    if (!this.baseUrl) {
-      // Fallback default endpoint saat development
-      this.baseUrl = '/api/spwn';
+    if (!this.baseUrl || this.baseUrl.includes('AKfycbx_spwn_mock_deployment_exec') || this.baseUrl.includes('AKfycbzo5kpGHe8uGv5lBX8m4gU5bcF5OvyyPwRlU7ExhArEtQVUTbpN0FjG9fTG468gxha5vg')) {
+      // Fallback endpoint resmi sesuai deployment aktif
+      this.baseUrl = 'https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec';
     }
   }
 
@@ -61,6 +61,13 @@ class SpwnApiClient {
    */
   public registerTokenGetter(getter: () => string | null): void {
     this.tokenGetter = getter;
+  }
+
+  /**
+   * Memeriksa apakah target API merupakan Google Apps Script Web App
+   */
+  private isGoogleAppsScript(): boolean {
+    return this.baseUrl.includes('script.google.com') || this.baseUrl.includes('script.googleusercontent.com');
   }
 
   /**
@@ -83,53 +90,28 @@ class SpwnApiClient {
    * Membangun URL lengkap dengan parameter action & query
    */
   private buildUrl(
-  action: string,
-  params?: Record<string, string | number | boolean | undefined>
-): string {
+    action: string,
+    params?: Record<string, string | number | boolean | undefined>,
+    token?: string | null
+  ): string {
+    const url = new URL(this.baseUrl);
+    url.searchParams.set('action', action);
 
+    // Untuk Google Apps Script, sertakan token di URL query untuk melewati kendala CORS preflight header
+    if (token) {
+      url.searchParams.set('token', token);
+    }
 
-  const url =
-    this.baseUrl.startsWith('http')
-      ? new URL(this.baseUrl)
-      : new URL(
-          this.baseUrl,
-          window.location.origin
-        );
-
-
-  url.searchParams.set(
-    'action',
-    action
-  );
-
-
-  if (params) {
-
-    Object.entries(params).forEach(
-      ([key, val]) => {
-
-        if (
-          val !== undefined &&
-          val !== null &&
-          val !== ''
-        ) {
-
-          url.searchParams.set(
-            key,
-            String(val)
-          );
-
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          url.searchParams.set(key, String(val));
         }
+      });
+    }
 
-      }
-    );
-
+    return url.toString();
   }
-
-
-  return url.toString();
-
-}
 
   /**
    * HTTP GET Request
@@ -140,21 +122,25 @@ class SpwnApiClient {
     options?: RequestOptions
   ): Promise<ApiResponse<T>> {
     try {
-      const url = this.buildUrl(action, params);
       const token = this.getActiveToken(options?.token);
+      const url = this.buildUrl(action, params, token);
+      const isGas = this.isGoogleAppsScript();
 
       const headers: Record<string, string> = {
         'Accept': 'application/json',
         ...(options?.headers || {})
       };
 
-      if (token) {
+      // Hanya sematkan Authorization header jika bukan Google Apps Script
+      // karena GAS tidak mendukung CORS OPTIONS preflight
+      if (token && !isGas) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
         method: 'GET',
         headers,
+        redirect: 'follow',
         signal: options?.signal
       });
 
@@ -174,29 +160,37 @@ class SpwnApiClient {
     options?: RequestOptions
   ): Promise<ApiResponse<T>> {
     try {
-      const url = this.buildUrl(action, params);
       const token = this.getActiveToken(options?.token);
+      const url = this.buildUrl(action, params, token);
+      const isGas = this.isGoogleAppsScript();
+
+      // Untuk Google Apps Script Web App: gunakan Content-Type text/plain;charset=utf-8
+      // agar tidak memicu preflight OPTIONS yang ditolak oleh GAS
+      const contentType = isGas ? 'text/plain;charset=utf-8' : 'application/json';
 
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        'Content-Type': contentType,
         'Accept': 'application/json',
         ...(options?.headers || {})
       };
 
-      // Tambahkan token pada payload body juga untuk redundansi GAS
+      // Tambahkan token dan action pada payload body untuk redundansi GAS
       const payload: Record<string, unknown> = {
         ...body,
         action
       };
 
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
         payload.token = token;
+        if (!isGas) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
       }
 
       const response = await fetch(url, {
         method: 'POST',
         headers,
+        redirect: 'follow',
         body: JSON.stringify(payload),
         signal: options?.signal
       });

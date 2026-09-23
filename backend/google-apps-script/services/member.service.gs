@@ -360,6 +360,7 @@ var MemberService = (function() {
     registerMember: registerMember,
     getMember: getMember,
     listMembers: listMembers,
+    findAll: listMembers,
     updateMember: updateMember,
     deactivateMember: deactivateMember
   };

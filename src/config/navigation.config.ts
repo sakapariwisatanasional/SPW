@@ -15,6 +15,24 @@ export interface NavigationItem {
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
+  // Beranda Publik / Home
+  {
+    id: 'home',
+    label: 'Beranda SAKA',
+    iconName: 'Home',
+    path: '/',
+    roles: [
+      ROLES.PUBLIC_USER,
+      ROLES.SUPER_ADMIN,
+      ROLES.ADMIN_PUSAT,
+      ROLES.ADMIN_WILAYAH,
+      ROLES.CONTENT_MANAGER,
+      ROLES.TOURISM_MANAGER,
+      ROLES.COMMERCE_MANAGER,
+      ROLES.MEMBER,
+    ],
+    category: 'main',
+  },
   // General & Dashboard
   {
     id: 'dashboard',

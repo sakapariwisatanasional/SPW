@@ -349,4 +349,14 @@ var KtaManagementService = (function() {
       message: 'Asset berhasil diunggah ke Google Drive'
     };
   }
+
+  return {
+    generateKtaForMember: generateKtaForMember,
+    regenerateKta: regenerateKta,
+    previewKta: previewKta,
+    getHistory: getHistory,
+    getTemplate: getTemplate,
+    saveTemplate: saveTemplate,
+    uploadAsset: uploadAsset
+  };
 })();

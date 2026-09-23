@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Home,
   LayoutDashboard,
   Users,
   QrCode,
@@ -17,14 +18,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  LogIn,
 } from 'lucide-react';
 import { NAVIGATION_ITEMS, NavigationItem } from '../../config/navigation.config';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { ROLES } from '../../config/constants';
 import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
 
 const iconMap: Record<string, React.ReactNode> = {
+  Home: <Home className="w-4 h-4 shrink-0" />,
   LayoutDashboard: <LayoutDashboard className="w-4 h-4 shrink-0" />,
   UserPlus: <UserPlus className="w-4 h-4 shrink-0" />,
   Users: <Users className="w-4 h-4 shrink-0" />,
@@ -41,7 +46,7 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export const Sidebar: React.FC = () => {
-  const { currentUser } = useAuthStore();
+  const { currentUser, isAuthenticated } = useAuthStore();
   const {
     activeView,
     setActiveView,
@@ -49,7 +54,10 @@ export const Sidebar: React.FC = () => {
     setSidebarOpen,
     isSidebarCollapsed,
     toggleSidebarCollapse,
+    setLoginModalOpen,
   } = useUIStore();
+
+  const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
   // Filter navigation items dynamically based on current user's role
   const authorizedNavItems = NAVIGATION_ITEMS.filter((item) =>
@@ -205,6 +213,31 @@ export const Sidebar: React.FC = () => {
           {renderNavGroup(managementItems, "Manajemen")}
           {renderNavGroup(systemItems, "Platform")}
         </div>
+
+        {/* Public Login CTA */}
+        {isPublicUser && (
+          <div className={cn("p-2.5 border-t border-slate-100", isSidebarCollapsed && "text-center")}>
+            {!isSidebarCollapsed ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setLoginModalOpen(true)}
+                leftIcon={<LogIn className="w-3.5 h-3.5" />}
+                className="w-full justify-center text-xs bg-[#0066B3] hover:bg-[#004C85] rounded-xl font-semibold shadow-xs"
+              >
+                Masuk ke Akun
+              </Button>
+            ) : (
+              <button
+                onClick={() => setLoginModalOpen(true)}
+                title="Masuk ke Akun"
+                className="w-8 h-8 mx-auto rounded-xl bg-[#0066B3] text-white flex items-center justify-center hover:bg-[#004C85] transition-colors cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Footer Branding */}
         <div className={cn("border-t border-slate-100 text-center", isSidebarCollapsed ? "p-2" : "p-3")}>

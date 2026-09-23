@@ -17,8 +17,10 @@ export const BottomNavigation: React.FC = () => {
   const { activeView, setActiveView } = useUIStore();
   const { currentUser } = useAuthStore();
 
+  const isPublic = currentUser.role === ROLES.PUBLIC_USER;
+
   const navItems = [
-    { id: 'dashboard', label: 'Beranda', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { id: isPublic ? 'home' : 'dashboard', label: 'Beranda', icon: <LayoutDashboard className="w-5 h-5" /> },
     { id: 'membership', label: 'Anggota', icon: <Users className="w-5 h-5" />, requiresAuth: true },
     { id: 'kta-verification', label: 'Cek KTA', icon: <QrCode className="w-5 h-5" /> },
     { id: 'tourism', label: 'Wisata', icon: <Compass className="w-5 h-5" /> },

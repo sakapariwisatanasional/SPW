@@ -7,10 +7,11 @@
  */
 
 import React, { useState } from 'react';
-import { Compass, Newspaper, ShoppingBag, ShieldCheck, LogIn, Menu, X, Globe, Heart } from 'lucide-react';
+import { Compass, Newspaper, ShoppingBag, ShieldCheck, LogIn, Menu, X, Globe, Heart, UserPlus } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../stores/authStore';
 import { ROLES } from '../config/constants';
+import { LoginModal } from '../components/auth/LoginModal';
 
 export interface PublicLayoutProps {
   children: React.ReactNode;
@@ -25,6 +26,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
 }) => {
   const { currentUser, switchRole, isAuthenticated } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Beranda', icon: Globe },
@@ -107,22 +109,34 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
 
           {/* Auth & Access Control Actions */}
           <div className="hidden sm:flex items-center gap-2.5">
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<UserPlus className="w-4 h-4 text-emerald-600" />}
+              onClick={() => handleNavClick('registration')}
+              className="text-xs border-slate-200 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              Daftar Anggota
+            </Button>
+
             {isAuthenticated && currentUser.role !== ROLES.PUBLIC_USER ? (
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => handleNavClick(currentUser.role.includes('ADMIN') ? 'admin-dashboard' : 'member-dashboard')}
+                onClick={() => handleNavClick('dashboard')}
+                className="bg-[#0066B3] hover:bg-[#005291] text-white"
               >
-                Dashboard {currentUser.roleName.split(' ')[0]}
+                Buka Dashboard ({currentUser.roleName.split(' ')[0]})
               </Button>
             ) : (
               <Button
                 size="sm"
-                variant="outline"
-                leftIcon={<LogIn className="w-4 h-4 text-[#0066B3]" />}
-                onClick={() => switchRole(ROLES.MEMBER)}
+                variant="primary"
+                className="bg-[#0066B3] hover:bg-[#005291] text-white"
+                leftIcon={<LogIn className="w-4 h-4" />}
+                onClick={() => setIsLoginModalOpen(true)}
               >
-                Masuk Anggota
+                Masuk ke Portal
               </Button>
             )}
           </div>
@@ -159,17 +173,28 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
               );
             })}
 
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-3 border-t border-slate-100 space-y-2">
               <Button
                 className="w-full justify-center"
                 size="md"
+                variant="outline"
+                leftIcon={<UserPlus className="w-4 h-4 text-emerald-600" />}
+                onClick={() => handleNavClick('registration')}
+              >
+                Daftar Anggota Baru
+              </Button>
+
+              <Button
+                className="w-full justify-center bg-[#0066B3] text-white"
+                size="md"
                 variant="primary"
+                leftIcon={<LogIn className="w-4 h-4" />}
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  switchRole(ROLES.MEMBER);
+                  setIsLoginModalOpen(true);
                 }}
               >
-                Masuk Portal Anggota
+                Masuk ke Portal
               </Button>
             </div>
           </div>

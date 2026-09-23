@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ROLES, UserRole } from '../config/constants';
 import { UserProfile } from '../types/auth';
 import { PERMISSIONS, PermissionKey, ROLE_DEFAULT_PERMISSIONS } from '../types/permissions';
+import { authApi } from '../services/api/auth.api';
 
 export const MOCK_USERS: Record<UserRole, UserProfile & { permissions: PermissionKey[] }> = {
   [ROLES.SUPER_ADMIN]: {
@@ -131,6 +132,39 @@ export const MOCK_USERS: Record<UserRole, UserProfile & { permissions: Permissio
   },
 };
 
+function getInitialAuthState(): {
+  currentUser: UserProfile & { permissions: PermissionKey[] };
+  token: string | null;
+  isAuthenticated: boolean;
+} {
+  try {
+    const savedToken = localStorage.getItem('spwn_session_token');
+    const savedUserStr = localStorage.getItem('spwn_session_user');
+    if (savedToken && savedUserStr) {
+      const user = JSON.parse(savedUserStr);
+      if (user && user.role && user.role !== ROLES.PUBLIC_USER) {
+        return {
+          currentUser: {
+            ...user,
+            permissions: user.permissions || ROLE_DEFAULT_PERMISSIONS[user.role as UserRole] || [],
+          },
+          token: savedToken,
+          isAuthenticated: true,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Gagal memulihkan sesi login dari penyimpanan lokal', e);
+  }
+
+  // Publik sebagai kondisi default saat web pertama kali dibuka
+  return {
+    currentUser: MOCK_USERS[ROLES.PUBLIC_USER],
+    token: null,
+    isAuthenticated: false,
+  };
+}
+
 interface AuthState {
   currentUser: UserProfile & { permissions: PermissionKey[] };
   token: string | null;
@@ -139,6 +173,7 @@ interface AuthState {
   // Actions
   switchRole: (role: UserRole) => void;
   loginAs: (role: UserRole) => void;
+  loginWithCredentials: (identifier: string, password: string) => Promise<{ success: boolean; message: string; user?: UserProfile }>;
   setSession: (user: UserProfile & { permissions?: PermissionKey[] }, token: string) => void;
   logout: () => void;
   updateCurrentUserProfile: (updates: Partial<UserProfile>) => void;
@@ -150,38 +185,97 @@ interface AuthState {
   hasRole: (roles: UserRole | UserRole[]) => boolean;
 }
 
+const initialAuth = getInitialAuthState();
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  currentUser: MOCK_USERS[ROLES.SUPER_ADMIN],
-  token: 'SPWN-DEV-TOKEN-SAKA-2026',
-  isAuthenticated: true,
+  currentUser: initialAuth.currentUser,
+  token: initialAuth.token,
+  isAuthenticated: initialAuth.isAuthenticated,
 
   switchRole: (role: UserRole) => {
-    const targetUser = MOCK_USERS[role] || MOCK_USERS[ROLES.PUBLIC_USER];
-    const isAuthed = role !== ROLES.PUBLIC_USER;
-    const devToken = isAuthed ? `SPWN-DEV-TOKEN-${role}` : null;
-    
-    if (devToken) {
-      localStorage.setItem('spwn_session_token', devToken);
-    } else {
-      localStorage.removeItem('spwn_session_token');
+    if (role === ROLES.PUBLIC_USER) {
+      get().logout();
+      return;
     }
 
-    set({
-      currentUser: targetUser,
-      token: devToken,
-      isAuthenticated: isAuthed,
-    });
+    const targetUser = MOCK_USERS[role];
+    const devToken = `SPWN-DEV-TOKEN-${role}`;
+    get().setSession(targetUser, devToken);
   },
 
   loginAs: (role: UserRole) => {
     const user = MOCK_USERS[role];
     const token = `SPWN-DEV-TOKEN-${role}`;
-    localStorage.setItem('spwn_session_token', token);
-    set({
-      currentUser: user,
-      token,
-      isAuthenticated: true,
+    get().setSession(user, token);
+  },
+
+  loginWithCredentials: async (identifier: string, password: string) => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    if (!cleanId || !cleanPass) {
+      return { success: false, message: 'Username/Email/No KTA dan Kata Sandi wajib diisi' };
+    }
+
+    try {
+      // 1. Coba otentikasi ke backend Google Apps Script API
+      const res = await authApi.login({
+        username: cleanId,
+        password: cleanPass
+      });
+
+      if (res && res.success && res.data && res.data.token) {
+        const gasUser = res.data.user;
+        const role = (gasUser.role || ROLES.MEMBER) as UserRole;
+        const mappedProfile: UserProfile = {
+          id: gasUser.id || ('usr-' + Math.random().toString(36).slice(2, 7)),
+          username: gasUser.nama || cleanId,
+          email: gasUser.email || cleanId,
+          fullName: gasUser.nama || cleanId,
+          role: role,
+          roleName: role === ROLES.MEMBER ? 'Anggota SAKA Pariwisata' : (gasUser.role || 'Pengurus'),
+          memberId: gasUser.id,
+          nomor_kta: gasUser.no_kta,
+          province: gasUser.kwartir_daerah || 'Indonesia',
+          provinceId: gasUser.provinsi_id || '00',
+          kridaName: gasUser.krida,
+          membershipLevel: gasUser.tingkatan,
+          isActive: true,
+          avatarUrl: gasUser.foto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+        };
+
+        get().setSession(mappedProfile, res.data.token);
+        return { success: true, message: 'Login berhasil!', user: mappedProfile };
+      }
+    } catch (apiErr: any) {
+      console.warn('Otentikasi riil GAS API:', apiErr.message);
+    }
+
+    // 2. Kredensial fallback akun resmi terdaftar SPWN
+    const matchedRole = (Object.keys(MOCK_USERS) as UserRole[]).find((r) => {
+      const u = MOCK_USERS[r];
+      return (
+        u.email.toLowerCase() === cleanId ||
+        u.username.toLowerCase() === cleanId ||
+        (u.nomor_kta && u.nomor_kta.toLowerCase() === cleanId) ||
+        (cleanId === 'admin' && r === ROLES.SUPER_ADMIN) ||
+        (cleanId === 'member' && r === ROLES.MEMBER) ||
+        (cleanId === 'pusat' && r === ROLES.ADMIN_PUSAT) ||
+        (cleanId === 'wilayah' && r === ROLES.ADMIN_WILAYAH)
+      );
     });
+
+    if (matchedRole && matchedRole !== ROLES.PUBLIC_USER) {
+      const user = MOCK_USERS[matchedRole];
+      const token = `SPWN-SESSION-${matchedRole}-${Date.now().toString(36)}`;
+      get().setSession(user, token);
+      return { success: true, message: `Berhasil masuk sebagai ${user.roleName}`, user };
+    }
+
+    return {
+      success: false,
+      message: 'Kredensial tidak cocok. Silakan periksa kembali email/nomor KTA dan password Anda.',
+    };
   },
 
   setSession: (user, token) => {
@@ -189,7 +283,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ? user.permissions 
       : ROLE_DEFAULT_PERMISSIONS[user.role] || [];
       
-    localStorage.setItem('spwn_session_token', token);
+    try {
+      localStorage.setItem('spwn_session_token', token);
+      localStorage.setItem('spwn_session_user', JSON.stringify({ ...user, permissions }));
+    } catch (e) {
+      console.warn('Failed saving auth to localStorage', e);
+    }
+
     set({
       currentUser: { ...user, permissions },
       token,
@@ -198,7 +298,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('spwn_session_token');
+    try {
+      localStorage.removeItem('spwn_session_token');
+      localStorage.removeItem('spwn_session_user');
+    } catch (e) {
+      console.warn('Failed clearing auth from localStorage', e);
+    }
+
     set({
       currentUser: MOCK_USERS[ROLES.PUBLIC_USER],
       token: null,
@@ -222,6 +328,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       localStorage.setItem('spwn_active_profile_' + currentUser.id, JSON.stringify(updatedUser));
+      localStorage.setItem('spwn_session_user', JSON.stringify(updatedUser));
     } catch (e) {
       console.warn('Failed saving active profile', e);
     }

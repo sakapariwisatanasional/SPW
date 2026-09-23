@@ -12,6 +12,8 @@ import {
   Activity,
   CheckCircle2,
   Sparkles,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -22,10 +24,20 @@ import { Button } from '../ui/Button';
 import { MemberProfileModal } from '../../features/membership/components/MemberProfileModal';
 
 export const Header: React.FC = () => {
-  const { currentUser, switchRole } = useAuthStore();
-  const { toggleSidebar, activeView, setActiveView, setQuickActionModalOpen, searchQuery, setSearchQuery } = useUIStore();
+  const { currentUser, switchRole, isAuthenticated, logout } = useAuthStore();
+  const {
+    toggleSidebar,
+    activeView,
+    setActiveView,
+    setQuickActionModalOpen,
+    setLoginModalOpen,
+    searchQuery,
+    setSearchQuery,
+  } = useUIStore();
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
   const availableRoles: { role: UserRole; label: string; badgeVariant: 'blue' | 'green' | 'orange' | 'purple' | 'magenta' | 'neutral' }[] = [
     { role: ROLES.SUPER_ADMIN, label: 'Super Admin', badgeVariant: 'blue' },
@@ -41,6 +53,8 @@ export const Header: React.FC = () => {
   // Map active view to workspace title
   const getViewTitle = () => {
     switch (activeView) {
+      case 'home':
+      case '/': return 'Beranda Publik SAKA';
       case 'dashboard': return 'Dashboard Ekosistem';
       case 'membership': return 'Pusat Keanggotaan & KTA';
       case 'kta-verification':
@@ -56,6 +70,11 @@ export const Header: React.FC = () => {
       case 'design-system': return 'Design System & UI Kit';
       default: return 'SPWN Workspace';
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setActiveView('home');
   };
 
   return (
@@ -110,17 +129,41 @@ export const Header: React.FC = () => {
           <span>Verifikasi KTA</span>
         </button>
 
-        {/* Quick Admin Portal Trigger */}
-        {(currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.ADMIN_PUSAT || currentUser.role === ROLES.ADMIN_WILAYAH) && (
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setActiveView('admin-portal')}
-            leftIcon={<Shield className="w-3.5 h-3.5 text-white" />}
-            className="hidden md:inline-flex text-xs bg-[#0066B3] hover:bg-[#004C85] rounded-xl shadow-xs"
-          >
-            Portal Admin
-          </Button>
+        {isPublicUser ? (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveView('registration')}
+              className="hidden md:inline-flex text-xs rounded-xl"
+            >
+              Daftar
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setLoginModalOpen(true)}
+              leftIcon={<LogIn className="w-3.5 h-3.5" />}
+              className="text-xs bg-[#0066B3] hover:bg-[#004C85] rounded-xl shadow-xs font-semibold"
+            >
+              Masuk
+            </Button>
+          </>
+        ) : (
+          <>
+            {/* Quick Admin Portal Trigger */}
+            {(currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.ADMIN_PUSAT || currentUser.role === ROLES.ADMIN_WILAYAH) && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setActiveView('admin-portal')}
+                leftIcon={<Shield className="w-3.5 h-3.5 text-white" />}
+                className="hidden md:inline-flex text-xs bg-[#0066B3] hover:bg-[#004C85] rounded-xl shadow-xs"
+              >
+                Portal Admin
+              </Button>
+            )}
+          </>
         )}
 
         {/* Role Switcher Simulator (Enterprise RBAC Showcase) */}
@@ -183,26 +226,40 @@ export const Header: React.FC = () => {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#F7941D] ring-2 ring-white" />
         </button>
 
-        {/* User Profile Summary & Profile Edit / Password Reset Button */}
-        <button
-          type="button"
-          onClick={() => setIsProfileModalOpen(true)}
-          title="Klik untuk Detail Profil & Ganti Password Akun"
-          className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer text-left shadow-2xs"
-        >
-          <Avatar
-            src={currentUser.avatarUrl}
-            name={currentUser.fullName}
-            size="sm"
-            status="online"
-          />
-          <div className="hidden lg:block text-left">
-            <p className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-[120px]">
-              {currentUser.fullName}
-            </p>
-            <p className="text-[10px] text-slate-400 leading-tight truncate max-w-[120px]">{currentUser.province || 'Nasional'}</p>
+        {/* User Profile or Logout */}
+        {!isPublicUser ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Klik untuk Detail Profil & Ganti Password Akun"
+              className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl border border-slate-200/80 hover:bg-slate-50 transition-colors cursor-pointer text-left shadow-2xs"
+            >
+              <Avatar
+                src={currentUser.avatarUrl}
+                name={currentUser.fullName}
+                size="sm"
+                status="online"
+              />
+              <div className="hidden lg:block text-left">
+                <p className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-[120px]">
+                  {currentUser.fullName}
+                </p>
+                <p className="text-[10px] text-slate-400 leading-tight truncate max-w-[120px]">{currentUser.province || 'Nasional'}</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Keluar dari akun"
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+              aria-label="Keluar"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-        </button>
+        ) : null}
       </div>
 
       {/* Member Profile Correction & Password Reset Modal */}

@@ -10,13 +10,17 @@ import { Header } from './components/navigation/Header';
 import { BottomNavigation } from './components/navigation/BottomNavigation';
 import { Modal } from './components/ui/Modal';
 import { Button } from './components/ui/Button';
-import { Badge } from './components/ui/Badge';
 import { useUIStore } from './stores/uiStore';
 import { useAuthStore } from './stores/authStore';
 import { ROLES } from './config/constants';
 import { cn } from './utils/cn';
 
+// Auth Components
+import { LoginModal } from './components/auth/LoginModal';
+import { AuthAccessBarrier } from './components/auth/AuthAccessBarrier';
+
 // Feature Pages
+import { PublicHomePage } from './features/home/pages/PublicHomePage';
 import { DashboardPage } from './features/dashboard/pages/DashboardPage';
 import { MembershipPage } from './features/membership/pages/MembershipPage';
 import { VerificationPage } from './features/membership/pages/VerificationPage';
@@ -32,85 +36,129 @@ import { SkkDetailPage } from './features/skk/pages/SkkDetailPage';
 import { MemberAchievementPage } from './features/achievement/pages/MemberAchievementPage';
 import { AdminPortalPage } from './features/admin/pages/AdminPortalPage';
 import { CodeManagerPage } from './features/developer/pages/CodeManagerPage';
-import { useKridaStore } from './stores/kridaStore';
 import { MemberLayout } from './layouts/MemberLayout';
+import { PublicLayout } from './layouts/PublicLayout';
 
 export default function App() {
-  const { activeView, setActiveView, isQuickActionModalOpen, setQuickActionModalOpen, isSidebarCollapsed } = useUIStore();
-  const { currentUser, switchRole } = useAuthStore();
+  const {
+    activeView,
+    setActiveView,
+    isQuickActionModalOpen,
+    setQuickActionModalOpen,
+    isLoginModalOpen,
+    setLoginModalOpen,
+    isSidebarCollapsed,
+  } = useUIStore();
+  const { currentUser, isAuthenticated } = useAuthStore();
 
-  // Mode Anggota: Gunakan Member Application Shell (MemberLayout.tsx)
-  if (currentUser.role === ROLES.MEMBER) {
-    return (
-      <MemberLayout
-        activeTab={activeView}
-        onTabChange={(tabId) => setActiveView(tabId)}
-      />
-    );
-  }
+  const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
   // Role Access Guard
   const renderActiveView = () => {
     switch (activeView) {
+      case 'home':
+      case '/':
+        return <PublicHomePage />;
+
       case 'dashboard':
-        return <DashboardPage />;
-      case 'membership':
-        if (currentUser.role === ROLES.PUBLIC_USER) {
+        if (isPublicUser) {
           return (
-            <div className="py-16 text-center max-w-md mx-auto space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-                🔒
-              </div>
-              <h2 className="text-lg font-bold text-slate-900">Akses Terbatas untuk Anggota & Pengurus</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Anda sedang menggunakan persona <strong>Public User (Tamu)</strong>. Untuk mengakses direktori keanggotaan dan KTA, silakan simulasikan login sebagai Member atau Admin.
-              </p>
-              <div className="pt-2 flex justify-center gap-2">
-                <Button size="sm" variant="primary" onClick={() => switchRole(ROLES.MEMBER)}>
-                  Login Sebagai Member
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setActiveView('kta-verification')}>
-                  Verifikasi KTA Publik
-                </Button>
-              </div>
-            </div>
+            <AuthAccessBarrier
+              featureName="Dashboard Ekosistem"
+              requiredRole="Pengurus / Anggota SAKA"
+            />
+          );
+        }
+        return <DashboardPage />;
+
+      case 'membership':
+        if (isPublicUser) {
+          return (
+            <AuthAccessBarrier
+              featureName="Direktori Keanggotaan & KTA"
+              requiredRole="Pengurus Kwarda / Kwarcab atau Anggota"
+            />
           );
         }
         return <MembershipPage />;
+
       case 'kta-verification':
       case 'verifikasi':
         return <VerificationPage />;
+
       case 'registration':
       case 'daftar':
       case 'register':
       case '/daftar':
         return <PublicRegistrationPage />;
+
       case 'tourism':
         return <TourismPage />;
+
       case 'content':
         return <ContentPage />;
+
       case 'commerce':
         return <CommercePage />;
+
       case 'analytics':
+        if (isPublicUser) {
+          return (
+            <AuthAccessBarrier
+              featureName="Analitik & Telemetri"
+              requiredRole="Administrator Regional / Nasional"
+            />
+          );
+        }
         return <AnalyticsPage />;
+
       case 'admin-portal':
       case 'admin':
       case '/admin':
+        if (isPublicUser) {
+          return (
+            <AuthAccessBarrier
+              featureName="Portal Administrator"
+              requiredRole="Super Admin / Admin Wilayah"
+            />
+          );
+        }
         return <AdminPortalPage />;
+
       case '/superadmin/developer/code-manager':
       case 'superadmin-code-manager':
       case 'developer-code-manager':
       case 'code-manager':
+        if (isPublicUser || currentUser.role !== ROLES.SUPER_ADMIN) {
+          return (
+            <AuthAccessBarrier
+              featureName="Code Registry Developer"
+              requiredRole="Super Admin (Kwarnas)"
+            />
+          );
+        }
         return <CodeManagerPage />;
+
       case 'design-system':
         return <DesignSystemPage />;
+
       case 'skk-learning':
       case 'skk':
         return <SkkLearningCenterPage />;
+
       case 'member-achievement':
       case 'pencapaian':
       case '/member/pencapaian':
+        if (isPublicUser) {
+          return (
+            <AuthAccessBarrier
+              featureName="Pencapaian & Lencana Anggota"
+              requiredRole="Anggota SAKA Pariwisata Terdaftar"
+            />
+          );
+        }
         return <MemberAchievementPage />;
+
       default:
         // Handle dynamic Krida views (e.g., 'krida-pemandu', 'krida-penyuluh', etc.)
         if (activeView.startsWith('krida-')) {
@@ -122,10 +170,45 @@ export default function App() {
           const code = activeView.replace('skk-', '').toUpperCase();
           return <SkkDetailPage skkCode={code} />;
         }
-        return <DashboardPage />;
+        return isPublicUser ? <PublicHomePage /> : <DashboardPage />;
     }
   };
 
+  // Mode Publik: Pengunjung umum mendapatkan PublicLayout (Wonderful Indonesia portal)
+  if (isPublicUser) {
+    return (
+      <>
+        <PublicLayout
+          activeNav={activeView}
+          onNavigate={(navId) => setActiveView(navId)}
+        >
+          {renderActiveView()}
+        </PublicLayout>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // Mode Anggota: Gunakan Member Application Shell (MemberLayout.tsx)
+  if (currentUser.role === ROLES.MEMBER) {
+    return (
+      <>
+        <MemberLayout
+          activeTab={activeView}
+          onTabChange={(tabId) => setActiveView(tabId)}
+        />
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // Mode Administrator & Pengurus: Gunakan Admin Management Console Shell
   return (
     <div className="min-h-screen bg-[#F5F7FA] text-slate-900 flex">
       {/* Dynamic Desktop Sidebar */}
@@ -144,6 +227,12 @@ export default function App() {
         {/* Mobile Navigation */}
         <BottomNavigation />
       </div>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+      />
 
       {/* Quick Action & Notification Modal */}
       <Modal

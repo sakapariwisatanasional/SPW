@@ -83,87 +83,66 @@ export const MembershipPage: React.FC = () => {
 
 
   useEffect(() => {
-
     async function loadMembers() {
-
       try {
-
         setLoadingMembers(true);
-
         const response = await memberApi.list();
+        const rawData = response.data as unknown;
+        const items = Array.isArray(rawData)
+          ? rawData
+          : (rawData as { items?: any[] })?.items || [];
 
-        const items =
-          response.data?.items || response.data || [];
+        const mapped: MemberRecord[] = items.map((item: any, idx: number) => {
+          const id = item.id || item.ID || `MEM-${idx + 1}`;
+          const noKta = item.noKta || item.nomor_kta || item['Nomor KTA'] || '';
+          const fullName = item.fullName || item.nama_lengkap || item['Nama Lengkap'] || 'Anggota SAKA';
+          const gender = (item.gender || item.jenis_kelamin || item.Gender || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L';
+          const province = item.province || item.provinsi_nama || item['Provinsi'] || '';
+          const city = item.city || item.kabupaten_nama || item['Kabupaten/Kota'] || '';
+          const kecamatan = item.kecamatan || item.wilayah_kecamatan_nama || item['Kecamatan'] || '';
+          const kridaName = item.kridaName || item.krida_nama || item['Krida'] || 'KRIDA PEMANDU';
+          const membershipLevel = item.membershipLevel || item.tingkat_keanggotaan || item['Jabatan'] || 'Penegak';
+          const photoUrl = item.photoUrl || item.foto_url || item['Foto URL'] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
+          const status = item.status || item.status_anggota || item['Status'] || 'ACTIVE';
+          const verificationToken = item.verificationToken || item.qr_token || item['QR Token'] || '';
+          const joinedDate = item.joinedDate || item.tanggal_bergabung || item['Tanggal Daftar'] || new Date().toISOString().slice(0, 10);
+          const createdAt = item.createdAt || item.created_at || item['Created At'] || new Date().toISOString();
 
-        const mapped =
-          items.map((item:any) => ({
-
-            id: item.ID,
-
-            noKta: item["Nomor KTA"] || "",
-
-            fullName: item["Nama Lengkap"] || "",
-
-            gender: item.Gender || "",
-
-            birthPlace: "",
-
-            birthDate: "",
-
-            levelOrganisasi: "WILAYAH",
-
-            kodeProvinsi: "",
-
-            kodeKabupaten: "",
-
-            kodeKecamatan: "",
-
-            province: item.Provinsi || "",
-
-            city: item["Kabupaten/Kota"] || "",
-
-            kecamatan: item.Kecamatan || "",
-
-            address: "",
-
-            kridaId: "",
-
-            kridaName: item.Krida || "",
-
-            membershipLevel: item.Jabatan || "",
-
-            photoUrl: item["Foto URL"] || "",
-
-            status: item.Status || "",
-
-            verificationToken: item["QR Token"] || "",
-
-            joinedDate: item["Tanggal Daftar"] || "",
-
-            createdAt: item["Created At"] || ""
-
-          }));
+          return {
+            id,
+            noKta,
+            fullName,
+            gender,
+            birthPlace: item.birthPlace || item.tempat_lahir || '',
+            birthDate: item.birthDate || item.tanggal_lahir || '',
+            levelOrganisasi: (item.levelOrganisasi || item.level_organisasi || 'WILAYAH') as OrganizationLevelType,
+            kodeProvinsi: item.kodeProvinsi || item.provinsi_id || '',
+            kodeKabupaten: item.kodeKabupaten || item.kabupaten_id || '',
+            kodeKecamatan: item.kodeKecamatan || item.kecamatan_id || '',
+            province,
+            city,
+            kecamatan,
+            address: item.address || item.alamat_domisili || '',
+            kridaId: item.kridaId || item.krida_id || 'KRIDA_PEMANDU',
+            kridaName,
+            membershipLevel,
+            photoUrl,
+            status: status as any,
+            verificationToken,
+            joinedDate,
+            createdAt,
+          };
+        });
 
         setMembers(mapped);
-
-      } catch(error) {
-
-        console.error(
-          "Gagal mengambil data anggota",
-          error
-        );
-
+      } catch (error) {
+        console.error('Gagal mengambil data anggota dari spreadsheet', error);
       } finally {
-
         setLoadingMembers(false);
-
       }
-
     }
 
-
     loadMembers();
-
   }, []);
 
 
@@ -496,7 +475,7 @@ export const MembershipPage: React.FC = () => {
                 <span className="font-mono">Format: ISO/IEC 7810 ID-1</span>
               </div>
 
-              {members[0] && (
+              {members[0] ? (
                 <div className="w-full flex justify-center py-2">
                   <DigitalKTACard
                     memberData={{
@@ -517,6 +496,22 @@ export const MembershipPage: React.FC = () => {
                       status: members[0].status,
                     }}
                   />
+                </div>
+              ) : (
+                <div className="py-12 text-center text-slate-400 space-y-3">
+                  <CreditCard className="w-12 h-12 text-slate-600 mx-auto" />
+                  <p className="text-sm font-semibold text-slate-300">Belum Ada KTA Terbit di Spreadsheet</p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Data keanggotaan terhubung langsung ke Google Sheets. Lakukan registrasi untuk menerbitkan KTA resmi pertama.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setIsRegisterModalOpen(true)}
+                    className="bg-[#009B4D] hover:bg-emerald-700"
+                  >
+                    Daftar & Terbitkan KTA
+                  </Button>
                 </div>
               )}
             </div>
@@ -678,8 +673,31 @@ export const MembershipPage: React.FC = () => {
             </div>
           </Card>
 
-          {/* Cards View (Mobile-First) */}
-          {viewMode === 'cards' ? (
+          {/* Directory Content: Loading, Empty, or Cards/Table */}
+          {loadingMembers ? (
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+              <RotateCw className="w-6 h-6 animate-spin text-[#0066B3] mx-auto mb-2" />
+              <p className="text-sm font-semibold text-slate-700">Menghubungkan ke Spreadsheet Google Apps Script...</p>
+              <p className="text-xs text-slate-400 mt-1">Mengambil data anggota resmi langsung dari database...</p>
+            </div>
+          ) : filteredMembers.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
+              <Users className="w-8 h-8 text-slate-400 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">Belum Ada Data Anggota di Spreadsheet</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                Database Google Apps Script belum memiliki data anggota yang sesuai dengan kriteria pencarian saat ini.
+              </p>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setIsRegisterModalOpen(true)}
+                leftIcon={<Plus className="w-4 h-4" />}
+                className="bg-[#0066B3] hover:bg-[#004C85]"
+              >
+                Daftarkan Anggota Baru
+              </Button>
+            </div>
+          ) : viewMode === 'cards' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMembers.map((m) => {
                 const isNas = m.levelOrganisasi === 'KWARTIR_NASIONAL';

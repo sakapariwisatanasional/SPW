@@ -24,6 +24,7 @@ interface UIState {
 
   // Modals & Panels
   activeModal: string | null;
+  isLoginModalOpen: boolean;
   
   // Toast Notifications
   toasts: ToastNotification[];
@@ -36,6 +37,7 @@ interface UIState {
   toggleAdminSidebar: () => void;
   setActiveView: (view: string) => void;
   setQuickActionModalOpen: (open: boolean) => void;
+  setLoginModalOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
   openModal: (modalId: string) => void;
   closeModal: () => void;
@@ -49,8 +51,9 @@ export const useUIStore = create<UIState>((set) => ({
   isSidebarOpen: false,
   isSidebarCollapsed: false,
   isAdminSidebarCollapsed: false,
-  activeView: 'dashboard',
+  activeView: 'home',
   isQuickActionModalOpen: false,
+  isLoginModalOpen: false,
   searchQuery: '',
   activeModal: null,
   toasts: [],
@@ -62,6 +65,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleAdminSidebar: () => set((state) => ({ isAdminSidebarCollapsed: !state.isAdminSidebarCollapsed })),
   setActiveView: (view: string) => set({ activeView: view, isSidebarOpen: false }),
   setQuickActionModalOpen: (open: boolean) => set({ isQuickActionModalOpen: open }),
+  setLoginModalOpen: (open: boolean) => set({ isLoginModalOpen: open }),
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   
   openModal: (modalId: string) => set({ activeModal: modalId }),
