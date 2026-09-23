@@ -6,7 +6,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  ShieldCheck,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -70,12 +69,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  const handleFillSuperAdmin = () => {
-    setIdentifier('admin_saka');
-    setPassword('sakapariwisata#2026!');
-    setErrorMessage(null);
-  };
-
   return (
     <Modal
       isOpen={isOpen}
@@ -103,7 +96,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Contoh: admin_saka atau 00.3201.010.000089"
+                placeholder="Contoh: 00.3201.010.000089 atau email terdaftar"
                 required
                 autoComplete="username"
                 className="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:border-[#0066B3] focus:ring-2 focus:ring-[#0066B3]/20 focus:outline-none transition-all placeholder:text-slate-400"
@@ -140,30 +133,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan kata sandi Anda"
+                placeholder="Masukkan kata sandi akun Anda"
                 required
                 autoComplete="current-password"
                 className="w-full pl-9 pr-10 py-2.5 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:border-[#0066B3] focus:ring-2 focus:ring-[#0066B3]/20 focus:outline-none transition-all placeholder:text-slate-400"
               />
             </div>
-          </div>
-
-          {/* Superadmin credential hint box */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/90 text-[11px] text-slate-600 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#0066B3] shrink-0" />
-              <div>
-                <p className="font-semibold text-slate-800">Default Superadmin:</p>
-                <p className="font-mono text-[10px] text-slate-500">admin_saka &bull; sakapariwisata#2026!</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleFillSuperAdmin}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] transition-colors cursor-pointer shrink-0 shadow-2xs"
-            >
-              Gunakan
-            </button>
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
