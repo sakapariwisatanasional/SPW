@@ -82,20 +82,54 @@ class SpwnApiClient {
   /**
    * Membangun URL lengkap dengan parameter action & query
    */
-  private buildUrl(action: string, params?: Record<string, string | number | boolean | undefined>): string {
-    const url = new URL(this.baseUrl);
-    url.searchParams.set('action', action);
+  private buildUrl(
+  action: string,
+  params?: Record<string, string | number | boolean | undefined>
+): string {
 
-    if (params) {
-      Object.entries(params).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && val !== '') {
-          url.searchParams.set(key, String(val));
+
+  const url =
+    this.baseUrl.startsWith('http')
+      ? new URL(this.baseUrl)
+      : new URL(
+          this.baseUrl,
+          window.location.origin
+        );
+
+
+  url.searchParams.set(
+    'action',
+    action
+  );
+
+
+  if (params) {
+
+    Object.entries(params).forEach(
+      ([key, val]) => {
+
+        if (
+          val !== undefined &&
+          val !== null &&
+          val !== ''
+        ) {
+
+          url.searchParams.set(
+            key,
+            String(val)
+          );
+
         }
-      });
-    }
 
-    return url.toString();
+      }
+    );
+
   }
+
+
+  return url.toString();
+
+}
 
   /**
    * HTTP GET Request
