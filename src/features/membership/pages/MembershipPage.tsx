@@ -51,10 +51,8 @@ import { ktaService } from '../../../services/ktaService';
 import { memberApi } from '../../../services/api/member.api';
 
 export const MembershipPage: React.FC = () => {
-
   const [activeTab, setActiveTab] = useState('directory');
-
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [copiedKta, setCopiedKta] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -81,24 +79,24 @@ export const MembershipPage: React.FC = () => {
   // Database Anggota SPWN (Sesuai Aturan KTA Format Final)
   // 1. Kwartir Nasional: 00.NNNNNN
   // 2. Wilayah: 00.PPKK.CCC.NNNNNN (Tanpa kode provinsi pada nomor KTA, namun kode provinsi, kab, kec tetap tersimpan di database)
-  /**
-   * Load member data from SPWN Apps 2.0 API
-   * Source:
-   * Spreadsheet -> Backend API -> React
-   */
+  const [members, setMembers] = useState<MemberRecord[]>([]);
+
+
   useEffect(() => {
 
     async function loadMembers() {
 
       try {
 
-        setIsLoadingMembers(true);
+        setLoadingMembers(true);
 
         const response = await memberApi.list();
 
-        if (response.success && response.data) {
+        const items =
+          response.data?.items || response.data || [];
 
-          const mapped = response.data.map((item: any) => ({
+        const mapped =
+          items.map((item:any) => ({
 
             id: item.ID,
 
@@ -106,17 +104,37 @@ export const MembershipPage: React.FC = () => {
 
             fullName: item["Nama Lengkap"] || "",
 
+            gender: item.Gender || "",
+
+            birthPlace: "",
+
+            birthDate: "",
+
+            levelOrganisasi: "WILAYAH",
+
+            kodeProvinsi: "",
+
+            kodeKabupaten: "",
+
+            kodeKecamatan: "",
+
             province: item.Provinsi || "",
 
             city: item["Kabupaten/Kota"] || "",
 
             kecamatan: item.Kecamatan || "",
 
+            address: "",
+
+            kridaId: "",
+
             kridaName: item.Krida || "",
 
-            status: item.Status || "",
+            membershipLevel: item.Jabatan || "",
 
             photoUrl: item["Foto URL"] || "",
+
+            status: item.Status || "",
 
             verificationToken: item["QR Token"] || "",
 
@@ -126,20 +144,18 @@ export const MembershipPage: React.FC = () => {
 
           }));
 
-          setMembers(mapped as MemberRecord[]);
+        setMembers(mapped);
 
-        }
-
-      } catch (error) {
+      } catch(error) {
 
         console.error(
-          "Gagal mengambil data anggota:",
+          "Gagal mengambil data anggota",
           error
         );
 
       } finally {
 
-        setIsLoadingMembers(false);
+        setLoadingMembers(false);
 
       }
 
@@ -150,130 +166,6 @@ export const MembershipPage: React.FC = () => {
 
   }, []);
 
-
-
-  const [members, setMembers] = useState<MemberRecord[]>([
-    {
-      id: 'MEM-001',
-      noKta: '00.000001',
-      fullName: 'Kak Prof. Dr. Budi Santoso, M.Si.',
-      gender: 'L',
-      birthPlace: 'Jakarta',
-      birthDate: '1975-08-14',
-      levelOrganisasi: 'KWARTIR_NASIONAL',
-      kodeProvinsi: '00',
-      kodeKabupaten: '0000',
-      kodeKecamatan: '000',
-      province: 'Kwartir Nasional',
-      city: 'Pusat (Kwarnas)',
-      kecamatan: 'Pusat',
-      address: 'Jl. Medan Merdeka Timur No. 6, Jakarta Pusat',
-      kridaId: 'KRIDA_PEMANDU',
-      kridaName: 'KRIDA PEMANDU',
-      membershipLevel: 'Pembina Utama / Andalan Nasional',
-      photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&auto=format&fit=crop&q=80',
-      status: 'ACTIVE',
-      verificationToken: 'SPWN-QR-NAS-7A8F9C1B',
-      joinedDate: '2020-01-15',
-      createdAt: '2020-01-15T08:00:00Z',
-    },
-    {
-      id: 'MEM-002',
-      noKta: '00.3201.010.000089',
-      fullName: 'Fajar Nugraha Wijaya',
-      gender: 'L',
-      birthPlace: 'Bogor',
-      birthDate: '2004-05-12',
-      levelOrganisasi: 'WILAYAH',
-      kodeProvinsi: '32',
-      kodeKabupaten: '3201', // KABUPATEN BOGOR (regencies.csv)
-      kodeKecamatan: '010', // NANGGUNG (districts.csv: 3201010)
-      province: 'Jawa Barat',
-      city: 'Kabupaten Bogor',
-      kecamatan: 'Nanggung',
-      address: 'Jl. Raya Nanggung No. 45, Nanggung, Kab. Bogor',
-      kridaId: 'KRIDA_PENYULUH',
-      kridaName: 'KRIDA PENYULUH',
-      membershipLevel: 'Penegak Bantara',
-      photoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&auto=format&fit=crop&q=80',
-      status: 'ACTIVE',
-      verificationToken: 'SPWN-QR-WIL-3201-99812A',
-      joinedDate: '2024-03-15',
-      createdAt: '2024-03-15T10:30:00Z',
-    },
-    {
-      id: 'MEM-003',
-      noKta: '00.5103.020.000014',
-      fullName: 'Dewi Anjani Kusuma',
-      gender: 'P',
-      birthPlace: 'Denpasar',
-      birthDate: '2002-11-20',
-      levelOrganisasi: 'WILAYAH',
-      kodeProvinsi: '51',
-      kodeKabupaten: '5103', // KABUPATEN BADUNG (regencies.csv)
-      kodeKecamatan: '020', // KUTA (districts.csv: 5103020)
-      province: 'Bali',
-      city: 'Kabupaten Badung',
-      kecamatan: 'Kuta',
-      address: 'Jl. Pantai Kuta No. 18, Kuta, Badung, Bali',
-      kridaId: 'KRIDA_MICE_EVENT',
-      kridaName: 'KRIDA MICE & EVENT',
-      membershipLevel: 'Pandega',
-      photoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80',
-      status: 'ACTIVE',
-      verificationToken: 'SPWN-QR-WIL-5103-5102BB',
-      joinedDate: '2023-08-20',
-      createdAt: '2023-08-20T14:20:00Z',
-    },
-    {
-      id: 'MEM-004',
-      noKta: '00.3404.050.000112',
-      fullName: 'Rian Hidayatullah',
-      gender: 'L',
-      birthPlace: 'Sleman',
-      birthDate: '2005-02-09',
-      levelOrganisasi: 'WILAYAH',
-      kodeProvinsi: '34',
-      kodeKabupaten: '3404', // KABUPATEN SLEMAN (regencies.csv)
-      kodeKecamatan: '050', // GAMPING (districts.csv: 3404050)
-      province: 'DI Yogyakarta',
-      city: 'Kabupaten Sleman',
-      kecamatan: 'Gamping',
-      address: 'Jl. Ringroad Barat, Gamping, Sleman, Yogyakarta',
-      kridaId: 'KRIDA_KULINER_CINDERAMATA',
-      kridaName: 'KRIDA KULINER & CINDERAMATA',
-      membershipLevel: 'Penegak Laksana',
-      photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80',
-      status: 'PENDING',
-      verificationToken: 'SPWN-QR-WIL-3404-3403CC',
-      joinedDate: '2024-06-10',
-      createdAt: '2024-06-10T09:15:00Z',
-    },
-    {
-      id: 'MEM-005',
-      noKta: '00.3372.010.000007',
-      fullName: 'Siti Nurhaliza Putri',
-      gender: 'P',
-      birthPlace: 'Surakarta',
-      birthDate: '1998-04-16',
-      levelOrganisasi: 'WILAYAH',
-      kodeProvinsi: '33',
-      kodeKabupaten: '3372', // KOTA SURAKARTA (regencies.csv)
-      kodeKecamatan: '010', // LAWEYAN (districts.csv: 3372010)
-      province: 'Jawa Tengah',
-      city: 'Kota Surakarta',
-      kecamatan: 'Laweyan',
-      address: 'Jl. Slamet Riyadi No. 120, Laweyan, Surakarta',
-      kridaId: 'KRIDA_PEMANDU',
-      kridaName: 'KRIDA PEMANDU',
-      membershipLevel: 'Pembina SAKA',
-      photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-      status: 'ACTIVE',
-      verificationToken: 'SPWN-QR-WIL-3372-3305DD',
-      joinedDate: '2022-11-01',
-      createdAt: '2022-11-01T11:45:00Z',
-    },
-  ]);
 
   // List opsi Kabupaten berdasarkan Provinsi terpilih di formulir
   const availableRegencies = useMemo(() => {
