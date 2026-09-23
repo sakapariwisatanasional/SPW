@@ -28,6 +28,8 @@ export interface UserProfile {
   kridaName?: string;
   membershipLevel?: string;
   isActive: boolean;
+  status?: 'ACTIVE' | 'PENDING' | 'REJECTED' | 'SUSPENDED';
+  isApproved?: boolean;
   lastLoginAt?: string;
   force_change_password?: boolean;
   nomor_kta?: string;

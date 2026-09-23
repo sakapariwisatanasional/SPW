@@ -12,15 +12,18 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Award, Compass, RefreshCw, AlertCircle } from 'lucide-react';
+import { Award, Compass, RefreshCw, AlertCircle, Users, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { useAchievementStore } from '../../../stores/achievementStore';
+import { ROLES } from '../../../config/constants';
 import { AchievementHeader } from '../components/AchievementHeader';
 import { AchievementSummaryCard } from '../components/AchievementSummaryCard';
 import { KridaProgressCard } from '../components/KridaProgressCard';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { ActivityHistory } from '../components/ActivityHistory';
 import { AchievementEmptyState } from '../components/AchievementEmptyState';
+import { SuperAdminAchievementView } from '../components/SuperAdminAchievementView';
+import { Button } from '../../../components/ui';
 
 export const MemberAchievementPage: React.FC = () => {
   const { currentUser } = useAuthStore();
@@ -39,7 +42,18 @@ export const MemberAchievementPage: React.FC = () => {
     loadDemoProfile
   } = useAchievementStore();
 
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN || currentUser?.role === ROLES.ADMIN_PUSAT;
+  const [viewMode, setViewMode] = useState<'superadmin' | 'personal'>(isSuperAdmin ? 'superadmin' : 'personal');
+
   const [demoType, setDemoType] = useState<'active' | 'empty'>('active');
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      setViewMode('superadmin');
+    } else {
+      setViewMode('personal');
+    }
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     const memberId = currentUser?.memberId || 'SPWN.32.01.2024.089';
@@ -58,9 +72,46 @@ export const MemberAchievementPage: React.FC = () => {
     badges.length === 0 &&
     activities.length === 0;
 
+  // Jika SuperAdmin dalam mode Pantauan Seluruh Wilayah
+  if (isSuperAdmin && viewMode === 'superadmin') {
+    return (
+      <div id="member-achievement-page" className="min-h-screen bg-slate-50/50 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+        <SuperAdminAchievementView onSwitchToPersonal={() => setViewMode('personal')} />
+      </div>
+    );
+  }
+
   return (
     <div id="member-achievement-page" className="min-h-screen bg-slate-50/50 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Banner Switcher untuk SuperAdmin bila sedang melihat profil pribadi */}
+        {isSuperAdmin && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#0066B3] text-white flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900">
+                  Mode: Pencapaian Pribadi (Super Administrator)
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Anda sedang melihat portofolio kecakapan pribadi. Klik untuk kembali ke daftar anggota nasional.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setViewMode('superadmin')}
+              leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
+              className="bg-[#0066B3] hover:bg-[#004C85] text-xs font-bold rounded-xl whitespace-nowrap cursor-pointer"
+            >
+              Kembali ke Pantauan Seluruh Wilayah
+            </Button>
+          </div>
+        )}
+
         {/* Page Top Breadcrumb / Status Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>

@@ -1850,6 +1850,73 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                           )}
                         </div>
 
+                        {/* Ketebalan Latar Belakang Barcode (Clean Barcode Background Padding) */}
+                        <div className="pt-2 border-t border-slate-100">
+                          <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                            <div>
+                              <span>Ketebalan Latar Belakang Barcode</span>
+                              <p className="text-[10px] font-normal text-slate-400">
+                                Bersih tanpa efek stroke. Atur ketebalan latar agar kontras saat dipindai kamera.
+                              </p>
+                            </div>
+                            <span className="font-mono text-[#0066B3]">{settings.qrBackgroundPadding ?? 2}px</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="range"
+                              min="0"
+                              max="12"
+                              step="1"
+                              disabled={!isSuperAdmin}
+                              value={settings.qrBackgroundPadding ?? 2}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, qrBackgroundPadding: parseInt(e.target.value) }))
+                              }
+                              className="flex-1 accent-[#0066B3] cursor-pointer"
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              max="20"
+                              disabled={!isSuperAdmin}
+                              value={settings.qrBackgroundPadding ?? 2}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, qrBackgroundPadding: parseInt(e.target.value) || 0 }))
+                              }
+                              className="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-center font-mono"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500">
+                            <button
+                              type="button"
+                              onClick={() => setSettings((prev) => ({ ...prev, qrBackgroundPadding: 0 }))}
+                              className={`px-2 py-0.5 rounded border text-[10px] font-medium ${
+                                (settings.qrBackgroundPadding ?? 2) === 0 ? 'bg-[#0066B3] text-white border-[#0066B3]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              0px (Rata Tanpa Latar)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSettings((prev) => ({ ...prev, qrBackgroundPadding: 2 }))}
+                              className={`px-2 py-0.5 rounded border text-[10px] font-medium ${
+                                (settings.qrBackgroundPadding ?? 2) === 2 ? 'bg-[#0066B3] text-white border-[#0066B3]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              2px (Standar)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSettings((prev) => ({ ...prev, qrBackgroundPadding: 5 }))}
+                              className={`px-2 py-0.5 rounded border text-[10px] font-medium ${
+                                (settings.qrBackgroundPadding ?? 2) === 5 ? 'bg-[#0066B3] text-white border-[#0066B3]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              5px (Tebal)
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Reset Posisi */}
                         <div className="pt-1 flex justify-end">
                           <button

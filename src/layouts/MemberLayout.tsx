@@ -131,8 +131,12 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
         {/* Brand / Logo Area with Wonderful Indonesia Palette */}
         <div className="h-18 px-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0066B3] to-[#009B4D] flex items-center justify-center text-white font-black text-sm shadow-md">
-              SP
+            <div className="w-10 h-10 rounded-2xl bg-purple-900/10 flex items-center justify-center p-1 shadow-xs">
+              <img
+                src="/logo.png"
+                alt="Logo SAKA Pariwisata"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -271,8 +275,12 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
         {/* Mobile & Tablet Sticky Top Bar */}
         <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 h-16 flex items-center justify-between lg:hidden shadow-xs">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#0066B3] flex items-center justify-center text-white font-black text-xs shadow-xs">
-              SP
+            <div className="w-8 h-8 rounded-xl bg-purple-900/10 flex items-center justify-center p-0.5 shadow-xs">
+              <img
+                src="/logo.png"
+                alt="Logo SAKA Pariwisata"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h1 className="text-xs font-black text-slate-900 leading-none">Portal Anggota SPWN</h1>

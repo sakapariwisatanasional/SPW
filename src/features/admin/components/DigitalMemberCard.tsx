@@ -608,22 +608,30 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                     }}
                     title="QR Code Identitas Anggota"
                   >
-                    {/* Flat Clean Container - NO EFFECT (no shadow, no glow, pure flat) */}
+                    {/* Flat Clean Container - NO STROKE / NO SHADOW (Clean Barcode + Adjustable Background) */}
                     <div
-                      className="bg-white p-1 flex items-center justify-center"
+                      className="flex items-center justify-center select-none"
                       style={{
-                        width: `${(previewSettings.qrSize ?? 18) * 2.5}px`,
-                        height: `${(previewSettings.qrSize ?? 18) * 2.5}px`,
+                        padding: `${previewSettings.qrBackgroundPadding ?? 2}px`,
+                        backgroundColor:
+                          (previewSettings.qrBackgroundPadding ?? 2) === 0
+                            ? 'transparent'
+                            : (previewSettings.qrBackgroundColor || '#FFFFFF'),
+                        opacity: ((previewSettings.qrBackgroundOpacity ?? 100) / 100),
                         boxShadow: 'none',
+                        border: 'none',
+                        outline: 'none',
                         filter: 'none',
                         borderRadius: '0px',
                       }}
                     >
                       <DynamicQrCode
                         value={qrVerificationUrl}
-                        size={Math.max(20, Math.round((previewSettings.qrSize ?? 18) * 2.5) - 8)}
+                        size={Math.max(20, Math.round((previewSettings.qrSize ?? 18) * 2.5) - 4)}
                         margin={0}
                         errorCorrectionLevel="M"
+                        clean={true}
+                        backgroundPadding={0}
                       />
                     </div>
                     {previewSettings.showQrCaption && (
@@ -793,22 +801,29 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
-                  {/* Clean Flat Container - NO EFFECT (no shadow, no glow, pure flat) */}
+                  {/* Clean Flat Container - NO STROKE / NO SHADOW (Clean Barcode + Adjustable Background) */}
                   <div
-                    className="bg-white p-1 flex items-center justify-center"
+                    className="flex items-center justify-center select-none"
                     style={{
-                      width: `${(previewSettings.signerQrSize ?? 18) * 2.2}px`,
-                      height: `${(previewSettings.signerQrSize ?? 18) * 2.2}px`,
+                      padding: `${previewSettings.signerQrBackgroundPadding ?? (previewSettings.qrBackgroundPadding ?? 2)}px`,
+                      backgroundColor:
+                        (previewSettings.signerQrBackgroundPadding ?? (previewSettings.qrBackgroundPadding ?? 2)) === 0
+                          ? 'transparent'
+                          : '#FFFFFF',
                       boxShadow: 'none',
+                      border: 'none',
+                      outline: 'none',
                       filter: 'none',
                       borderRadius: '0px',
                     }}
                   >
                     <DynamicQrCode
                       value={signerQrVerificationUrl}
-                      size={Math.max(18, Math.round((previewSettings.signerQrSize ?? 18) * 2.2) - 8)}
+                      size={Math.max(18, Math.round((previewSettings.signerQrSize ?? 18) * 2.2) - 4)}
                       margin={0}
                       errorCorrectionLevel="M"
+                      clean={true}
+                      backgroundPadding={0}
                     />
                   </div>
                 </div>

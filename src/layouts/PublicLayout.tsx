@@ -10,8 +10,8 @@ import React, { useState } from 'react';
 import { Compass, Newspaper, ShoppingBag, ShieldCheck, LogIn, Menu, X, Globe, Heart, UserPlus } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../stores/authStore';
+import { useUIStore } from '../stores/uiStore';
 import { ROLES } from '../config/constants';
-import { LoginModal } from '../components/auth/LoginModal';
 
 export interface PublicLayoutProps {
   children: React.ReactNode;
@@ -25,8 +25,8 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
   onNavigate,
 }) => {
   const { currentUser, switchRole, isAuthenticated } = useAuthStore();
+  const { setLoginModalOpen } = useUIStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Beranda', icon: Globe },
@@ -67,8 +67,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
             className="flex items-center gap-3 cursor-pointer select-none"
             onClick={() => handleNavClick('home')}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066B3] to-[#009B4D] flex items-center justify-center text-white font-black text-sm shadow-md shadow-[#0066B3]/20">
-              SP
+            <div className="w-10 h-10 rounded-xl bg-purple-900/10 flex items-center justify-center p-1">
+              <img
+                src="/logo.png"
+                alt="Logo SAKA Pariwisata"
+                className="w-full h-full object-contain drop-shadow-xs"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -134,7 +138,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
                 variant="primary"
                 className="bg-[#0066B3] hover:bg-[#005291] text-white"
                 leftIcon={<LogIn className="w-4 h-4" />}
-                onClick={() => setIsLoginModalOpen(true)}
+                onClick={() => setLoginModalOpen(true)}
               >
                 Masuk ke Portal
               </Button>
@@ -191,7 +195,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
                 leftIcon={<LogIn className="w-4 h-4" />}
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  setIsLoginModalOpen(true);
+                  setLoginModalOpen(true);
                 }}
               >
                 Masuk ke Portal
@@ -213,8 +217,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
             {/* Column 1: Identity */}
             <div className="space-y-3 md:col-span-2">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#0066B3] flex items-center justify-center font-bold text-xs text-white">
-                  SP
+                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center p-1">
+                  <img
+                    src="/logo.png"
+                    alt="Logo SAKA Pariwisata"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <h3 className="font-bold text-base tracking-wide">
                   SAKA PARIWISATA NASIONAL
@@ -224,7 +232,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
                 Wadah pembinaan generasi muda Gerakan Pramuka Indonesia di bidang kepariwisataan, kebudayaan, pemanduan wisata, dan pemberdayaan ekonomi kreatif nusantara berlandaskan Tri Satya dan Dasa Darma.
               </p>
               <div className="flex items-center gap-3 pt-2 text-xs text-slate-400">
-                <span>Dikelola Bersama Kwartir Nasional & Kemenparekraf RI</span>
+                <span>Pusat Data Anggota Saka Pariwisata Nasional</span>
               </div>
             </div>
 
@@ -234,10 +242,10 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
                 4 Krida Pariwisata
               </h4>
               <ul className="space-y-2 text-xs text-slate-300">
-                <li>• Bina Obyek & Daya Tarik Wisata</li>
-                <li>• Bina Kuliner & Kearifan Lokal</li>
-                <li>• Bina Pemanduan Wisata</li>
-                <li>• Bina Sadar Wisata (Sapta Pesona)</li>
+                <li>• Pemandu</li>
+                <li>• Penyuluh</li>
+                <li>• Mice & Event</li>
+                <li>• Kuliner & Cinderamata</li>
               </ul>
             </div>
 

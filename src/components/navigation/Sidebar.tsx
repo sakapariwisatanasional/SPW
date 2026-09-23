@@ -152,8 +152,12 @@ export const Sidebar: React.FC = () => {
           isSidebarCollapsed ? "px-3 justify-center" : "px-4"
         )}>
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0066B3] via-[#009B4D] to-[#F7941D] flex items-center justify-center text-white font-black text-sm shadow-xs shrink-0">
-              SP
+            <div className="w-9 h-9 rounded-xl bg-purple-900/10 flex items-center justify-center p-1 shrink-0">
+              <img
+                src="/logo.png"
+                alt="Logo SAKA Pariwisata"
+                className="w-full h-full object-contain"
+              />
             </div>
             {!isSidebarCollapsed && (
               <div className="min-w-0">

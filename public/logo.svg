@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <filter id="subtle-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Pentagon Shield Outer Border -->
+  <polygon points="250,30 475,195 390,460 110,460 25,195" fill="#2B0946" />
+  
+  <!-- Pentagon Shield Inner Fill (Purple SAKA Pariwisata) -->
+  <polygon points="250,46 458,198 379,444 121,444 42,198" fill="#995CE8" />
+
+  <!-- Candi Prambanan Motif (Deep Indigo / Black) -->
+  <g fill="#24073B">
+    <!-- Puncak Stupa Mahkota Candi -->
+    <circle cx="250" cy="72" r="5" />
+    <path d="M246,75 L254,75 L254,92 L246,92 Z" />
+    
+    <!-- Tingkat 1 (Atas) -->
+    <polygon points="242,92 258,92 263,105 237,105" />
+    <rect x="240" y="105" width="20" height="10" />
+
+    <!-- Tingkat 2 -->
+    <polygon points="232,115 268,115 273,130 227,130" />
+    <rect x="234" y="130" width="32" height="12" />
+    <!-- Menara Sudut Tingkat 2 -->
+    <polygon points="223,130 227,120 227,130" />
+    <polygon points="277,130 273,120 273,130" />
+
+    <!-- Tingkat 3 -->
+    <polygon points="220,142 280,142 287,160 213,160" />
+    <rect x="222" y="160" width="56" height="15" />
+    <!-- Menara Sudut Tingkat 3 -->
+    <polygon points="208,160 215,148 215,160" />
+    <polygon points="292,160 285,148 285,160" />
+
+    <!-- Tingkat 4 -->
+    <polygon points="204,175 296,175 304,196 196,196" />
+    <rect x="210" y="196" width="80" height="20" />
+    <!-- Menara Sudut Tingkat 4 -->
+    <polygon points="190,196 198,180 198,196" />
+    <polygon points="310,196 302,180 302,196" />
+
+    <!-- Tingkat 5 (Badan Utama Candi) -->
+    <polygon points="186,216 314,216 324,242 176,242" />
+    <rect x="194" y="242" width="112" height="26" />
+    <!-- Menara Sudut Samping Tingkat 5 -->
+    <polygon points="168,242 178,220 178,242" />
+    <polygon points="332,242 322,220 322,242" />
+
+    <!-- Tingkat 6 (Tubuh & Pintu Relung Candi) -->
+    <polygon points="170,268 330,268 342,300 158,300" />
+    <rect x="180" y="300" width="140" height="34" />
+    <!-- Sayap Samping -->
+    <polygon points="148,300 162,272 162,300" />
+    <polygon points="352,300 338,272 338,300" />
+
+    <!-- Tingkat 7 (Kaki / Pelataran Candi) -->
+    <polygon points="152,334 348,334 358,368 142,368" />
+    <rect x="156" y="368" width="188" height="20" />
+    <polygon points="132,388 368,388 374,402 126,402" />
+  </g>
+
+  <!-- Sepasang Tunas Kelapa Putih Kembar (Silhouette) -->
+  <g fill="#FFFFFF">
+    <!-- Tunas Kelapa Kiri -->
+    <!-- Buah Kelapa / Nyiyur Kiri -->
+    <path d="M236,372 C216,380 194,374 194,350 C194,330 216,328 232,344 C239,352 242,364 236,372 Z" />
+    <!-- Tunas Daun Cikal Kiri -->
+    <path d="M225,342 C223,310 216,275 235,252 C238,274 241,304 239,332 C237,342 231,346 225,342 Z" />
+    <path d="M228,328 C224,300 214,278 226,262 C228,280 232,305 232,330 Z" />
+
+    <!-- Tunas Kelapa Kanan -->
+    <!-- Buah Kelapa / Nyiyur Kanan -->
+    <path d="M264,372 C284,380 306,374 306,350 C306,330 284,328 268,344 C261,352 258,364 264,372 Z" />
+    <!-- Tunas Daun Cikal Kanan -->
+    <path d="M275,342 C277,310 284,275 265,252 C262,274 259,304 261,332 C263,342 269,346 275,342 Z" />
+    <path d="M272,328 C276,300 286,278 274,262 C272,280 268,305 268,330 Z" />
+  </g>
+
+  <!-- Pita / Tulisan SAKA PARIWISATA -->
+  <text x="250" y="428" text-anchor="middle" font-family="'Inter', 'Arial Black', Arial, sans-serif" font-size="24" font-weight="900" fill="#24073B" letter-spacing="1">SAKA PARIWISATA</text>
+</svg>

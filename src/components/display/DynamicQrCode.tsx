@@ -49,6 +49,18 @@ export interface DynamicQrCodeProps {
    * Aksesibilitas alt text
    */
   altText?: string;
+  /**
+   * Ketebalan padding latar belakang barcode (default: 0)
+   */
+  backgroundPadding?: number;
+  /**
+   * Warna latar belakang barcode (default: '#FFFFFF')
+   */
+  backgroundColor?: string;
+  /**
+   * Mode bersih tanpa efek stroke/bayangan (default: true)
+   */
+  clean?: boolean;
 }
 
 export const DynamicQrCode: React.FC<DynamicQrCodeProps> = ({
@@ -61,6 +73,9 @@ export const DynamicQrCode: React.FC<DynamicQrCodeProps> = ({
   className = '',
   caption,
   altText = 'Dynamic QR Verification Identity',
+  backgroundPadding = 0,
+  backgroundColor = '#FFFFFF',
+  clean = true,
 }) => {
   const [dataUrl, setDataUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -121,8 +136,18 @@ export const DynamicQrCode: React.FC<DynamicQrCodeProps> = ({
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
       <div
-        className="relative flex items-center justify-center rounded-lg overflow-hidden bg-white shadow-xs"
-        style={{ width: size, height: size }}
+        className="relative flex items-center justify-center"
+        style={{
+          width: size,
+          height: size,
+          padding: `${backgroundPadding}px`,
+          backgroundColor: backgroundColor || '#FFFFFF',
+          boxShadow: 'none',
+          filter: 'none',
+          border: 'none',
+          outline: 'none',
+          borderRadius: clean ? '0px' : '4px',
+        }}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
@@ -141,6 +166,12 @@ export const DynamicQrCode: React.FC<DynamicQrCodeProps> = ({
               src={dataUrl}
               alt={altText}
               className="w-full h-full object-contain select-none"
+              style={{
+                boxShadow: 'none',
+                filter: 'none',
+                border: 'none',
+                outline: 'none',
+              }}
               draggable={false}
             />
           )

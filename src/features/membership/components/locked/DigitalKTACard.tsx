@@ -136,8 +136,8 @@ export const DigitalKTACard: React.FC<DigitalKTACardProps> = ({
             </p>
           </div>
 
-          {/* Verification Dynamic QR Code */}
-          <div className="w-9 h-9 rounded-md bg-white p-0.5 text-slate-900 flex items-center justify-center shadow-xs overflow-hidden">
+          {/* Verification Dynamic QR Code - Clean without stroke or shadow */}
+          <div className="w-9 h-9 bg-white p-0.5 text-slate-900 flex items-center justify-center overflow-hidden">
             <DynamicQrCode
               value={
                 memberData.qrUrl ||
@@ -152,6 +152,8 @@ export const DigitalKTACard: React.FC<DigitalKTACardProps> = ({
               size={34}
               margin={0}
               errorCorrectionLevel="M"
+              clean={true}
+              backgroundPadding={0}
             />
           </div>
         </div>

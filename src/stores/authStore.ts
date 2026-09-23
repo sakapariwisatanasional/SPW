@@ -114,6 +114,8 @@ export const MOCK_USERS: Record<UserRole, UserProfile & { permissions: Permissio
     kridaName: 'Krida Pemandu',
     membershipLevel: 'Anggota',
     isActive: true,
+    status: 'ACTIVE',
+    isApproved: true,
     avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
     lastLoginAt: '2026-09-21T08:00:00Z',
     permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.MEMBER],

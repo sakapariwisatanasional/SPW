@@ -361,7 +361,7 @@ export const MembershipPage: React.FC = () => {
             Manajemen Keanggotaan & KTA Digital
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Sistem penomoran KTA final resmi: <b>00.NNNNNN</b> (Kwartir Nasional) & <b>00.PPKK.CCC.NNNNNN</b> (Wilayah).
+            Pusat Data Anggota Saka Pariwisata Nasional
           </p>
         </div>
 
@@ -382,31 +382,6 @@ export const MembershipPage: React.FC = () => {
           >
             Registrasi & Generator KTA
           </Button>
-        </div>
-      </div>
-
-      {/* Info Card: Format KTA Final */}
-      <div className="bg-slate-900 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded uppercase tracking-wider">
-                KTA FORMAT FINAL
-              </span>
-              <span className="text-xs text-slate-400">Aturan Penomoran Resmi</span>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              • <b>Kwartir Nasional</b>: <code className="text-amber-400 font-mono">00.NNNNNN</code> (00 = Kode Tetap Kwarnas, NNNNNN = Nomor Urut 6 digit)
-              <br />
-              • <b>Bukan Kwartir Nasional (Wilayah)</b>: <code className="text-emerald-400 font-mono">00.PPKK.CCC.NNNNNN</code> (PPKK = Kode Kab/Kota dari <code className="text-slate-300 font-mono">regencies.csv</code>, CCC = 3 digit Kecamatan dari <code className="text-slate-300 font-mono">districts.csv</code>, tanpa kode provinsi pada nomor KTA).
-            </p>
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
-            <div className="text-right text-xs">
-              <p className="text-slate-400">Pangkalan Database:</p>
-              <p className="font-semibold text-white">Menyimpan kode_provinsi, kode_kabupaten, kode_kecamatan</p>
-            </div>
-          </div>
         </div>
       </div>
 

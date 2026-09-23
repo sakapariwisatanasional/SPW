@@ -286,10 +286,10 @@ export const DesignSystemPage: React.FC = () => {
                 <Select
                   label="Pilihan Krida Pariwisata"
                   options={[
-                    { value: 'krida-1', label: 'Krida Bina Obyek & Daya Tarik Wisata' },
-                    { value: 'krida-2', label: 'Krida Bina Kuliner Wisata' },
-                    { value: 'krida-3', label: 'Krida Bina Pemanduan Wisata' },
-                    { value: 'krida-4', label: 'Krida Bina Sadar Wisata' },
+                    { value: 'krida-1', label: 'Krida Pemandu' },
+                    { value: 'krida-2', label: 'Krida Penyuluh' },
+                    { value: 'krida-3', label: 'Krida Mice & Event' },
+                    { value: 'krida-4', label: 'Krida Kuliner & Cinderamata' },
                   ]}
                   value={selectValue}
                   onChange={(e) => setSelectValue(e.target.value)}

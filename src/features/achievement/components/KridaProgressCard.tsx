@@ -37,10 +37,10 @@ export const KridaProgressCard: React.FC<KridaProgressCardProps> = ({
 
   const kridaTabs = [
     { id: 'all', label: 'Semua Krida' },
-    { id: 'pemandu', label: 'Pemandu Wisata' },
-    { id: 'penyuluh', label: 'Penyuluh Wisata' },
-    { id: 'mice', label: 'MICE' },
-    { id: 'kuliner', label: 'Kuliner Wisata' }
+    { id: 'pemandu', label: 'Pemandu' },
+    { id: 'penyuluh', label: 'Penyuluh' },
+    { id: 'mice', label: 'Mice & Event' },
+    { id: 'kuliner', label: 'Kuliner & Cinderamata' }
   ];
 
   // Filtering

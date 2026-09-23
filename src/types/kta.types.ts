@@ -128,13 +128,17 @@ export interface KtaCardSettings {
   showFieldLabels?: boolean;
   logoSafePlacement?: KtaLogoSafePlacement;
 
-  // Front QR Code (Zone 3 / Precision Positioning - No Effects)
+  // Front QR Code (Zone 3 / Precision Positioning - No Effects / Clean Barcode)
   showQrCode: boolean;
   qrX?: number; // percentage (0-100)
   qrY?: number; // percentage (0-100)
   qrSize?: number; // percentage / scale
   showQrCaption?: boolean;
   qrCaptionText?: string;
+  qrBackgroundPadding?: number; // Ketebalan / padding latar belakang barcode (0 = flush tanpa latar, 1-12px)
+  qrBackgroundColor?: string; // Warna latar belakang barcode (default: #FFFFFF)
+  qrBackgroundOpacity?: number; // Opasitas latar belakang barcode (0-100%)
+  signerQrBackgroundPadding?: number; // Ketebalan latar belakang QR pengesah belakang kartu (0-12px)
 
   // Typography & Headers
   showFrontHeader?: boolean;
