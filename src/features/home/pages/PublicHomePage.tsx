@@ -48,9 +48,7 @@ export const PublicHomePage: React.FC = () => {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal max-w-2xl">
-            Sistem administrasi keanggotaan terintegrasi dengan Google Spreadsheet melalui Google Apps Script. 
-            Menghadirkan KTA Digital dengan QR terenkripsi, penguasaan 23 Syarat Kecakapan Khusus (SKK), 
-            serta promosi pariwisata Nusantara.
+            Selamat datang di SAKA Pariwisata Indonesia, sebuah platform digital yang dirancang untuk mendukung anggota dalam mengembangkan keterampilan pariwisata, memperoleh identitas digital, dan berkontribusi dalam memperkenalkan keindahan wisata Indonesia.
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
