@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -48,9 +48,13 @@ import {
 } from '../../../data/wilayahData';
 import { storage } from '../../../services/storage';
 import { ktaService } from '../../../services/ktaService';
+import { memberApi } from '../../../services/api/member.api';
 
 export const MembershipPage: React.FC = () => {
+
   const [activeTab, setActiveTab] = useState('directory');
+
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [copiedKta, setCopiedKta] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -77,6 +81,77 @@ export const MembershipPage: React.FC = () => {
   // Database Anggota SPWN (Sesuai Aturan KTA Format Final)
   // 1. Kwartir Nasional: 00.NNNNNN
   // 2. Wilayah: 00.PPKK.CCC.NNNNNN (Tanpa kode provinsi pada nomor KTA, namun kode provinsi, kab, kec tetap tersimpan di database)
+  /**
+   * Load member data from SPWN Apps 2.0 API
+   * Source:
+   * Spreadsheet -> Backend API -> React
+   */
+  useEffect(() => {
+
+    async function loadMembers() {
+
+      try {
+
+        setIsLoadingMembers(true);
+
+        const response = await memberApi.list();
+
+        if (response.success && response.data) {
+
+          const mapped = response.data.map((item: any) => ({
+
+            id: item.ID,
+
+            noKta: item["Nomor KTA"] || "",
+
+            fullName: item["Nama Lengkap"] || "",
+
+            province: item.Provinsi || "",
+
+            city: item["Kabupaten/Kota"] || "",
+
+            kecamatan: item.Kecamatan || "",
+
+            kridaName: item.Krida || "",
+
+            status: item.Status || "",
+
+            photoUrl: item["Foto URL"] || "",
+
+            verificationToken: item["QR Token"] || "",
+
+            joinedDate: item["Tanggal Daftar"] || "",
+
+            createdAt: item["Created At"] || ""
+
+          }));
+
+          setMembers(mapped as MemberRecord[]);
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Gagal mengambil data anggota:",
+          error
+        );
+
+      } finally {
+
+        setIsLoadingMembers(false);
+
+      }
+
+    }
+
+
+    loadMembers();
+
+  }, []);
+
+
+
   const [members, setMembers] = useState<MemberRecord[]>([
     {
       id: 'MEM-001',
