@@ -1,24 +1,11 @@
 /**
  * SPWN Apps 2.0
- * Vercel API Proxy
- *
- * Browser
- *    ↓
- * Vercel API
- *    ↓
- * Google Apps Script Web App
- *
- * Fungsi:
- * - Mengatasi CORS
- * - Menyembunyikan URL Apps Script
- * - Gateway frontend production
+ * Vercel API Proxy Gateway
  */
 
 
 export default async function handler(req, res) {
 
-
-  // CORS untuk frontend sendiri
 
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -28,7 +15,7 @@ export default async function handler(req, res) {
 
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "POST, OPTIONS"
+    "GET, POST, OPTIONS"
   );
 
 
@@ -38,8 +25,6 @@ export default async function handler(req, res) {
   );
 
 
-
-  // Handle preflight browser
 
   if (req.method === "OPTIONS") {
 
@@ -51,49 +36,63 @@ export default async function handler(req, res) {
 
 
 
-  if (req.method !== "POST") {
-
-    return res.status(405).json({
-
-      success:false,
-
-      message:
-        "Method not allowed"
-
-    });
-
-  }
-
-
-
   try {
+
+
+    const url =
+      new URL(
+        process.env.SPWN_SCRIPT_URL
+      );
+
+
+
+    // teruskan query parameter
+
+    Object.entries(
+      req.query || {}
+    ).forEach(
+      ([key,value]) => {
+
+        url.searchParams.set(
+          key,
+          value
+        );
+
+      }
+    );
+
+
+
+    let body = undefined;
+
+
+
+    if(req.method === "POST") {
+
+      body =
+        JSON.stringify(
+          req.body
+        );
+
+    }
+
 
 
     const response =
       await fetch(
-
-        process.env.SPWN_SCRIPT_URL,
-
+        url.toString(),
         {
 
-          method:"POST",
+          method:req.method,
 
           headers:{
-
             "Content-Type":
               "application/json"
-
           },
 
-
-          body:
-
-            JSON.stringify(
-              req.body
-            )
+          body
 
         }
-
       );
 
 
@@ -103,29 +102,30 @@ export default async function handler(req, res) {
 
 
 
-    return res.status(200).json(
-      data
-    );
+    return res
+      .status(200)
+      .json(data);
 
 
 
   } catch(error){
 
 
-    return res.status(500).json({
+    return res
+      .status(500)
+      .json({
 
-      success:false,
+        success:false,
 
-      error_code:
-        "PROXY_ERROR",
+        error_code:
+          "PROXY_ERROR",
 
-      message:
-        error.message
+        message:
+          error.message
 
-    });
+      });
 
 
   }
-
 
 }
