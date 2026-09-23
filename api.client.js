@@ -12,7 +12,7 @@
 
 
 const SPWN_API_URL =
-  "https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec";
+  "/api/spwn";
 
 
 
