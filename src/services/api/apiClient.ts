@@ -52,7 +52,7 @@ class SpwnApiClient {
     this.baseUrl = import.meta.env.VITE_SPWN_API_URL || '';
     if (!this.baseUrl) {
       // Fallback default endpoint saat development
-      this.baseUrl = 'https://script.google.com/macros/s/AKfycbx_spwn_mock_deployment_exec/exec';
+      this.baseUrl = '/api/spwn';
     }
   }
 
