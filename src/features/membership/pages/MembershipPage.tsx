@@ -355,7 +355,7 @@ export const MembershipPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Title Bar & Info Box */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
             Manajemen Keanggotaan & KTA Digital
@@ -365,10 +365,11 @@ export const MembershipPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs"
             leftIcon={<User className="w-4 h-4 text-[#0066B3]" />}
             onClick={() => setIsProfileModalOpen(true)}
           >
@@ -377,6 +378,7 @@ export const MembershipPage: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs bg-[#0066B3] text-white"
             leftIcon={<Plus className="w-4 h-4" />}
             onClick={() => setIsRegisterModalOpen(true)}
           >
@@ -414,11 +416,11 @@ export const MembershipPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 font-bold"
+                  className="w-full sm:w-auto bg-white/20 border-white/30 text-white hover:bg-white/30 font-bold text-xs"
                   onClick={() => setIsProfileModalOpen(true)}
                   leftIcon={<User className="w-4 h-4" />}
                 >
@@ -427,7 +429,7 @@ export const MembershipPage: React.FC = () => {
                 <Button
                   variant="warning"
                   size="sm"
-                  className="font-bold text-slate-950"
+                  className="w-full sm:w-auto font-bold text-slate-950 text-xs"
                   onClick={() => {
                     const primaryMember = members[0];
                     if (primaryMember) setSelectedMemberForKTA(primaryMember);

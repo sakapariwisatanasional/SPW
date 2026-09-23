@@ -73,7 +73,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   };
 
   return (
-    <div id="spwn-admin-layout" className="min-h-screen bg-[#F5F7FA] flex text-slate-800">
+    <div id="spwn-admin-layout" className="min-h-screen bg-[#F5F7FA] flex text-slate-800 overflow-x-hidden w-full max-w-full">
       {/* Desktop Collapsible Sidebar */}
       <aside
         className={`hidden lg:flex flex-col bg-[#0B1F33] text-white border-r border-slate-800 transition-all duration-200 z-30 shrink-0 ${
@@ -163,7 +163,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       </aside>
 
       {/* Main Admin Content Column */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden w-full max-w-full">
         {/* Admin Top Header */}
         <header className="sticky top-0 z-20 h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-4">
           {/* Left: Mobile Toggle & Page Title */}

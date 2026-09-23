@@ -210,17 +210,17 @@ export default function App() {
 
   // Mode Administrator & Pengurus: Gunakan Admin Management Console Shell
   return (
-    <div className="min-h-screen bg-[#F5F7FA] text-slate-900 flex">
+    <div className="min-h-screen bg-[#F5F7FA] text-slate-900 flex overflow-x-hidden w-full max-w-full">
       {/* Dynamic Desktop Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-300", isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64")}>
+      <div className={cn("flex-1 flex flex-col min-w-0 transition-all duration-300 overflow-x-hidden w-full max-w-full", isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64")}>
         {/* Sticky Header */}
         <Header />
 
         {/* Page View Container */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-20 lg:pb-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-20 lg:pb-8 overflow-x-hidden">
           {renderActiveView()}
         </main>
 

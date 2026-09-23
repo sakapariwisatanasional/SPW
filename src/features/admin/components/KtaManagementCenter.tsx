@@ -184,11 +184,11 @@ export const KtaManagementCenter: React.FC = () => {
     <div className="space-y-6">
       {/* Sub Tabs */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveSubTab('queue')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'queue'
                 ? 'bg-[#0066B3] text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -201,7 +201,7 @@ export const KtaManagementCenter: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveSubTab('batch')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'batch'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -214,7 +214,7 @@ export const KtaManagementCenter: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveSubTab('logs')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'logs'
                 ? 'bg-[#009B4D] text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -237,7 +237,7 @@ export const KtaManagementCenter: React.FC = () => {
           )}
         </div>
 
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"

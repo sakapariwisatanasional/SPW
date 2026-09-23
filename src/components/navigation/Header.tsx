@@ -97,14 +97,14 @@ export const Header: React.FC = () => {
         </div>
 
         {/* Search Input */}
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-full max-w-[130px] sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari anggota, KTA, destinasi..."
-            className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-100/80 border border-slate-200/60 rounded-xl focus:bg-white focus:border-[#0066B3] focus:ring-2 focus:ring-[#0066B3]/15 focus:outline-none transition-all placeholder:text-slate-400"
+            placeholder="Cari anggota, KTA..."
+            className="w-full pl-8 sm:pl-9 pr-2 sm:pr-8 py-1.5 text-xs bg-slate-100/80 border border-slate-200/60 rounded-xl focus:bg-white focus:border-[#0066B3] focus:ring-2 focus:ring-[#0066B3]/15 focus:outline-none transition-all placeholder:text-slate-400"
           />
           <kbd className="hidden sm:inline-flex absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white rounded border border-slate-200 pointer-events-none">
             /
@@ -172,10 +172,10 @@ export const Header: React.FC = () => {
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white text-slate-700 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
           >
-            <Shield className="w-3.5 h-3.5 text-[#0066B3]" />
+            <Shield className="w-3.5 h-3.5 text-[#0066B3] shrink-0" />
             <span className="hidden lg:inline text-slate-500">Peran:</span>
-            <span className="font-semibold text-slate-900 truncate max-w-[110px]">{currentUser.role}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+            <span className="font-semibold text-slate-900 truncate max-w-[70px] sm:max-w-[110px]">{currentUser.role}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5 shrink-0" />
           </button>
 
           {isRoleDropdownOpen && (

@@ -120,7 +120,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
   };
 
   return (
-    <div id="spwn-member-shell" className="min-h-screen bg-[#F8FAFC] flex text-slate-800 antialiased">
+    <div id="spwn-member-shell" className="min-h-screen bg-[#F8FAFC] flex text-slate-800 antialiased overflow-x-hidden w-full max-w-full">
       {/* ============================================================== */}
       {/* DESKTOP SIDEBAR (Visible on lg: screens)                       */}
       {/* ============================================================== */}
@@ -271,7 +271,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
       {/* ============================================================== */}
       {/* MAIN CONTENT WORKSPACE                                         */}
       {/* ============================================================== */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-64 pb-20 lg:pb-8 transition-all">
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-64 pb-20 lg:pb-8 transition-all overflow-x-hidden w-full max-w-full">
         {/* Mobile & Tablet Sticky Top Bar */}
         <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 h-16 flex items-center justify-between lg:hidden shadow-xs">
           <div className="flex items-center gap-2.5">

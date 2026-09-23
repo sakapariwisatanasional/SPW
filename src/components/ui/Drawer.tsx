@@ -49,7 +49,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       <div className={cn("fixed inset-y-0 flex max-w-full", position === 'right' ? "right-0" : "left-0")}>
         <div
           className={cn(
-            "w-screen bg-white shadow-2xl flex flex-col transition-transform duration-200",
+            "w-full bg-white shadow-2xl flex flex-col transition-transform duration-200",
             sizeStyles[size]
           )}
         >

@@ -139,26 +139,26 @@ export const MemberKtaView: React.FC = () => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setCardSide((prev) => (prev === 'FRONT' ? 'BACK' : 'FRONT'))}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all active:scale-95"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all active:scale-95 cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-            <span>Putar ({cardSide === 'FRONT' ? 'Tampak Belakang' : 'Tampak Depan'})</span>
+            <RotateCcw className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+            <span>Putar ({cardSide === 'FRONT' ? 'Belakang' : 'Depan'})</span>
           </button>
 
           <button
             onClick={handleDownloadPDF}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#0066B3] hover:bg-[#005299] text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#0066B3] hover:bg-[#005299] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5 shrink-0" />
             <span>Unduh PDF</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shrink-0 cursor-pointer"
             title="Cetak KTA"
           >
             <Printer className="w-4 h-4" />

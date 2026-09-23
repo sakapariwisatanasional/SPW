@@ -437,7 +437,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-4 sm:pl-10">
-        <div className="w-screen max-w-3xl bg-white shadow-2xl flex flex-col h-full transform transition-transform duration-300">
+        <div className="w-full max-w-3xl bg-white shadow-2xl flex flex-col h-full transform transition-transform duration-300">
           {/* ============================================================= */}
           {/* DRAWER HEADER                                                 */}
           {/* ============================================================= */}

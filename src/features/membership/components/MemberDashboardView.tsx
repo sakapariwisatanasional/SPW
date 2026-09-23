@@ -92,7 +92,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           {/* Member Profile Identity */}
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0">
             <div className="relative shrink-0">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 border-white/40 shadow-xl bg-slate-900">
                 {currentUser.avatarUrl ? (
@@ -116,7 +116,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-white/20 backdrop-blur-xs text-white border border-white/30">
                   {currentUser.membershipLevel || 'Anggota SAKA'}
@@ -143,26 +143,26 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                 )}
               </p>
 
-              <div className="text-[11px] text-white/80 pt-0.5 flex items-center gap-3">
+              <div className="text-[11px] text-white/80 pt-0.5 flex flex-wrap items-center gap-2 sm:gap-3">
                 <span>Pangkalan: <strong>{currentUser.pangkalan || 'Pangkalan Saka Pariwisata'}</strong></span>
-                <span>•</span>
+                <span className="hidden sm:inline">•</span>
                 <span>Krida: <strong>{currentUser.kridaName || 'Krida Pemandu Wisata'}</strong></span>
               </div>
             </div>
           </div>
 
           {/* Quick Action Navigation Buttons */}
-          <div className="flex flex-row md:flex-col gap-2 shrink-0">
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto shrink-0">
             <button
               onClick={() => onNavigateTab('kta')}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#0066B3] font-bold text-xs hover:bg-slate-50 transition-all shadow-md active:scale-95"
+              className="w-full sm:w-auto md:w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#0066B3] font-bold text-xs hover:bg-slate-50 transition-all shadow-md active:scale-95 cursor-pointer"
             >
               <CreditCard className="w-4 h-4 text-[#0066B3]" />
               <span>Buka KTA Digital</span>
             </button>
             <button
               onClick={() => onNavigateTab('achievement')}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-xs border border-white/30 transition-all active:scale-95"
+              className="w-full sm:w-auto md:w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-xs border border-white/30 transition-all active:scale-95 cursor-pointer"
             >
               <Award className="w-4 h-4 text-[#F7941D]" />
               <span>Pencapaian SKK</span>

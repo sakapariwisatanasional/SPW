@@ -91,11 +91,11 @@ export const PublicHomePage: React.FC = () => {
           </p>
 
           {/* Action CTAs */}
-          <div className="pt-2 flex flex-wrap items-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full">
             <Button
               size="lg"
               variant="primary"
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30"
+              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30 text-sm"
               leftIcon={<ShieldCheck className="w-5 h-5" />}
               onClick={() => setActiveView('verification')}
             >
@@ -105,7 +105,7 @@ export const PublicHomePage: React.FC = () => {
             <Button
               size="lg"
               variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-md"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-md text-sm"
               leftIcon={<UserPlus className="w-5 h-5" />}
               onClick={() => setActiveView('registration')}
             >
@@ -115,7 +115,7 @@ export const PublicHomePage: React.FC = () => {
             <Button
               size="lg"
               variant="secondary"
-              className="bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-md"
+              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-md text-sm"
               leftIcon={<LogIn className="w-5 h-5 text-[#0066B3]" />}
               onClick={() => setIsLoginModalOpen(true)}
             >
@@ -123,17 +123,17 @@ export const PublicHomePage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="pt-4 flex items-center gap-6 text-xs text-slate-300 border-t border-white/10">
+          <div className="pt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-300 border-t border-white/10">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Standar KTA Nasional</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Zero-PII Dynamic QR</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Google Apps Script Cloud</span>
             </div>
           </div>

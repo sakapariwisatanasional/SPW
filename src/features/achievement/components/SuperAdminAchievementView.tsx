@@ -216,7 +216,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
       </div>
 
       {/* 2. Statistik Agregat Kemajuan Nasional (KPI Cards) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0066B3] flex items-center justify-center shrink-0">
             <Users className="w-6 h-6" />
@@ -363,7 +363,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
       </div>
 
       {/* 4. Tabel / Kartu Daftar Anggota Seluruh Wilayah */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs">
+      <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs w-full max-w-full">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-[#0066B3]" />
@@ -371,7 +371,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               Daftar Anggota ({filteredMembers.length} Personel)
             </span>
           </div>
-          <span className="text-[11px] text-slate-500 font-mono">
+          <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
             Klik nama anggota untuk membuka Matriks 23 SKK & Riwayat Kegiatan
           </span>
         </div>
@@ -383,8 +383,8 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
             <p className="text-xs text-slate-400">Silakan ubah filter wilayah atau kata kunci pencarian Anda.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="w-full overflow-x-auto responsive-table-container">
+            <table className="w-full text-left border-collapse text-xs min-w-[640px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                   <th className="py-3 px-4">Anggota & Pangkalan</th>

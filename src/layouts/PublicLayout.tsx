@@ -42,7 +42,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
   };
 
   return (
-    <div id="spwn-public-layout" className="min-h-screen bg-[#F5F7FA] flex flex-col text-slate-800">
+    <div id="spwn-public-layout" className="min-h-screen bg-[#F5F7FA] flex flex-col text-slate-800 overflow-x-hidden w-full max-w-full">
       {/* Top Banner Tagline */}
       <div className="bg-[#0B1F33] text-white text-[11px] py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -267,12 +267,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
           </div>
 
           <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-3">
-            <p>© 2026 SAKA Pariwisata Network (SPWN Apps 2.0). Seluruh Hak Cipta Dilindungi.</p>
-            <div className="flex items-center gap-1 text-slate-400">
-              <span>Dibangun dengan semangat</span>
-              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline" />
-              <span>untuk Pariwisata Indonesia</span>
-            </div>
+            <p>© 2026 SAKA Pariwisata Network | sang_pandunegeri</p>
           </div>
         </div>
       </footer>
