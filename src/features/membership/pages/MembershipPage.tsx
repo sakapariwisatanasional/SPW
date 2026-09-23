@@ -1075,10 +1075,4 @@ export const MembershipPage: React.FC = () => {
       />
     </div>
   );
-  console.log("LOAD MEMBER START");
-
-const response = await memberApi.list();
-
-console.log("MEMBER API RESULT", response);
-
 };
