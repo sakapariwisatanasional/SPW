@@ -39,10 +39,14 @@ export default async function handler(req, res) {
   try {
 
 
-    const url =
-      new URL(
-        process.env.SPWN_SCRIPT_URL
-      );
+    const SPWN_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec";
+
+
+const url =
+  new URL(
+    SPWN_SCRIPT_URL
+  );
 
 
 
