@@ -48,10 +48,10 @@ export const DashboardPage: React.FC = () => {
         setMetrics(prev => prev.map((item,index)=>{
 
           const values = [
-            data.members || 0,
-            data.destinations || 0,
-            data.products || 0,
-            data.contents || 0
+            data.totalMembers || 0,
+            data.verifiedDestinations || 0,
+            data.totalProducts || 0,
+            data.totalContent || 0
           ];
 
           return {
@@ -78,16 +78,58 @@ export const DashboardPage: React.FC = () => {
 
 
   // Trigger simulated skeleton loading to demonstrate interaction
-  const triggerSkeletonRefresh = () => {
+  const triggerSkeletonRefresh = async () => {
     setIsLoadingSkeleton(true);
-    setTimeout(() => {
-      setIsLoadingSkeleton(false);
+
+    try {
+
+      const response = await apiClient.get<any>(
+        'dashboard.summary'
+      );
+
+      const data = response.data || {};
+
+      setMetrics(prev => prev.map((item,index)=>{
+
+        const values = [
+          data.totalMembers || 0,
+          data.verifiedDestinations || 0,
+          data.totalProducts || 0,
+          data.totalContent || 0
+        ];
+
+        return {
+          ...item,
+          value:String(values[index])
+        };
+
+      }));
+
       addToast({
         type: 'success',
         title: 'Data Terkini Diperbarui',
         message: 'Ringkasan metrik dan aktivitas ekosistem tersinkronisasi.',
       });
-    }, 900);
+
+    } catch(error) {
+
+      console.error(
+        'Refresh dashboard gagal',
+        error
+      );
+
+      addToast({
+        type: 'error',
+        title: 'Gagal Memperbarui Data',
+        message: 'Tidak dapat mengambil data dashboard dari server.',
+      });
+
+    } finally {
+
+      setIsLoadingSkeleton(false);
+
+    }
+
   };
 
   const [metrics, setMetrics] = useState([
