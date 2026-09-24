@@ -52,7 +52,7 @@ class SpwnApiClient {
     this.baseUrl = import.meta.env.VITE_SPWN_API_URL || '';
     if (!this.baseUrl || this.baseUrl.includes('AKfycbx_spwn_mock_deployment_exec') || this.baseUrl.includes('AKfycbzo5kpGHe8uGv5lBX8m4gU5bcF5OvyyPwRlU7ExhArEtQVUTbpN0FjG9fTG468gxha5vg')) {
       // Fallback endpoint resmi sesuai deployment aktif
-      this.baseUrl = 'https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec';
+      this.baseUrl = '/api/spwn';
     }
   }
 
