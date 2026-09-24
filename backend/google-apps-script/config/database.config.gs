@@ -37,7 +37,7 @@ var SPWN_DATABASE = {
           name: 'MEMBER DATABASE',
           description: 'Pusat data anggota SAKA Pariwisata, akun user, dan master krida',
           // ID dibaca dari ScriptProperties secara dinamis; fallback jika running di spreadsheet aktif
-          propertyKey: 'MEMBER_SPREADSHEET_ID',
+          propertyKey: '14hfb6-gk-5Hds4qLhFVOj3wOJcLnmX-oLI0OVlB4bzk',
           fallbackId: '', // Jika kosong, gunakan SpreadsheetApp.getActiveSpreadsheet().getId()
           sheets: {
             ANGGOTA: 'Anggota',
@@ -69,7 +69,7 @@ var SPWN_DATABASE = {
           key: 'CONTENT',
           name: 'CONTENT DATABASE',
           description: 'Pusat publikasi berita, artikel, agenda kegiatan, galeri dan pengumuman',
-          propertyKey: 'CONTENT_SPREADSHEET_ID',
+          propertyKey: '1wyT_mGS_Gk45R6ZTu4586ErrmTnu47DSH6OyI7zkDhM',
           fallbackId: '',
           sheets: {
             BERITA: 'Berita',
@@ -87,7 +87,7 @@ var SPWN_DATABASE = {
           key: 'TRAVEL',
           name: 'TRAVEL DATABASE',
           description: 'Katalog destinasi wisata binaan, paket tur, mitra dan ulasan wisatawan',
-          propertyKey: 'TRAVEL_SPREADSHEET_ID',
+          propertyKey: '1VmI-POsa2Mdf0MFcE0XEO5x-AepcTysnP6y02YCkOGI',
           fallbackId: '',
           sheets: {
             DESTINASI: 'Destinasi',
@@ -105,7 +105,7 @@ var SPWN_DATABASE = {
           key: 'COMMERCE',
           name: 'COMMERCE DATABASE',
           description: 'Katalog produk UMKM, kategori, SKU, inventori, pesanan dan supplier',
-          propertyKey: 'COMMERCE_SPREADSHEET_ID',
+          propertyKey: '1t2wgchBJTpJOCVgPeRaiioGO3RzzShEKyKbV6r9E75A',
           fallbackId: '',
           sheets: {
             PRODUCTS: 'Products',
