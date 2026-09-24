@@ -9,6 +9,10 @@ export interface SpwnUser {
   id: string;
   no_kta: string;
   nama: string;
+  full_name?: string;
+  nama_lengkap?: string;
+  nomor_kta?: string;
+  nomorKTA?: string;
   email?: string;
   role: string;
   tingkatan: string;

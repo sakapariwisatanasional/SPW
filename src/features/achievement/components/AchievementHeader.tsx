@@ -73,7 +73,7 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
           <div className="relative">
             <img
               src={member.fotoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-              alt={member.nama}
+              alt={member.full_name || member.nama}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
               referrerPolicy="no-referrer"
             />
@@ -86,7 +86,7 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                {member.nama}
+                {member.full_name || member.nama}
               </h1>
               {/* Level Badge */}
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${levelBadgeConfig.bg}`}>
@@ -98,7 +98,7 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
             {/* Nomor KTA & Krida */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600 mb-3">
               <span className="font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                {member.nomorKta}
+                {member.no_kta || member.nomorKta}
               </span>
               <span className="text-slate-300">•</span>
               <span className="inline-flex items-center gap-1 font-medium text-[#0066B3]">

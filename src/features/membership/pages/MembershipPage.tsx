@@ -93,25 +93,31 @@ export const MembershipPage: React.FC = () => {
           : (rawData as { items?: any[] })?.items || [];
 
         const mapped: MemberRecord[] = items.map((item: any, idx: number) => {
-          const id = item.id || item.ID || `MEM-${idx + 1}`;
-          const noKta = item.noKta || item.nomor_kta || item['Nomor KTA'] || '';
-          const fullName = item.fullName || item.nama_lengkap || item['Nama Lengkap'] || 'Anggota SAKA';
-          const gender = (item.gender || item.jenis_kelamin || item.Gender || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L';
-          const province = item.province || item.provinsi_nama || item['Provinsi'] || '';
-          const city = item.city || item.kabupaten_nama || item['Kabupaten/Kota'] || '';
+          const id = item.id || item.ID || item['ID'] || `MEM-${idx + 1}`;
+          const noKta = item.no_kta || item.noKta || item.nomor_kta || item.nomorKTA || item['Nomor KTA'] || item['No. KTA'] || item['No KTA'] || item['no_kta'] || item['KTA'] || '';
+          const fullName = item.full_name || item.fullName || item.nama_lengkap || item.nama || item['Nama Lengkap'] || item['Nama'] || item['Nama Anggota'] || item['full_name'] || 'Anggota SAKA';
+          const gender = (item.gender || item.jenis_kelamin || item.Gender || item['Jenis Kelamin'] || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L';
+          const province = item.province || item.provinsi || item.provinsi_nama || item['Provinsi'] || '';
+          const city = item.city || item.kabupaten_kota || item.kabupaten_nama || item.kota || item['Kabupaten/Kota'] || item['Kabupaten'] || item['Kota'] || '';
           const kecamatan = item.kecamatan || item.wilayah_kecamatan_nama || item['Kecamatan'] || '';
-          const kridaName = item.kridaName || item.krida_nama || item['Krida'] || 'KRIDA PEMANDU';
-          const membershipLevel = item.membershipLevel || item.tingkat_keanggotaan || item['Jabatan'] || 'Penegak';
-          const photoUrl = item.photoUrl || item.foto_url || item['Foto URL'] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
+          const kridaName = item.krida || item.kridaName || item.krida_nama || item['Krida'] || item['Nama Krida'] || 'KRIDA PEMANDU';
+          const membershipLevel = item.tingkat_keanggotaan || item.tingkatan || item.membershipLevel || item.tingkat || item['Tingkat'] || item['Tingkatan'] || item['Jabatan'] || 'Penegak';
+          const photoUrl = item.foto_url || item.foto || item.photoUrl || item['Foto URL'] || item['Foto'] || item['Foto Profil'] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
           const status = item.status || item.status_anggota || item['Status'] || 'ACTIVE';
           const verificationToken = item.verificationToken || item.qr_token || item['QR Token'] || '';
-          const joinedDate = item.joinedDate || item.tanggal_bergabung || item['Tanggal Daftar'] || new Date().toISOString().slice(0, 10);
+          const joinedDate = item.joinedDate || item.tanggal_bergabung || item['Tanggal Bergabung'] || item['Tanggal Daftar'] || new Date().toISOString().slice(0, 10);
           const createdAt = item.createdAt || item.created_at || item['Created At'] || new Date().toISOString();
 
           return {
             id,
             noKta,
+            no_kta: noKta,
+            nomor_kta: noKta,
+            nomorKTA: noKta,
             fullName,
+            full_name: fullName,
+            nama_lengkap: fullName,
+            nama: fullName,
             gender,
             birthPlace: item.birthPlace || item.tempat_lahir || '',
             birthDate: item.birthDate || item.tanggal_lahir || '',
@@ -169,11 +175,15 @@ export const MembershipPage: React.FC = () => {
 
   // Filter Direktori
   const filteredMembers = members.filter((m) => {
+    const q = searchKeyword.toLowerCase().trim();
+    const fullNameStr = (m.full_name || m.fullName || m.nama_lengkap || m.nama || '').toLowerCase();
+    const noKtaStr = (m.no_kta || m.noKta || m.nomor_kta || m.nomorKTA || '').toLowerCase();
     const matchKeyword =
-      m.fullName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      m.noKta.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      (m.city && m.city.toLowerCase().includes(searchKeyword.toLowerCase())) ||
-      (m.kodeKabupaten && m.kodeKabupaten.includes(searchKeyword));
+      !q ||
+      fullNameStr.includes(q) ||
+      noKtaStr.includes(q) ||
+      (m.city && m.city.toLowerCase().includes(q)) ||
+      (m.kodeKabupaten && m.kodeKabupaten.includes(q));
 
     const matchKrida = selectedKrida === 'ALL' || m.kridaId === selectedKrida;
     const matchProvince = selectedProvince === 'ALL' || m.province === selectedProvince;
@@ -254,7 +264,7 @@ export const MembershipPage: React.FC = () => {
                   : 'bg-emerald-50 text-emerald-900 border-emerald-300'
               }`}
             >
-              {m.noKta}
+              {m.no_kta || m.noKta || m.nomor_kta}
             </span>
             <div className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
               {isNas ? (
@@ -277,12 +287,12 @@ export const MembershipPage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <img
             src={m.photoUrl}
-            alt={m.fullName}
+            alt={m.full_name || m.fullName}
             className="w-8 h-8 rounded-full object-cover border border-slate-200"
             referrerPolicy="no-referrer"
           />
           <div>
-            <p className="font-semibold text-slate-900 text-xs">{m.fullName}</p>
+            <p className="font-semibold text-slate-900 text-xs">{m.full_name || m.fullName}</p>
             <p className="text-[10px] text-slate-500">{m.membershipLevel}</p>
           </div>
         </div>
@@ -703,13 +713,13 @@ export const MembershipPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <img
                           src={m.photoUrl}
-                          alt={m.fullName}
+                          alt={m.full_name || m.fullName}
                           className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs"
                           referrerPolicy="no-referrer"
                         />
                         <div className="min-w-0">
                           <h4 className="font-bold text-slate-900 text-sm truncate group-hover:text-[#0066B3] transition-colors">
-                            {m.fullName}
+                            {m.full_name || m.fullName}
                           </h4>
                           <p className="text-xs text-slate-500 truncate">{m.membershipLevel}</p>
                           <span className="text-[10px] font-semibold text-[#009B4D] inline-block mt-0.5">
@@ -722,7 +732,7 @@ export const MembershipPage: React.FC = () => {
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
                         <div>
                           <p className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Nomor KTA Resmi</p>
-                          <p className="font-mono text-xs font-bold text-slate-900">{m.noKta}</p>
+                          <p className="font-mono text-xs font-bold text-slate-900">{m.no_kta || m.noKta}</p>
                         </div>
                         <button
                           onClick={() => {

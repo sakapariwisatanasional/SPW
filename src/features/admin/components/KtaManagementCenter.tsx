@@ -76,9 +76,9 @@ export const KtaManagementCenter: React.FC = () => {
       }
       if (searchKta.trim()) {
         const q = searchKta.toLowerCase();
-        const matchName = m.nama_lengkap.toLowerCase().includes(q);
-        const matchKta = m.nomor_kta.toLowerCase().includes(q);
-        const matchCity = m.kabupaten_nama.toLowerCase().includes(q);
+        const matchName = (m.full_name || m.nama_lengkap || m.nama || '').toLowerCase().includes(q);
+        const matchKta = (m.no_kta || m.nomor_kta || m.nomorKTA || '').toLowerCase().includes(q);
+        const matchCity = (m.kabupaten_nama || '').toLowerCase().includes(q);
         if (!matchName && !matchKta && !matchCity) return false;
       }
       return true;
@@ -87,12 +87,12 @@ export const KtaManagementCenter: React.FC = () => {
 
   // Antrean Otomatis (REVIEWED_VERIFIED siap terbit, atau ACTIVE tanpa No KTA)
   const autoIssueQueue = useMemo(() => {
-    return scopedMembers.filter((m) => m.status_anggota === 'REVIEWED_VERIFIED' || (m.status_anggota === 'ACTIVE' && (!m.nomor_kta || m.kta_status !== 'ACTIVE')));
+    return scopedMembers.filter((m) => m.status_anggota === 'REVIEWED_VERIFIED' || (m.status_anggota === 'ACTIVE' && (!(m.no_kta || m.nomor_kta) || m.kta_status !== 'ACTIVE')));
   }, [scopedMembers]);
 
   // Anggota aktif dengan KTA terbit
   const activeKtaMembers = useMemo(() => {
-    return scopedMembers.filter((m) => m.status_anggota === 'ACTIVE' && Boolean(m.nomor_kta));
+    return scopedMembers.filter((m) => m.status_anggota === 'ACTIVE' && Boolean(m.no_kta || m.nomor_kta));
   }, [scopedMembers]);
 
   // Handle Regenerate Submit
@@ -425,8 +425,8 @@ export const KtaManagementCenter: React.FC = () => {
                     className="mt-1 rounded-sm text-[#0066B3]"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs font-bold text-emerald-700 truncate">{m.nomor_kta}</p>
-                    <h4 className="font-bold text-slate-900 text-sm truncate">{m.nama_lengkap}</h4>
+                    <p className="font-mono text-xs font-bold text-emerald-700 truncate">{m.no_kta || m.nomor_kta}</p>
+                    <h4 className="font-bold text-slate-900 text-sm truncate">{m.full_name || m.nama_lengkap || m.nama}</h4>
                     <p className="text-[11px] text-slate-500 mt-0.5 truncate">{m.kabupaten_nama}, {m.provinsi_nama}</p>
                   </div>
                 </div>

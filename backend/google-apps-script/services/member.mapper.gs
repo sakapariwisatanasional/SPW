@@ -22,23 +22,49 @@ var MemberMapper = (function() {
   function toPublic(raw) {
     if (!raw) return null;
 
+    var noKta = raw.no_kta || raw.nomor_kta || raw.noKta || raw.nomorKTA || raw['Nomor KTA'] || raw['No. KTA'] || raw['No KTA'] || raw['KTA'] || '';
+    var fullName = raw.full_name || raw.fullName || raw.nama_lengkap || raw['Nama Lengkap'] || raw['Nama'] || raw['Nama Anggota'] || raw.nama || 'Anggota SAKA Pariwisata';
+    var fotoUrl = raw.foto_url || raw.foto || raw.photoUrl || raw['Foto'] || raw['Foto URL'] || raw['Foto Profil'] || '';
+    var level = raw.tingkat_keanggotaan || raw.tingkatan || raw.tingkat || raw.membershipLevel || raw['Tingkat'] || raw['Tingkatan'] || raw['Jabatan'] || 'Penegak';
+    var kridaName = raw.krida || raw.krida_nama || raw.kridaName || raw['Krida'] || 'KRIDA PEMANDU';
+    var prov = raw.provinsi || raw.provinsi_nama || raw.province || raw['Provinsi'] || '';
+    var kab = raw.kabupaten_kota || raw.kota || raw.city || raw.kabupaten_nama || raw['Kabupaten'] || raw['Kabupaten/Kota'] || raw['Kota'] || '';
+    var kec = raw.kecamatan || raw.kecamatan_nama || raw['Kecamatan'] || '';
+    var status = raw.status || raw.status_anggota || raw['Status'] || 'ACTIVE';
+
     return {
-      no_kta: raw.no_kta || '',
-      nama_lengkap: raw.nama_lengkap || raw.nama || 'Anggota SAKA Pariwisata',
-      level_organisasi: raw.level_organisasi || (raw.no_kta && raw.no_kta.indexOf('.') === 2 && raw.no_kta.split('.').length === 2 ? 'KWARTIR_NASIONAL' : 'WILAYAH'),
-      foto_url: raw.foto_url || raw.foto || '',
-      kode_provinsi: raw.kode_provinsi || raw.provinsi_id || '',
-      provinsi: raw.provinsi || raw.provinsi_nama || '',
-      kode_kabupaten: raw.kode_kabupaten || '',
-      kabupaten_kota: raw.kabupaten_kota || raw.kota || '',
-      kode_kecamatan: raw.kode_kecamatan || '',
-      kecamatan: raw.kecamatan || raw.kecamatan_nama || '',
-      krida: raw.krida || raw.krida_nama || 'Belum Terdaftar Krida',
-      tingkat_keanggotaan: raw.tingkat_keanggotaan || raw.tingkat || 'Penegak',
-      status: raw.status || 'ACTIVE',
-      tanggal_bergabung: raw.tanggal_bergabung || raw.created_at || '',
+      id: raw.id || raw.ID || raw['ID'] || noKta,
+      no_kta: noKta,
+      nomor_kta: noKta,
+      noKta: noKta,
+      full_name: fullName,
+      nama_lengkap: fullName,
+      nama: fullName,
+      fullName: fullName,
+      level_organisasi: raw.level_organisasi || (noKta && noKta.indexOf('.') === 2 && noKta.split('.').length === 2 ? 'KWARTIR_NASIONAL' : 'WILAYAH'),
+      foto_url: fotoUrl,
+      foto: fotoUrl,
+      photoUrl: fotoUrl,
+      kode_provinsi: raw.kode_provinsi || raw.provinsi_id || raw['Kode Provinsi'] || '',
+      provinsi: prov,
+      provinsi_nama: prov,
+      kode_kabupaten: raw.kode_kabupaten || raw.kabupaten_id || raw['Kode Kabupaten'] || '',
+      kabupaten_kota: kab,
+      kabupaten_nama: kab,
+      city: kab,
+      kode_kecamatan: raw.kode_kecamatan || raw.kecamatan_id || raw['Kode Kecamatan'] || '',
+      kecamatan: kec,
+      kecamatan_nama: kec,
+      krida: kridaName,
+      krida_nama: kridaName,
+      kridaName: kridaName,
+      tingkat_keanggotaan: level,
+      membershipLevel: level,
+      status: status,
+      status_anggota: status,
+      tanggal_bergabung: raw.tanggal_bergabung || raw.created_at || raw['Tanggal Bergabung'] || raw['Tanggal Daftar'] || '',
       valid_until: raw.valid_until || 'Seumur Hidup / Aktif',
-      is_verified: (raw.status === 'ACTIVE')
+      is_verified: (status === 'ACTIVE')
     };
   }
 
@@ -65,6 +91,17 @@ var MemberMapper = (function() {
     // NIK adalah data kependudukan sensitif yang terproteksi permanen.
     // DILARANG diekspos pada List Anggota, Dashboard, Export, Public API, maupun transmisi umum.
     delete sanitized.nik;
+
+    var noKta = sanitized.no_kta || sanitized.nomor_kta || sanitized.noKta || sanitized.nomorKTA || sanitized['Nomor KTA'] || sanitized['No. KTA'] || sanitized['No KTA'] || sanitized['KTA'] || '';
+    var fullName = sanitized.full_name || sanitized.fullName || sanitized.nama_lengkap || sanitized['Nama Lengkap'] || sanitized['Nama'] || sanitized['Nama Anggota'] || sanitized.nama || 'Anggota SAKA Pariwisata';
+
+    sanitized.no_kta = noKta;
+    sanitized.nomor_kta = noKta;
+    sanitized.noKta = noKta;
+    sanitized.full_name = fullName;
+    sanitized.nama_lengkap = fullName;
+    sanitized.nama = fullName;
+    sanitized.fullName = fullName;
 
     return sanitized;
   }

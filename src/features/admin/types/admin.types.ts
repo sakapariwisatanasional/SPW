@@ -19,6 +19,11 @@ export interface AdminMemberRecord {
   id: string;
   nomor_kta: string;
   nama_lengkap: string;
+  // Compatibility fields for field mapping
+  full_name?: string;
+  no_kta?: string;
+  nama?: string;
+  nomorKTA?: string;
   tempat_lahir: string;
   tanggal_lahir: string;
   jenis_kelamin: 'L' | 'P';

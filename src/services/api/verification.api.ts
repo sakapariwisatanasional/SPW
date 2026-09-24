@@ -8,7 +8,10 @@ import { apiClient, ApiResponse } from './apiClient';
 export interface QrVerificationResult {
   isValid: boolean;
   no_kta?: string;
+  nomor_kta?: string;
   nama?: string;
+  full_name?: string;
+  nama_lengkap?: string;
   tingkatan?: string;
   krida?: string;
   kwartir_daerah?: string;

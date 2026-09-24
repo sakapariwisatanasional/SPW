@@ -19,6 +19,10 @@ export interface NationalMemberAchievement {
   memberId: string;
   nama: string;
   nomorKta: string;
+  full_name?: string;
+  nama_lengkap?: string;
+  no_kta?: string;
+  nomor_kta?: string;
   fotoUrl: string;
   pangkalan: string;
   kwarcab: string;

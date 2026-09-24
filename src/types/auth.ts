@@ -33,6 +33,11 @@ export interface UserProfile {
   lastLoginAt?: string;
   force_change_password?: boolean;
   nomor_kta?: string;
+  no_kta?: string;
+  nomorKTA?: string;
+  full_name?: string;
+  nama_lengkap?: string;
+  nama?: string;
 }
 
 export interface AuthSession {

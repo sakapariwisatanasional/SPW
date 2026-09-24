@@ -154,8 +154,8 @@ export const MemberAdministration: React.FC = () => {
       // 4. Search query (nama, nomor KTA, wilayah provinsi/kab/kec, pangkalan gudep, ID)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = (m.nama_lengkap || '').toLowerCase().includes(q);
-        const matchKta = (m.nomor_kta || '').toLowerCase().includes(q);
+        const matchName = (m.full_name || m.nama_lengkap || m.nama || '').toLowerCase().includes(q);
+        const matchKta = (m.no_kta || m.nomor_kta || m.nomorKTA || '').toLowerCase().includes(q);
         const matchId = (m.id || '').toLowerCase().includes(q);
         const matchCity = (m.kabupaten_nama || '').toLowerCase().includes(q);
         const matchProv = (m.provinsi_nama || '').toLowerCase().includes(q);
@@ -459,23 +459,23 @@ export const MemberAdministration: React.FC = () => {
                                 {m.foto_url ? (
                                   <img
                                     src={m.foto_url}
-                                    alt={m.nama_lengkap}
+                                    alt={m.full_name || m.nama_lengkap || m.nama || 'Anggota'}
                                     className="w-full h-full object-cover"
                                     referrerPolicy="no-referrer"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center font-bold text-slate-400 text-[10px]">
-                                    {m.nama_lengkap.substring(0, 2).toUpperCase()}
+                                    {(m.full_name || m.nama_lengkap || m.nama || 'AG').substring(0, 2).toUpperCase()}
                                   </div>
                                 )}
                               </div>
                               <div className="min-w-0">
                                 <p className="font-bold text-slate-900 group-hover:text-[#0066B3] transition-colors truncate">
-                                  {m.nama_lengkap}
+                                  {m.full_name || m.nama_lengkap || m.nama}
                                 </p>
                                 <p className="text-[11px] text-slate-500 font-mono">
-                                  {m.nomor_kta ? (
-                                    <span className="text-emerald-700 font-semibold">{m.nomor_kta}</span>
+                                  {(m.no_kta || m.nomor_kta) ? (
+                                    <span className="text-emerald-700 font-semibold">{m.no_kta || m.nomor_kta}</span>
                                   ) : (
                                     <span className="text-slate-400 italic">Belum terbit</span>
                                   )}
@@ -621,7 +621,7 @@ export const MemberAdministration: React.FC = () => {
                       >
                         Tahap: {m.status_anggota}
                       </span>
-                      <h4 className="font-bold text-sm text-slate-900 mt-1">{m.nama_lengkap}</h4>
+                      <h4 className="font-bold text-sm text-slate-900 mt-1">{m.full_name || m.nama_lengkap || m.nama}</h4>
                       <p className="text-xs text-slate-500 font-mono">
                         ID: {m.id} • {m.kabupaten_nama}
                       </p>

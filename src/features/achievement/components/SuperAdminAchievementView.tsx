@@ -74,10 +74,12 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
       const matchLevel = selectedLevel === 'ALL' || m.level === selectedLevel;
 
       const q = searchQuery.toLowerCase().trim();
+      const fullNameStr = (m.full_name || m.nama || (m as any).nama_lengkap || '').toLowerCase();
+      const noKtaStr = (m.no_kta || m.nomorKta || (m as any).nomor_kta || '').toLowerCase();
       const matchSearch =
         !q ||
-        m.nama.toLowerCase().includes(q) ||
-        m.nomorKta.toLowerCase().includes(q) ||
+        fullNameStr.includes(q) ||
+        noKtaStr.includes(q) ||
         m.pangkalan.toLowerCase().includes(q) ||
         m.kwarcab.toLowerCase().includes(q) ||
         m.kwarda.toLowerCase().includes(q);
@@ -411,15 +413,15 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                       <div className="flex items-center gap-3">
                         <img
                           src={member.fotoUrl}
-                          alt={member.nama}
+                          alt={member.full_name || member.nama}
                           className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-[#0066B3] shrink-0"
                         />
                         <div className="min-w-0">
                           <p className="font-bold text-slate-900 group-hover:text-[#0066B3] transition-colors truncate">
-                            {member.nama}
+                            {member.full_name || member.nama}
                           </p>
                           <p className="text-[11px] font-mono text-slate-500 truncate">
-                            {member.nomorKta}
+                            {member.no_kta || member.nomorKta}
                           </p>
                           <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
                             {member.pangkalan}
@@ -529,7 +531,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               <div className="flex items-center gap-4 min-w-0">
                 <img
                   src={selectedMember.fotoUrl}
-                  alt={selectedMember.nama}
+                  alt={selectedMember.full_name || selectedMember.nama}
                   className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shrink-0"
                 />
                 <div className="min-w-0 space-y-1">
@@ -540,10 +542,10 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                     {renderLevelBadge(selectedMember.level)}
                   </div>
                   <h2 className="text-base sm:text-lg font-bold text-white truncate">
-                    {selectedMember.nama}
+                    {selectedMember.full_name || selectedMember.nama}
                   </h2>
                   <p className="text-xs text-slate-300 font-mono truncate">
-                    No. KTA: {selectedMember.nomorKta} • {selectedMember.kwarcab}
+                    No. KTA: {selectedMember.no_kta || selectedMember.nomorKta} • {selectedMember.kwarcab}
                   </p>
                 </div>
               </div>

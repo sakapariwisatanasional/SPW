@@ -18,6 +18,13 @@ export interface MemberRecord {
   id: string;
   noKta: string;
   fullName: string;
+  // Compatibility fields for field mapping
+  full_name?: string;
+  no_kta?: string;
+  nama?: string;
+  nama_lengkap?: string;
+  nomor_kta?: string;
+  nomorKTA?: string;
   gender: 'L' | 'P';
   birthPlace: string;
   birthDate: string;
