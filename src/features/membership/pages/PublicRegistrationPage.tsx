@@ -40,6 +40,7 @@ import {
 } from '../../../services/wilayahService';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { useUIStore } from '../../../stores/uiStore';
+import { memberApi } from '../../../services/api/member.api';
 
 export const PublicRegistrationPage: React.FC = () => {
   const { addMember } = useAdminStore();
@@ -170,7 +171,7 @@ export const PublicRegistrationPage: React.FC = () => {
   };
 
   // Submit Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -199,7 +200,8 @@ export const PublicRegistrationPage: React.FC = () => {
 
       // PENTING: Status pendaftaran mandiri = 'PENDING'.
       // Tidak menghasilkan nomor KTA maupun QR sebelum verifikasi & approval.
-      const newMember = addMember({
+      // Data utama dikirim ke backend SPWN terlebih dahulu.
+      const payload = {
         nama_lengkap: formData.nama_lengkap.trim(),
         tempat_lahir: formData.tempat_lahir.trim(),
         tanggal_lahir: formData.tanggal_lahir,
@@ -228,7 +230,15 @@ export const PublicRegistrationPage: React.FC = () => {
         foto_url: formData.foto_url,
         level_organisasi: formData.level_organisasi,
         tanggal_bergabung: new Date().toISOString().substring(0, 10),
-      });
+      };
+
+      const response = await memberApi.register(payload);
+
+      const newMember =
+        response.data || response.member || payload;
+
+      // Sinkronkan cache frontend setelah server berhasil menyimpan
+      addMember(newMember);
 
       setRegisteredResult({
         id: newMember.id,
