@@ -18,6 +18,7 @@ import {
 } from '../types/admin.types';
 import { ktaService } from '../../../services/ktaService';
 import { ROLES, UserRole } from '../../../config/constants';
+import { apiClient } from '../../../services/api/apiClient';
 
 // Initial Mock Members (Zero NIK, SAKA Official Roles, Separated Status)
 const INITIAL_MEMBERS: AdminMemberRecord[] = [
@@ -595,7 +596,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  members: INITIAL_MEMBERS,
+  members: [],
   adminAppointments: INITIAL_APPOINTMENTS,
   ktaLogs: INITIAL_KTA_LOGS,
   approvals: INITIAL_APPROVALS,
@@ -1229,6 +1230,27 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       temporaryPassword: tempPass,
       message: `Password berhasil direset. Password sementara untuk ${member.nama_lengkap}: ${tempPass}. Anggota diwajibkan mengganti kata sandi pada login berikutnya.`,
     };
+  },
+
+  /**
+   * Load anggota real dari SPWN Backend GAS
+   * menggantikan INITIAL_MEMBERS dummy
+   */
+  loadMembers: async () => {
+
+    const response = await apiClient.get<any>(
+      'member.list'
+    );
+
+    const members =
+      response.data || response.members || [];
+
+    set({
+      members
+    });
+
+    return members;
+
   },
 
   assignAdmin: (data) => {
