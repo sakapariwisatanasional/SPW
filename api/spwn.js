@@ -82,20 +82,20 @@ const url =
 
 
 
+    const forwardHeaders = {
+      "Content-Type": "application/json"
+    };
+    if (req.headers && req.headers.authorization) {
+      forwardHeaders["Authorization"] = req.headers.authorization;
+    }
+
     const response =
       await fetch(
         url.toString(),
         {
-
-          method:req.method,
-
-          headers:{
-            "Content-Type":
-              "application/json"
-          },
-
+          method: req.method,
+          headers: forwardHeaders,
           body
-
         }
       );
 

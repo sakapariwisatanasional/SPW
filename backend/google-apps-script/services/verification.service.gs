@@ -262,10 +262,15 @@ var VerificationService = (function() {
     return verifyKtaToken(token, clientMeta, false);
   }
 
+  function verifyByNoKta(noKta, role, clientMeta) {
+    return verifyKtaToken(noKta, clientMeta, true);
+  }
+
   return {
     PublicMemberMapper: PublicMemberMapper,
     AdminMemberMapper: AdminMemberMapper,
     verifyKtaToken: verifyKtaToken,
-    verifyQrToken: verifyQrToken
+    verifyQrToken: verifyQrToken,
+    verifyByNoKta: verifyByNoKta
   };
 })();

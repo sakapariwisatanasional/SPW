@@ -17,13 +17,14 @@ var VerificationController = (function() {
    * @returns {Object} ApiResponseFormatter
    */
   function verify(context) {
-    var token = (context.query && context.query.token) || (context.body && context.body.token);
+    var token = (context.query && (context.query.token || context.query.nomor_kta || context.query.no_kta)) ||
+                (context.body && (context.body.token || context.body.nomor_kta || context.body.no_kta));
 
     if (!token) {
       return ApiResponseFormatter.error(
         context.action,
         400,
-        'Token QR KTA wajib disertakan',
+        'Token QR KTA atau Nomor KTA wajib disertakan',
         { code: 'SPWN_MISSING_TOKEN' },
         context.requestId
       );
@@ -69,7 +70,8 @@ var VerificationController = (function() {
    * @returns {Object} ApiResponseFormatter
    */
   function internalVerify(context) {
-    var noKta = (context.query && context.query.no_kta) || (context.body && context.body.no_kta);
+    var noKta = (context.query && (context.query.no_kta || context.query.nomor_kta || context.query.token)) ||
+                (context.body && (context.body.no_kta || context.body.nomor_kta || context.body.token));
 
     if (!noKta) {
       return ApiResponseFormatter.error(

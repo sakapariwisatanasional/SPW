@@ -70,6 +70,19 @@ var Router = (function() {
       handler: function(ctx) { return VerificationController.verify(ctx); },
       requireAuth: false
     });
+    // Rute alias untuk kompatibilitas frontend & eksternal client
+    register('verification.kta', {
+      handler: function(ctx) { return VerificationController.verify(ctx); },
+      requireAuth: false
+    });
+    register('verify.qr', {
+      handler: function(ctx) { return VerificationController.verify(ctx); },
+      requireAuth: false
+    });
+    register('verification.qr', {
+      handler: function(ctx) { return VerificationController.verify(ctx); },
+      requireAuth: false
+    });
     register('verify.internal', {
       handler: function(ctx) { return VerificationController.internalVerify(ctx); },
       requireAuth: true,
