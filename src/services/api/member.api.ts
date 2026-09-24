@@ -6,6 +6,31 @@
 import { apiClient, ApiResponse } from './apiClient';
 import { SpwnUser } from './auth.api';
 
+
+/**
+ * Adapter response MEMBER API -> format KTA Renderer
+ * Menyamakan snake_case dari GAS dengan camelCase frontend KTA.
+ */
+export function normalizeMemberKtaData(member: any) {
+  return {
+    ...member,
+    fullName: member.fullName || member.full_name || member.nama || member.nama_lengkap || '',
+    nationalMemberNumber:
+      member.nationalMemberNumber || member.no_kta || member.nomor_kta || '',
+    photoUrl: member.photoUrl || member.photo_url || member.foto || '',
+    membershipLevel:
+      member.membershipLevel || member.position || member.tingkatan || '',
+    currentPosition:
+      member.currentPosition || member.position || member.tingkatan || '',
+    krida: member.krida || '',
+    province: member.province || member.provinsi_id || '',
+    city: member.city || member.kwartir_daerah || '',
+    district: member.district || '',
+    status: member.status || '',
+  };
+}
+
+
 export interface MemberListParams {
   page?: number;
   limit?: number;
@@ -41,14 +66,26 @@ export const memberApi = {
    * Mengambil daftar anggota terpaginasi
    */
   list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
-    return apiClient.get<SpwnUser[]>('member.list', params as Record<string, string | number>);
+    const response = await apiClient.get<any[]>('member.list', params as Record<string, string | number>);
+
+    return {
+      ...response,
+      data: Array.isArray(response.data)
+        ? response.data.map(normalizeMemberKtaData) as SpwnUser[]
+        : response.data,
+    };
   },
 
   /**
    * Mengambil detail profil anggota berdasarkan ID atau no_kta
    */
   detail: async (idOrNoKta: string): Promise<ApiResponse<SpwnUser>> => {
-    return apiClient.get<SpwnUser>('member.detail', { id: idOrNoKta });
+    const response = await apiClient.get<any>('member.detail', { id: idOrNoKta });
+
+    return {
+      ...response,
+      data: response.data ? normalizeMemberKtaData(response.data) as SpwnUser : response.data,
+    };
   },
 
   /**
