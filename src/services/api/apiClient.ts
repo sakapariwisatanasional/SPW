@@ -1,42 +1,13 @@
 /**
- * SPWN Apps 2.0 - Core Frontend API Client
- * Location: src/services/api/apiClient.ts
- * ----------------------------------------
- * Menangani komunikasi HTTP terstandarisasi dengan Google Apps Script Web App:
- * 1. Penyisipan query parameter action (?action=...)
- * 2. Injeksi Bearer Token sesi dari localStorage/store
- * 3. Kepatuhan terhadap ApiResponse Contract (v2)
- * 4. Pemetaan error respons secara tersentralisasi
+ * PATCH:
+ * SPWN Apps 2.0 API Client
+ *
+ * Fix:
+ * - Do NOT call Google Apps Script directly from browser
+ * - Always use Vercel proxy /api/spwn
  */
 
 import { SpwnApiError, handleApiError } from './apiError';
-
-export interface ApiResponseMeta {
-  requestId: string;
-  timestamp: string;
-  apiVersion: string;
-}
-
-export interface ApiPagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  statusCode: number;
-  message: string;
-  action: string;
-  data: T;
-  pagination: ApiPagination | null;
-  error?: {
-    code: string;
-    details?: unknown;
-  } | null;
-  meta: ApiResponseMeta;
-}
 
 export interface RequestOptions {
   headers?: Record<string, string>;
@@ -45,197 +16,240 @@ export interface RequestOptions {
 }
 
 class SpwnApiClient {
-  private baseUrl: string;
-  private tokenGetter: (() => string | null) | null = null;
 
-  constructor() {
-    this.baseUrl = import.meta.env.VITE_SPWN_API_URL || '';
-    if (!this.baseUrl || this.baseUrl.includes('AKfycbx_spwn_mock_deployment_exec') || this.baseUrl.includes('AKfycbzo5kpGHe8uGv5lBX8m4gU5bcF5OvyyPwRlU7ExhArEtQVUTbpN0FjG9fTG468gxha5vg')) {
-      // Fallback endpoint resmi sesuai deployment aktif
+  private baseUrl:string;
+  private tokenGetter:(()=>string|null)|null = null;
+
+
+  constructor(){
+
+    // Production frontend MUST use Vercel Proxy
+    this.baseUrl =
+      import.meta.env.VITE_SPWN_API_URL ||
+      '/api/spwn';
+
+
+    // Prevent accidental direct GAS call
+    if(
+      this.baseUrl.includes('script.google.com') ||
+      this.baseUrl.includes('script.googleusercontent.com')
+    ){
+
       this.baseUrl = '/api/spwn';
+
     }
+
   }
 
-  /**
-   * Mendaftarkan callback untuk mengambil token sesi aktif dari auth store
-   */
-  public registerTokenGetter(getter: () => string | null): void {
+
+
+  public registerTokenGetter(
+    getter:()=>string|null
+  ){
+
     this.tokenGetter = getter;
+
   }
 
-  /**
-   * Memeriksa apakah target API merupakan Google Apps Script Web App
-   */
-  private isGoogleAppsScript(): boolean {
-    return this.baseUrl.includes('script.google.com') || this.baseUrl.includes('script.googleusercontent.com');
-  }
 
-  /**
-   * Mengambil token sesi aktif dari localStorage atau getter terdaftar
-   */
-  private getActiveToken(overrideToken?: string | null): string | null {
-    if (overrideToken) return overrideToken;
-    if (this.tokenGetter) {
-      const t = this.tokenGetter();
-      if (t) return t;
+
+  private getToken(
+    override?:string|null
+  ){
+
+    if(override)
+      return override;
+
+
+    if(this.tokenGetter){
+
+      const token =
+        this.tokenGetter();
+
+      if(token)
+        return token;
+
     }
-    try {
-      return localStorage.getItem('spwn_session_token');
-    } catch {
+
+
+    try{
+
+      return localStorage.getItem(
+        'spwn_session_token'
+      );
+
+    }catch{
+
       return null;
+
     }
+
   }
 
-  /**
-   * Membangun URL lengkap dengan parameter action & query
-   */
+
+
   private buildUrl(
-    action: string,
-    params?: Record<string, string | number | boolean | undefined>,
-    token?: string | null
-  ): string {
-    const url = new URL(this.baseUrl);
-    url.searchParams.set('action', action);
+    action:string,
+    params?:Record<string,any>,
+    token?:string|null
+  ){
 
-    // Untuk Google Apps Script, sertakan token di URL query untuk melewati kendala CORS preflight header
-    if (token) {
-      url.searchParams.set('token', token);
+    const url =
+      new URL(
+        this.baseUrl,
+        window.location.origin
+      );
+
+
+    url.searchParams.set(
+      'action',
+      action
+    );
+
+
+    if(token){
+
+      url.searchParams.set(
+        'token',
+        token
+      );
+
     }
 
-    if (params) {
-      Object.entries(params).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && val !== '') {
-          url.searchParams.set(key, String(val));
+
+    if(params){
+
+      Object.entries(params)
+      .forEach(([k,v])=>{
+
+        if(v!==undefined && v!==null){
+
+          url.searchParams.set(
+            k,
+            String(v)
+          );
+
         }
+
       });
+
     }
+
 
     return url.toString();
+
   }
 
-  /**
-   * HTTP GET Request
-   */
-  public async get<T>(
-    action: string,
-    params?: Record<string, string | number | boolean | undefined>,
-    options?: RequestOptions
-  ): Promise<ApiResponse<T>> {
-    try {
-      const token = this.getActiveToken(options?.token);
-      const url = this.buildUrl(action, params, token);
-      const isGas = this.isGoogleAppsScript();
 
-      const headers: Record<string, string> = {
-        'Accept': 'application/json',
-        ...(options?.headers || {})
-      };
 
-      // Hanya sematkan Authorization header jika bukan Google Apps Script
-      // karena GAS tidak mendukung CORS OPTIONS preflight
-      if (token && !isGas) {
-        headers['Authorization'] = `Bearer ${token}`;
+  async post<T>(
+    action:string,
+    body:Record<string,unknown>={},
+    params?:Record<string,any>,
+    options?:RequestOptions
+  ):Promise<any>{
+
+
+    try{
+
+
+      const token =
+        this.getToken(
+          options?.token
+        );
+
+
+      const response =
+        await fetch(
+          this.buildUrl(
+            action,
+            params,
+            token
+          ),
+          {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              'Accept':'application/json',
+              ...(options?.headers || {})
+            },
+            body:JSON.stringify({
+              ...body,
+              action,
+              token
+            }),
+            signal:options?.signal
+          }
+        );
+
+
+      const json =
+        await response.json();
+
+
+      if(!json.success){
+
+        throw new SpwnApiError(
+          json.message || 'API Error',
+          response.status,
+          json.error?.code || 'SPWN_ERROR',
+          action
+        );
+
       }
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-        redirect: 'follow',
-        signal: options?.signal
-      });
 
-      return await this.handleResponse<T>(response, action);
-    } catch (err) {
-      throw handleApiError(err, action);
+      return json;
+
+
+    }catch(err){
+
+      throw handleApiError(
+        err,
+        action
+      );
+
     }
+
   }
 
-  /**
-   * HTTP POST Request (JSON Payload)
-   */
-  public async post<T>(
-    action: string,
-    body: Record<string, unknown> = {},
-    params?: Record<string, string | number | boolean | undefined>,
-    options?: RequestOptions
-  ): Promise<ApiResponse<T>> {
-    try {
-      const token = this.getActiveToken(options?.token);
-      const url = this.buildUrl(action, params, token);
-      const isGas = this.isGoogleAppsScript();
 
-      // Untuk Google Apps Script Web App: gunakan Content-Type text/plain;charset=utf-8
-      // agar tidak memicu preflight OPTIONS yang ditolak oleh GAS
-      const contentType = isGas ? 'text/plain;charset=utf-8' : 'application/json';
 
-      const headers: Record<string, string> = {
-        'Content-Type': contentType,
-        'Accept': 'application/json',
-        ...(options?.headers || {})
-      };
+  async get<T>(
+    action:string,
+    params?:Record<string,any>,
+    options?:RequestOptions
+  ):Promise<any>{
 
-      // Tambahkan token dan action pada payload body untuk redundansi GAS
-      const payload: Record<string, unknown> = {
-        ...body,
-        action
-      };
 
-      if (token) {
-        payload.token = token;
-        if (!isGas) {
-          headers['Authorization'] = `Bearer ${token}`;
+    const token =
+      this.getToken(
+        options?.token
+      );
+
+
+    const response =
+      await fetch(
+        this.buildUrl(
+          action,
+          params,
+          token
+        ),
+        {
+          method:'GET',
+          headers:{
+            Accept:'application/json'
+          }
         }
-      }
+      );
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        redirect: 'follow',
-        body: JSON.stringify(payload),
-        signal: options?.signal
-      });
 
-      return await this.handleResponse<T>(response, action);
-    } catch (err) {
-      throw handleApiError(err, action);
-    }
+    return response.json();
+
   }
 
-  /**
-   * Mengurai dan memvalidasi respons JSON backend SPWN
-   */
-  private async handleResponse<T>(response: Response, action: string): Promise<ApiResponse<T>> {
-    let rawJson: ApiResponse<T>;
-
-    try {
-      rawJson = await response.json();
-    } catch {
-      throw new SpwnApiError(
-        `Gagal memproses respons dari server gateway (${response.status})`,
-        response.status,
-        'SPWN_MALFORMED_RESPONSE',
-        action
-      );
-    }
-
-    // Periksa status success contract
-    if (!rawJson.success || response.status >= 400) {
-      const errorCode = rawJson.error?.code || 'SPWN_ERROR';
-      const errorMessage = rawJson.message || 'Terjadi kesalahan sistem internal';
-      const requestId = rawJson.meta?.requestId;
-
-      throw new SpwnApiError(
-        errorMessage,
-        rawJson.statusCode || response.status,
-        errorCode,
-        action,
-        requestId,
-        rawJson.error?.details
-      );
-    }
-
-    return rawJson;
-  }
 }
 
-export const apiClient = new SpwnApiClient();
+
+export const apiClient =
+  new SpwnApiClient();
