@@ -24,7 +24,7 @@ var SPWN_DATABASE = {
   // Master Web App Gateway Deployment
   GATEWAY: {
     DEPLOYMENT_ID: 'AKfycbzo5kpGHe8uGv5lBX8m4gU5bcF5OvyyPwRlU7ExhArEtQVUTbpN0FjG9fTG468gxha5vg',
-    EXEC_URL: 'https://script.google.com/macros/s/AKfycbzo5kpGHe8uGv5lBX8m4gU5bcF5OvyyPwRlU7ExhArEtQVUTbpN0FjG9fTG468gxha5vg/exec'
+    EXEC_URL: 'https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec'
   },
 
   // Konfigurasi Database Provider: Google Spreadsheet Existing
