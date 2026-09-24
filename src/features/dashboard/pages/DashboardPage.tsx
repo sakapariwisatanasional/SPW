@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Users,
   Compass,
@@ -24,6 +24,7 @@ import { Card, Badge, Button, Avatar, Skeleton } from '../../../components/ui';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { formatCurrencyIDR } from '../../../utils/formatters';
+import { apiClient } from '../../../services/api/apiClient';
 import { KridaGridSection } from '../../krida/components/KridaGridSection';
 
 export const DashboardPage: React.FC = () => {
@@ -31,6 +32,50 @@ export const DashboardPage: React.FC = () => {
   const { setActiveView, addToast } = useUIStore();
   const [isLoadingSkeleton, setIsLoadingSkeleton] = useState(false);
   const [selectedKridaFilter, setSelectedKridaFilter] = useState('ALL');
+
+  useEffect(() => {
+
+    async function loadDashboardMetrics(){
+
+      try{
+
+        const response = await apiClient.get<any>(
+          'dashboard.summary'
+        );
+
+        const data = response.data || {};
+
+        setMetrics(prev => prev.map((item,index)=>{
+
+          const values = [
+            data.members || 0,
+            data.destinations || 0,
+            data.products || 0,
+            data.contents || 0
+          ];
+
+          return {
+            ...item,
+            value:String(values[index])
+          };
+
+        }));
+
+      }catch(error){
+
+        console.error(
+          'Dashboard metrics gagal dimuat',
+          error
+        );
+
+      }
+
+    }
+
+    loadDashboardMetrics();
+
+  }, []);
+
 
   // Trigger simulated skeleton loading to demonstrate interaction
   const triggerSkeletonRefresh = () => {
@@ -45,48 +90,48 @@ export const DashboardPage: React.FC = () => {
     }, 900);
   };
 
-  const metrics = [
+  const [metrics, setMetrics] = useState([
     {
       label: 'Total Anggota SAKA',
-      value: '24.850',
-      change: '+14% bulan ini',
+      value: '0',
+      change: 'Sinkronisasi database',
       icon: <Users className="w-5 h-5 text-[#0066B3]" />,
       colorClass: 'text-[#0066B3]',
       bgClass: 'bg-blue-50',
       borderAccent: 'border-l-4 border-l-[#0066B3]',
-      detail: 'Terdaftar di 38 Kwarda',
+      detail: 'Data dari SPWN_MEMBER_DATABASE',
     },
     {
       label: 'Destinasi Terverifikasi',
-      value: '1.420',
-      change: '38 Provinsi',
+      value: '0',
+      change: 'Sinkronisasi database',
       icon: <Compass className="w-5 h-5 text-[#009B4D]" />,
       colorClass: 'text-[#009B4D]',
       bgClass: 'bg-emerald-50',
       borderAccent: 'border-l-4 border-l-[#009B4D]',
-      detail: 'Standar Sapta Pesona',
+      detail: 'Data dari SPWN_TRAVEL_DATABASE',
     },
     {
       label: 'Katalog UMKM & Produk',
-      value: '3.640',
-      change: 'Rp 480 jt vol',
+      value: '0',
+      change: 'Sinkronisasi database',
       icon: <ShoppingBag className="w-5 h-5 text-[#F7941D]" />,
       colorClass: 'text-[#F7941D]',
       bgClass: 'bg-amber-50',
       borderAccent: 'border-l-4 border-l-[#F7941D]',
-      detail: 'Mitra binaan pangkalan',
+      detail: 'Data dari SPWN_COMMERCE_DATABASE',
     },
     {
       label: 'Artikel & Agenda Edukasi',
-      value: '890',
-      change: '24 Agenda aktif',
+      value: '0',
+      change: 'Sinkronisasi database',
       icon: <Newspaper className="w-5 h-5 text-[#6A1B9A]" />,
       colorClass: 'text-[#6A1B9A]',
       bgClass: 'bg-purple-50',
       borderAccent: 'border-l-4 border-l-[#6A1B9A]',
-      detail: 'SKK & Jambore Pariwisata',
+      detail: 'Data dari SPWN_CONTENT_DATABASE',
     },
-  ];
+  ]);
 
   const quickShortcuts = [
     {
