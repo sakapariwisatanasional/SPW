@@ -141,7 +141,7 @@ export const DashboardPage: React.FC = () => {
       colorClass: 'text-[#0066B3]',
       bgClass: 'bg-blue-50',
       borderAccent: 'border-l-4 border-l-[#0066B3]',
-      detail: 'Data dari SPWN_MEMBER_DATABASE',
+      detail: 'Data Saka Pariwisata',
     },
     {
       label: 'Destinasi Terverifikasi',
@@ -151,7 +151,7 @@ export const DashboardPage: React.FC = () => {
       colorClass: 'text-[#009B4D]',
       bgClass: 'bg-emerald-50',
       borderAccent: 'border-l-4 border-l-[#009B4D]',
-      detail: 'Data dari SPWN_TRAVEL_DATABASE',
+      detail: 'Data dari Anggota Saka',
     },
     {
       label: 'Katalog UMKM & Produk',
@@ -161,7 +161,7 @@ export const DashboardPage: React.FC = () => {
       colorClass: 'text-[#F7941D]',
       bgClass: 'bg-amber-50',
       borderAccent: 'border-l-4 border-l-[#F7941D]',
-      detail: 'Data dari SPWN_COMMERCE_DATABASE',
+      detail: 'Produk Anggota Saka',
     },
     {
       label: 'Artikel & Agenda Edukasi',
@@ -171,7 +171,7 @@ export const DashboardPage: React.FC = () => {
       colorClass: 'text-[#6A1B9A]',
       bgClass: 'bg-purple-50',
       borderAccent: 'border-l-4 border-l-[#6A1B9A]',
-      detail: 'Data dari SPWN_CONTENT_DATABASE',
+      detail: 'Data dari Anggota Saka',
     },
   ]);
 
