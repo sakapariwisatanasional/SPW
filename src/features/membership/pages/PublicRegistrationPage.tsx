@@ -275,6 +275,10 @@ export const PublicRegistrationPage: React.FC = () => {
 
       const response = await memberApi.register(payload);
 
+      if (!response || (!response.data && !response.member)) {
+        throw new Error('Data pendaftaran tidak berhasil disimpan ke server.');
+      }
+
       const newMember =
         response.data || response.member || payload;
 
@@ -282,7 +286,7 @@ export const PublicRegistrationPage: React.FC = () => {
       addMember(newMember);
 
       setRegisteredResult({
-        id: registeredBackendId || newMember.id,
+        id: newMember.id,
         nama: newMember.nama_lengkap,
         kabupaten: newMember.kabupaten_nama,
         tingkat: newMember.tingkat_keanggotaan,
