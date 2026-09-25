@@ -1,6 +1,3 @@
-
-    
-  
 /**
  * SPWN Apps 2.0
  * Vercel API Proxy Gateway
