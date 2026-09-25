@@ -87,3 +87,24 @@ function handleRequest(e, method) {
     .createTextOutput(jsonString)
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+try {
+
+  return jsonResponse(
+    Router.dispatch(request)
+  );
+
+}
+catch(e){
+
+  return jsonResponse({
+
+    success:false,
+
+    error:e.message,
+
+    stack:e.stack
+
+  });
+
+}
