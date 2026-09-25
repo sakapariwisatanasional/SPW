@@ -6,7 +6,6 @@
 import { apiClient, ApiResponse } from './apiClient';
 import { SpwnUser } from './auth.api';
 
-
 /**
  * Adapter response MEMBER API -> format KTA Renderer
  * Menyamakan snake_case dari GAS dengan camelCase frontend KTA.
@@ -30,7 +29,6 @@ export function normalizeMemberKtaData(member: any) {
   };
 }
 
-
 export interface MemberListParams {
   page?: number;
   limit?: number;
@@ -41,17 +39,31 @@ export interface MemberListParams {
 }
 
 export interface RegisterMemberPayload {
-  nama_lengkap: string;
+  // Canonical fields
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  position?: string;
+  krida?: string;
+  foto_url?: string;
+  photo_url?: string;
+  password?: string;
+  confirm_password?: string;
+
+  // Backward compatible & regional fields
+  nama_lengkap?: string;
   tempat_lahir?: string;
   tanggal_lahir?: string;
   jenis_kelamin?: 'L' | 'P' | string;
   golongan_darah?: string;
   nik?: string;
-  email?: string;
   telepon?: string;
   nomor_telepon?: string;
   alamat_domisili?: string;
-  provinsi_id: string;
+  provinsi_id?: string;
   provinsi_nama?: string;
   kabupaten_id?: string;
   kabupaten_nama?: string;
@@ -63,10 +75,9 @@ export interface RegisterMemberPayload {
   kwartir_ranting?: string;
   tingkatan?: string;
   tingkat_keanggotaan?: string;
-  krida?: string;
   krida_id?: string;
+  krida_nama?: string;
   level_organisasi?: string;
-  foto_url?: string;
   is_public?: boolean;
   source?: string;
 }

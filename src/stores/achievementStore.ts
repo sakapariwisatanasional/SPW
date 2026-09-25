@@ -61,7 +61,7 @@ export const useAchievementStore = create<AchievementState>((set, get) => ({
       const canViewScore = Boolean(isSelf || isAuthorizedRole);
 
       // Filter privacy scores if not authorized
-      const sanitizedSkkItems = (skkRes.data || []).map(item => {
+      const sanitizedSkkItems = (skkRes.data || []).map((item: any) => {
         if (!canViewScore) {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { score, ...rest } = item;

@@ -9,6 +9,7 @@
  *    - Review & Verifikasi Berkas (Admin Wilayah)
  *    - Final Approval (Admin Pusat)
  * 3. Foto profil tersimpan pada photo_url sebagai single source of truth.
+ * 4. Menyimpan akun pengguna (Users) dengan password terenkripsi untuk akses portal.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -28,6 +29,9 @@ import {
   Calendar,
   Sparkles,
   Award,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import {
@@ -40,7 +44,7 @@ import {
 } from '../../../services/wilayahService';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { useUIStore } from '../../../stores/uiStore';
-import { memberApi } from '../../../services/api/member.api';
+import { memberApi, RegisterMemberPayload } from '../../../services/api/member.api';
 
 export const PublicRegistrationPage: React.FC = () => {
   const { addMember } = useAdminStore();
@@ -55,6 +59,8 @@ export const PublicRegistrationPage: React.FC = () => {
     golongan_darah: 'O',
     email: '',
     nomor_telepon: '',
+    password: '',
+    confirm_password: '',
     alamat_domisili: '',
     provinsi_id: '31',
     provinsi_nama: 'DKI JAKARTA',
@@ -72,6 +78,8 @@ export const PublicRegistrationPage: React.FC = () => {
     foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>(formData.foto_url);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -145,7 +153,7 @@ export const PublicRegistrationPage: React.FC = () => {
     }));
   };
 
-  // Handle Photo Upload (File -> Data URL)
+  // Handle Photo Upload (File -> Base64 Data URL)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -155,8 +163,8 @@ export const PublicRegistrationPage: React.FC = () => {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setErrorMsg('Ukuran file maksimal 2 MB');
+    if (file.size > 3 * 1024 * 1024) {
+      setErrorMsg('Ukuran file maksimal 3 MB');
       return;
     }
 
@@ -189,7 +197,17 @@ export const PublicRegistrationPage: React.FC = () => {
       return;
     }
     if (formData.nomor_telepon.trim().length < 8) {
-      setErrorMsg('Nomor telepon / WhatsApp aktif wajib diisi.');
+      setErrorMsg('Nomor telepon / WhatsApp aktif wajib diisi minimal 8 digit.');
+      return;
+    }
+
+    // Password validations
+    if (!formData.password || formData.password.length < 8) {
+      setErrorMsg('Kata sandi wajib diisi minimal 8 karakter.');
+      return;
+    }
+    if (formData.password !== formData.confirm_password) {
+      setErrorMsg('Konfirmasi kata sandi tidak cocok dengan kata sandi.');
       return;
     }
 
@@ -197,15 +215,28 @@ export const PublicRegistrationPage: React.FC = () => {
 
     try {
       const selectedKrida = KRIDA_MASTER.find((k) => k.id === formData.krida_id);
+      const kridaName = selectedKrida ? selectedKrida.name : 'Krida Bina Wisata';
 
-      // 1. Kirim berkas pendaftaran ke Backend API & Google Spreadsheet
-      const apiPayload = {
+      // 1. Siapkan payload sesuai spesifikasi target database & alias lama
+      const payload: RegisterMemberPayload = {
+        // Canonical Target Payload
+        full_name: formData.nama_lengkap.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.nomor_telepon.trim(),
+        province: formData.provinsi_nama,
+        city: formData.kabupaten_nama,
+        district: formData.wilayah_kecamatan_nama || formData.kecamatan_id,
+        position: formData.tingkat_keanggotaan,
+        krida: kridaName,
+        foto_url: formData.foto_url,
+        password: formData.password,
+
+        // Backward Compatible Aliases
         nama_lengkap: formData.nama_lengkap.trim(),
         tempat_lahir: formData.tempat_lahir.trim(),
         tanggal_lahir: formData.tanggal_lahir,
         jenis_kelamin: formData.jenis_kelamin,
         golongan_darah: formData.golongan_darah,
-        email: formData.email.trim(),
         telepon: formData.nomor_telepon.trim(),
         nomor_telepon: formData.nomor_telepon.trim(),
         alamat_domisili: formData.alamat_domisili.trim(),
@@ -220,29 +251,22 @@ export const PublicRegistrationPage: React.FC = () => {
         kwartir_cabang: formData.kwartir_cabang || formData.kabupaten_nama,
         kwartir_ranting: formData.kwartir_ranting || formData.wilayah_kecamatan_nama,
         krida_id: formData.krida_id,
-        krida: selectedKrida ? selectedKrida.name : 'KRIDA PEMANDU',
         tingkat_keanggotaan: formData.tingkat_keanggotaan,
         level_organisasi: formData.level_organisasi,
-        foto_url: formData.foto_url,
         is_public: true,
         source: 'PUBLIC_REGISTER',
       };
 
-      let registeredBackendId = '';
-      try {
-        const response = await memberApi.register(apiPayload);
-        if (response && response.data && (response.data as any).id) {
-          registeredBackendId = (response.data as any).id;
-        }
-      } catch (apiErr: any) {
-        // Log API warning tapi tetap lanjutkan agar feedback pendaftaran tidak crash
-        console.warn('[PublicRegistration] Backend registration notice:', apiErr);
-      }
+      // 2. Kirim ke GAS via API Client / Proxy
+      const response = await memberApi.register(payload);
+      const resData = (response.data || (response as any).member || {}) as any;
 
-      // 2. PENTING: Status pendaftaran mandiri = 'PENDING'.
-      // Tidak menghasilkan nomor KTA maupun QR sebelum verifikasi & approval.
-      // Data utama dikirim ke backend SPWN terlebih dahulu.
-      const payload = {
+      const registeredId =
+        resData.id ||
+        ('SPW-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+
+      // 3. Sinkronkan cache frontend (adminStore)
+      addMember({
         nama_lengkap: formData.nama_lengkap.trim(),
         tempat_lahir: formData.tempat_lahir.trim(),
         tanggal_lahir: formData.tanggal_lahir,
@@ -259,41 +283,36 @@ export const PublicRegistrationPage: React.FC = () => {
         kwartir_cabang: formData.kwartir_cabang || formData.kabupaten_nama,
         kwartir_ranting: formData.kwartir_ranting || formData.wilayah_kecamatan_nama,
         krida_id: formData.krida_id,
-        krida_nama: selectedKrida ? selectedKrida.name : 'KRIDA PEMANDU',
+        krida_nama: kridaName,
         tingkat_keanggotaan: formData.tingkat_keanggotaan,
         status_anggota: 'PENDING',
         kta_status: 'NOT_CREATED',
         status: 'PENDING',
-        nomor_kta: '', // Belum terbit
+        nomor_kta: '',
         email: formData.email.trim(),
         nomor_telepon: formData.nomor_telepon.trim(),
         alamat_domisili: formData.alamat_domisili.trim(),
-        foto_url: formData.foto_url,
+        foto_url: resData.photo_url || formData.foto_url,
         level_organisasi: formData.level_organisasi,
         tanggal_bergabung: new Date().toISOString().substring(0, 10),
-      };
+      });
 
-      const response = await memberApi.register(payload);
-
-      if (!response || (!response.data && !response.member)) {
-        throw new Error('Data pendaftaran tidak berhasil disimpan ke server.');
-      }
-
-      const newMember =
-        response.data || response.member || payload;
-
-      // Sinkronkan cache frontend setelah server berhasil menyimpan
-      addMember(newMember);
-
+      // 4. Buka Layar Sukses
       setRegisteredResult({
-        id: newMember.id,
-        nama: newMember.nama_lengkap,
-        kabupaten: newMember.kabupaten_nama,
-        tingkat: newMember.tingkat_keanggotaan,
-        createdAt: newMember.created_at,
+        id: registeredId,
+        nama: formData.nama_lengkap.trim(),
+        kabupaten: formData.kabupaten_nama,
+        tingkat: formData.tingkat_keanggotaan,
+        createdAt: new Date().toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
       });
     } catch (err: any) {
-      setErrorMsg(err.message || 'Terjadi kesalahan saat memproses pendaftaran.');
+      setErrorMsg(
+        err.message || 'Terjadi kesalahan saat memproses pendaftaran.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -316,7 +335,7 @@ export const PublicRegistrationPage: React.FC = () => {
               Pendaftaran Berhasil Dikirim!
             </h2>
             <p className="text-sm text-slate-600 max-w-lg mx-auto">
-              Terima kasih <strong>{registeredResult.nama}</strong>. Berkas pendaftaran keanggotaan Saka Pariwisata Nasional telah tersimpan di sistem SPWN 2.0.
+              Terima kasih <strong>{registeredResult.nama}</strong>. Berkas pendaftaran keanggotaan Saka Pariwisata Nasional telah tersimpan di sistem SPWN 2.0 dan basis data terpusat.
             </p>
           </div>
 
@@ -342,43 +361,45 @@ export const PublicRegistrationPage: React.FC = () => {
 
           {/* Verification Workflow Explanation (RBAC Alignment) */}
           <div className="text-left bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
-              <ShieldCheck className="w-4 h-4 text-[#009B4D]" />
-              Alur Verifikasi Resmi Keanggotaan & Penerbitan KTA:
+            <div className="flex items-center gap-2 text-[#009B4D] font-bold text-xs">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Tahapan Selanjutnya: Verifikasi & Penerbitan KTA</span>
             </div>
-            <ol className="text-xs text-emerald-800/90 space-y-2 list-decimal list-inside leading-relaxed">
+            <ol className="text-xs text-slate-600 space-y-2 pl-4 list-decimal leading-relaxed">
               <li>
-                <strong>Pendaftaran Mandiri:</strong> Berkas diterima dengan status <em>PENDING</em> (Selesai).
+                <strong>Verifikasi Berkas Kwartir:</strong> Admin Kwartir Wilayah/Cabang akan memverifikasi kesesuaian data identitas dan pangkalan Gugusdepan Anda.
               </li>
               <li>
-                <strong>Review & Verifikasi Berkas (Admin Wilayah):</strong> Admin Kwarcab / Kwarda memeriksa keabsahan berkas, biodata, dan pangkalan.
+                <strong>Persetujuan Kwarnas & Penerbitan KTA:</strong> Setelah disetujui Admin Pusat, Nomor KTA resmi dan Dynamic QR Code Digital akan diterbitkan secara otomatis.
               </li>
               <li>
-                <strong>Final Approval (Admin Pusat):</strong> Pimpinan Saka Pariwisata Nasional / Kwarnas menyetujui penerimaan keanggotaan resmi.
-              </li>
-              <li>
-                <strong>Penerbitan KTA & Dynamic QR:</strong> Nomor KTA resmi dan identitas QR dinamis ber-entropy tinggi diterbitkan secara otomatis setelah disetujui.
+                <strong>Akses Portal Anggota:</strong> Gunakan alamat email Anda beserta kata sandi yang telah dibuat untuk login ke Portal SPWN 2.0 setelah aktivasi.
               </li>
             </ol>
           </div>
 
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
-              type="button"
               onClick={() => setActiveView('dashboard')}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#009B4D] hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
             >
               Kembali ke Beranda
             </button>
             <button
-              type="button"
               onClick={() => {
                 setRegisteredResult(null);
-                setFormData((prev) => ({ ...prev, nama_lengkap: '', email: '' }));
+                setFormData((prev) => ({
+                  ...prev,
+                  nama_lengkap: '',
+                  email: '',
+                  nomor_telepon: '',
+                  password: '',
+                  confirm_password: '',
+                }));
               }}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all"
             >
-              Daftarkan Anggota Baru Lainnya
+              Daftar Anggota Lain
             </button>
           </div>
         </div>
@@ -458,7 +479,7 @@ export const PublicRegistrationPage: React.FC = () => {
             <div className="space-y-2 text-center sm:text-left">
               <h4 className="text-xs font-bold text-slate-800">Pasfoto Resmi Anggota (3x4)</h4>
               <p className="text-[11px] text-slate-500 leading-relaxed max-w-md">
-                Disarankan mengenakan seragam Pramuka lengkap dengan setangan leher. Format PNG/JPG maksimal 2 MB. Foto ini adalah <em>single source of truth</em> identitas KTA Anda.
+                Disarankan mengenakan seragam Pramuka lengkap dengan setangan leher. Format PNG/JPG maksimal 3 MB. Foto ini akan disimpan di Google Drive resmi SPWN sebagai identitas KTA Anda.
               </p>
               <label
                 htmlFor="photo-upload-input"
@@ -549,16 +570,16 @@ export const PublicRegistrationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 2: KONTAK & DOMISILI */}
+        {/* SECTION 2: KONTAK, DOMISILI & KATA SANDI AKUN */}
         <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <Mail className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">2. Kontak & Alamat Domisili</h2>
+              <h2 className="text-base font-bold text-slate-900">2. Kontak, Domisili & Akun Login</h2>
               <p className="text-xs text-slate-500">
-                Informasi untuk pengiriman verifikasi dan komunikasi kegiatan
+                Informasi komunikasi resmi dan kredensial akses Portal Anggota SPWN
               </p>
             </div>
           </div>
@@ -576,6 +597,7 @@ export const PublicRegistrationPage: React.FC = () => {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
               />
+              <p className="text-[11px] text-slate-400 mt-1">Email ini juga akan digunakan sebagai username login.</p>
             </div>
 
             <div>
@@ -590,6 +612,65 @@ export const PublicRegistrationPage: React.FC = () => {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
               />
+              <p className="text-[11px] text-slate-400 mt-1">Digunakan untuk notifikasi verifikasi status keanggotaan.</p>
+            </div>
+
+            {/* Field Password & Confirm Password */}
+            <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 sm:col-span-2 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                <Lock className="w-4 h-4 text-[#0066B3]" />
+                <span>Pengaturan Kata Sandi Akun Portal (Minimal 8 Karakter)</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Kata Sandi *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Minimal 8 karakter"
+                      minLength={8}
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Konfirmasi Kata Sandi *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={formData.confirm_password}
+                      onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                      placeholder="Ulangi kata sandi"
+                      minLength={8}
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="sm:col-span-2">
@@ -764,7 +845,7 @@ export const PublicRegistrationPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveView('dashboard')}
-            className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all"
+            className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
           >
             Batal
           </button>

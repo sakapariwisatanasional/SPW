@@ -1243,7 +1243,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     );
 
     const members =
-      response.data || response.members || [];
+      response.data || (response as any).members || [];
 
     set({
       members

@@ -132,6 +132,14 @@ export const MemberKtaView: React.FC = () => {
           ktaData.district,
 
 
+        kwartirName:
+          ktaData.city ? `Kwarcab ${ktaData.city}` : 'Kwarcab SAKA Pariwisata',
+
+
+        kwartirHierarchy:
+          [ktaData.province ? `Kwarda ${ktaData.province}` : '', ktaData.city ? `Kwarcab ${ktaData.city}` : '', ktaData.district ? `Kwarran ${ktaData.district}` : ''].filter(Boolean).join(' • ') || 'Kwartir Nasional',
+
+
         krida:
           ktaData.krida,
 

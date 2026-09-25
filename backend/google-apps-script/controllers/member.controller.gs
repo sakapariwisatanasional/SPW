@@ -107,15 +107,20 @@ var MemberController = (function() {
   }
 
   /**
-   * Mendaftarkan anggota baru.
+   * Mendaftarkan anggota baru ke sistem SPWN 2.0.
+   * Memvalidasi input wajib, format email, nomor telepon, dan keamanan password.
    * 
    * @param {Object} context 
    * @returns {Object} ApiResponseFormatter
    */
   function register(context) {
     var body = context.body || {};
-    var nama = (body.nama_lengkap || body.nama || '').toString().trim();
+    var nama = (body.full_name || body.nama_lengkap || body.nama || '').toString().trim();
+    var email = (body.email || '').toString().trim();
+    var phone = (body.phone || body.telepon || body.nomor_telepon || body.no_hp || '').toString().trim();
+    var password = (body.password || '').toString();
 
+    // 1. Validasi Input Wajib
     if (!nama) {
       return ApiResponseFormatter.error(
         context.action,
@@ -126,13 +131,53 @@ var MemberController = (function() {
       );
     }
 
+    if (!email || email.indexOf('@') === -1) {
+      return ApiResponseFormatter.error(
+        context.action,
+        400,
+        'Alamat email aktif wajib diisi dengan benar',
+        { code: 'SPWN_VALIDATION_ERROR' },
+        context.requestId
+      );
+    }
+
+    if (!phone || phone.length < 8) {
+      return ApiResponseFormatter.error(
+        context.action,
+        400,
+        'Nomor telepon / WhatsApp aktif wajib diisi',
+        { code: 'SPWN_VALIDATION_ERROR' },
+        context.requestId
+      );
+    }
+
+    if (password && password.length < 8) {
+      return ApiResponseFormatter.error(
+        context.action,
+        400,
+        'Kata sandi minimal 8 karakter',
+        { code: 'SPWN_VALIDATION_ERROR' },
+        context.requestId
+      );
+    }
+
     try {
       var registerFn = MemberService.register || MemberService.registerMember;
       var registered = registerFn(body);
-      if (registered && registered.nik) {
-        delete registered.nik; // Strict Privacy: Zero NIK in API response
+
+      // Sanitasi data sensitif dari response
+      if (registered) {
+        if (registered.nik) delete registered.nik;
+        if (registered.password) delete registered.password;
+        if (registered.password_hash) delete registered.password_hash;
       }
-      AuditMiddleware.log(context, registered.no_kta || registered.id, 'SUCCESS', { nama: registered.nama_lengkap || registered.full_name });
+
+      AuditMiddleware.log(
+        context,
+        registered.no_kta || registered.id,
+        'SUCCESS',
+        { nama: registered.full_name || registered.nama_lengkap, email: registered.email }
+      );
 
       return ApiResponseFormatter.success(
         context.action,
@@ -143,7 +188,15 @@ var MemberController = (function() {
       );
     } catch (err) {
       AuditMiddleware.log(context, 'MEMBER_REGISTRATION_ATTEMPT', 'FAILED', { error: err.message });
-      var status = (err.code === 'SPWN_VALIDATION_ERROR' || err.code === 'SPWN_INVALID_NIK') ? 400 : 500;
+      var status = 500;
+      if (
+        err.code === 'SPWN_DUPLICATE_MEMBER' ||
+        err.code === 'SPWN_VALIDATION_ERROR' ||
+        err.code === 'SPWN_INVALID_NIK'
+      ) {
+        status = 400;
+      }
+
       return ApiResponseFormatter.error(
         context.action,
         status,
