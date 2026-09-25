@@ -114,21 +114,25 @@ var MemberController = (function() {
    */
   function register(context) {
     var body = context.body || {};
+    var nama = (body.nama_lengkap || body.nama || '').toString().trim();
 
-    if (!body.nama_lengkap || !body.nik) {
+    if (!nama) {
       return ApiResponseFormatter.error(
         context.action,
         400,
-        'Nama lengkap dan NIK wajib diisi',
+        'Nama lengkap wajib diisi',
         { code: 'SPWN_VALIDATION_ERROR' },
         context.requestId
       );
     }
 
     try {
-      var registered = MemberService.register(body);
-      delete registered.nik; // Strict Privacy: Zero NIK in API response
-      AuditMiddleware.log(context, registered.no_kta || registered.id, 'SUCCESS', { nama: registered.nama_lengkap });
+      var registerFn = MemberService.register || MemberService.registerMember;
+      var registered = registerFn(body);
+      if (registered && registered.nik) {
+        delete registered.nik; // Strict Privacy: Zero NIK in API response
+      }
+      AuditMiddleware.log(context, registered.no_kta || registered.id, 'SUCCESS', { nama: registered.nama_lengkap || registered.full_name });
 
       return ApiResponseFormatter.success(
         context.action,
@@ -139,7 +143,7 @@ var MemberController = (function() {
       );
     } catch (err) {
       AuditMiddleware.log(context, 'MEMBER_REGISTRATION_ATTEMPT', 'FAILED', { error: err.message });
-      var status = (err.code === 'SPWN_VALIDATION_ERROR') ? 400 : 500;
+      var status = (err.code === 'SPWN_VALIDATION_ERROR' || err.code === 'SPWN_INVALID_NIK') ? 400 : 500;
       return ApiResponseFormatter.error(
         context.action,
         status,

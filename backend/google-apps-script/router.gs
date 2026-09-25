@@ -104,8 +104,7 @@ var Router = (function() {
     });
     register('member.register', {
       handler: function(ctx) { return MemberController.register(ctx); },
-      requireAuth: true,
-      permission: 'MEMBER_CREATE'
+      requireAuth: false
     });
     register('public.member.register', {
       handler: function(ctx) { return MemberController.register(ctx); },

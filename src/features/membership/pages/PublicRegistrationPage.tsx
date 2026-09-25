@@ -198,7 +198,48 @@ export const PublicRegistrationPage: React.FC = () => {
     try {
       const selectedKrida = KRIDA_MASTER.find((k) => k.id === formData.krida_id);
 
-      // PENTING: Status pendaftaran mandiri = 'PENDING'.
+      // 1. Kirim berkas pendaftaran ke Backend API & Google Spreadsheet
+      const apiPayload = {
+        nama_lengkap: formData.nama_lengkap.trim(),
+        tempat_lahir: formData.tempat_lahir.trim(),
+        tanggal_lahir: formData.tanggal_lahir,
+        jenis_kelamin: formData.jenis_kelamin,
+        golongan_darah: formData.golongan_darah,
+        email: formData.email.trim(),
+        telepon: formData.nomor_telepon.trim(),
+        nomor_telepon: formData.nomor_telepon.trim(),
+        alamat_domisili: formData.alamat_domisili.trim(),
+        provinsi_id: formData.provinsi_id,
+        provinsi_nama: formData.provinsi_nama,
+        kabupaten_id: formData.kabupaten_id,
+        kabupaten_nama: formData.kabupaten_nama,
+        kecamatan_id: formData.kecamatan_id || formData.wilayah_kecamatan_id,
+        wilayah_kecamatan_id: formData.wilayah_kecamatan_id,
+        wilayah_kecamatan_nama: formData.wilayah_kecamatan_nama,
+        pangkalan_gudep: formData.pangkalan_gudep || 'Gugusdepan Terbuka',
+        kwartir_cabang: formData.kwartir_cabang || formData.kabupaten_nama,
+        kwartir_ranting: formData.kwartir_ranting || formData.wilayah_kecamatan_nama,
+        krida_id: formData.krida_id,
+        krida: selectedKrida ? selectedKrida.name : 'KRIDA PEMANDU',
+        tingkat_keanggotaan: formData.tingkat_keanggotaan,
+        level_organisasi: formData.level_organisasi,
+        foto_url: formData.foto_url,
+        is_public: true,
+        source: 'PUBLIC_REGISTER',
+      };
+
+      let registeredBackendId = '';
+      try {
+        const response = await memberApi.register(apiPayload);
+        if (response && response.data && (response.data as any).id) {
+          registeredBackendId = (response.data as any).id;
+        }
+      } catch (apiErr: any) {
+        // Log API warning tapi tetap lanjutkan agar feedback pendaftaran tidak crash
+        console.warn('[PublicRegistration] Backend registration notice:', apiErr);
+      }
+
+      // 2. PENTING: Status pendaftaran mandiri = 'PENDING'.
       // Tidak menghasilkan nomor KTA maupun QR sebelum verifikasi & approval.
       // Data utama dikirim ke backend SPWN terlebih dahulu.
       const payload = {
@@ -241,7 +282,7 @@ export const PublicRegistrationPage: React.FC = () => {
       addMember(newMember);
 
       setRegisteredResult({
-        id: newMember.id,
+        id: registeredBackendId || newMember.id,
         nama: newMember.nama_lengkap,
         kabupaten: newMember.kabupaten_nama,
         tingkat: newMember.tingkat_keanggotaan,

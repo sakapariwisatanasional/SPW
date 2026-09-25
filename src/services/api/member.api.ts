@@ -42,13 +42,33 @@ export interface MemberListParams {
 
 export interface RegisterMemberPayload {
   nama_lengkap: string;
-  nik: string;
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  jenis_kelamin?: 'L' | 'P' | string;
+  golongan_darah?: string;
+  nik?: string;
   email?: string;
   telepon?: string;
+  nomor_telepon?: string;
+  alamat_domisili?: string;
   provinsi_id: string;
+  provinsi_nama?: string;
+  kabupaten_id?: string;
+  kabupaten_nama?: string;
+  kecamatan_id?: string;
+  wilayah_kecamatan_id?: string;
+  wilayah_kecamatan_nama?: string;
+  pangkalan_gudep?: string;
   kwartir_cabang?: string;
-  tingkatan: string;
+  kwartir_ranting?: string;
+  tingkatan?: string;
+  tingkat_keanggotaan?: string;
   krida?: string;
+  krida_id?: string;
+  level_organisasi?: string;
+  foto_url?: string;
+  is_public?: boolean;
+  source?: string;
 }
 
 export interface UpdateMemberPayload {
@@ -89,10 +109,14 @@ export const memberApi = {
   },
 
   /**
-   * Mendaftarkan anggota baru
+   * Mendaftarkan anggota baru ke backend dan Google Spreadsheet
    */
   register: async (payload: RegisterMemberPayload): Promise<ApiResponse<SpwnUser>> => {
-    return apiClient.post<SpwnUser>('member.register', payload as unknown as Record<string, unknown>);
+    return apiClient.post<SpwnUser>('member.register', {
+      ...payload,
+      is_public: payload.is_public !== undefined ? payload.is_public : true,
+      source: payload.source || 'PUBLIC_REGISTER',
+    } as unknown as Record<string, unknown>);
   },
 
   /**

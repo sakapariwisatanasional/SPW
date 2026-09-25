@@ -26,7 +26,7 @@ var MemberService = (function() {
   function _getMemberRepo() {
     if (!_memberRepo) {
       _memberRepo = SpreadsheetRepository.create('MEMBER', 'ANGGOTA', {
-        primaryKey: 'no_kta',
+        primaryKey: 'id',
         statusColumn: 'status'
       });
     }
@@ -121,27 +121,35 @@ var MemberService = (function() {
     if (!nama) {
       throw _createServiceError('SPWN_VALIDATION_ERROR', 'Nama lengkap anggota wajib diisi');
     }
-    if (!nik || nik.length !== 16 || !/^\d{16}$/.test(nik)) {
+
+    // 2. Periksa apakah registrasi publik mandiri (Self-Registration)
+    var isPublicRegistration = (payload.is_public === true || payload.source === 'PUBLIC_REGISTER' || !payload.allow_kta_generation);
+
+    // Validasi NIK: Jika NIK diberikan, wajib 16 digit. Jika tidak diberikan, hanya diizinkan untuk registrasi publik.
+    if (nik) {
+      if (nik.length !== 16 || !/^\d{16}$/.test(nik)) {
+        throw _createServiceError('SPWN_INVALID_NIK', 'NIK harus terdiri dari tepat 16 digit angka');
+      }
+    } else if (!isPublicRegistration) {
       throw _createServiceError('SPWN_INVALID_NIK', 'NIK harus terdiri dari tepat 16 digit angka');
     }
 
     var memberRepo = _getMemberRepo();
 
-    // 2. Validasi Duplikasi NIK
-    var existingNik = memberRepo.findOne({ nik: nik });
-    if (existingNik && existingNik.status !== 'DELETED') {
-      throw _createServiceError('SPWN_DUPLICATE_MEMBER', 'NIK ' + nik + ' sudah terdaftar sebagai anggota dengan No KTA: ' + existingNik.no_kta);
+    // 3. Validasi Duplikasi NIK (hanya jika NIK diisi)
+    if (nik) {
+      var existingNik = memberRepo.findOne({ nik: nik });
+      if (existingNik && existingNik.status !== 'DELETED') {
+        throw _createServiceError('SPWN_DUPLICATE_MEMBER', 'NIK ' + nik + ' sudah terdaftar sebagai anggota dengan No KTA: ' + existingNik.no_kta);
+      }
     }
 
-    // 3. Validasi Krida
+    // 4. Validasi Krida
     var kridaList = getAvailableKrida();
     var matchedKrida = kridaList.find(function(k) {
       return (k.id === kridaKodeOrId || k.kode === kridaKodeOrId || k.nama.toLowerCase().indexOf(kridaKodeOrId.toLowerCase()) !== -1);
     });
     var kridaNama = matchedKrida ? matchedKrida.nama : 'Krida Bina Wisata';
-
-    // 4. Periksa apakah registrasi publik mandiri (Self-Registration)
-    var isPublicRegistration = (payload.is_public === true || payload.source === 'PUBLIC_REGISTER' || !payload.allow_kta_generation);
 
     var newNoKta = '';
     var qrToken = '';
@@ -178,39 +186,88 @@ var MemberService = (function() {
       qrToken = KtaService.generateQrToken((payload.id || '') + newNoKta);
     }
 
-    // 5. Siapkan Entitas Anggota Baru dengan kode wilayah lengkap untuk reporting & filtering
+    var nowIso = new Date().toISOString();
+    var registeredDate = nowIso.slice(0, 10);
+    var verificationUrl = qrToken ? KtaService.generateMemberQrUrl(qrToken) : '';
+    var telepon = (payload.telepon || payload.nomor_telepon || payload.no_hp || payload.phone || '').toString().trim();
+    var email = (payload.email || '').toString().trim();
+    var fotoUrl = payload.foto_url || payload.photo_url || payload.foto || '';
+
+    // 5. Siapkan Entitas Anggota Baru dengan pemetaan dwibahasa (Bilingual mapping)
+    // Memastikan kecocokan 100% dengan kolom header di Google Spreadsheet (SPWN_DATABASE_SCHEMA)
     var newMember = {
-      id: 'MBR-' + Utilities.getUuid().substring(0, 8),
+      // Primary Key & ID
+      id: (payload.id && payload.id.indexOf('MBR-') === 0) ? payload.id : ('MBR-' + Utilities.getUuid().substring(0, 8)),
       no_kta: newNoKta,
       nomor_kta: newNoKta,
+      noKta: newNoKta,
       qr_token: qrToken,
-      qr_url: qrToken ? KtaService.generateMemberQrUrl(qrToken) : '',
+      qr_url: verificationUrl,
+      verification_url: verificationUrl,
       qr_status: qrToken ? 'ACTIVE' : 'INACTIVE',
       qr_scan_count: 0,
       nik: nik,
+
+      // Nama
+      full_name: nama,
       nama_lengkap: nama,
-      level_organisasi: levelOrganisasi,
-      kode_provinsi: kodeProvinsi,
+      nama: nama,
+
+      // Kontak
+      email: email,
+      phone: telepon,
+      telepon: telepon,
+      nomor_telepon: telepon,
+      no_hp: telepon,
+
+      // Wilayah & Alamat
+      province: provinsiNama,
       provinsi: provinsiNama,
-      kode_kabupaten: kodeKabupaten,
+      provinsi_nama: provinsiNama,
+      provinsi_id: kodeProvinsi,
+      kode_provinsi: kodeProvinsi,
+
+      city: kota,
       kabupaten_kota: kota,
-      kode_kecamatan: kodeKecamatan,
+      kabupaten_nama: kota,
+      kabupaten_id: kodeKabupaten,
+      kode_kabupaten: kodeKabupaten,
+
+      district: kecamatanNama,
       kecamatan: kecamatanNama,
+      kecamatan_nama: kecamatanNama,
+      kecamatan_id: kodeKecamatan,
+      kode_kecamatan: kodeKecamatan,
+      alamat_domisili: (payload.alamat_domisili || payload.alamat || '').toString().trim(),
+
+      // Organisasi & Krida
+      level_organisasi: levelOrganisasi,
       krida_id: matchedKrida ? matchedKrida.id : 'KRIDA_01',
       krida: kridaNama,
+      krida_nama: kridaNama,
+      position: tingkat,
       tingkat_keanggotaan: tingkat,
-      pangkalan: (payload.pangkalan || '').toString().trim(),
-      kwartir_cabang: (payload.kwartir_cabang || '').toString().trim(),
-      email: (payload.email || '').toString().trim(),
-      telepon: (payload.telepon || payload.no_hp || '').toString().trim(),
-      foto_url: payload.foto_url || payload.photo_url || '',
-      photo_url: payload.photo_url || payload.foto_url || '',
+      pangkalan: (payload.pangkalan || payload.pangkalan_gudep || '').toString().trim(),
+      pangkalan_gudep: (payload.pangkalan_gudep || payload.pangkalan || '').toString().trim(),
+      kwartir_cabang: (payload.kwartir_cabang || kota || '').toString().trim(),
+      kwartir_ranting: (payload.kwartir_ranting || kecamatanNama || '').toString().trim(),
+
+      // Foto
+      photo_url: fotoUrl,
+      foto_url: fotoUrl,
+      foto: fotoUrl,
+
+      // Status
       status: initialStatus,
       status_anggota: initialStatus,
-      tanggal_bergabung: new Date().toISOString().slice(0, 10),
+
+      // Tanggal & Audit Trail
+      registered_at: registeredDate,
+      tanggal_bergabung: registeredDate,
       valid_until: 'SEUMUR_HIDUP',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: nowIso,
+      updated_at: nowIso,
+      updated_by: isPublicRegistration ? 'SYSTEM_SELF_REGISTER' : (payload.registered_by || 'ADMIN')
     };
 
     // 6. Simpan ke Repository (Dilindungi executeWithLock)
@@ -318,9 +375,9 @@ var MemberService = (function() {
    * @param {Object} patchData 
    * @returns {Object} Data anggota yang telah diperbarui
    */
-  function updateMember(noKta, patchData) {
-    if (!noKta) {
-      throw _createServiceError('SPWN_VALIDATION_ERROR', 'Nomor KTA wajib disertakan untuk pembaruan profil');
+  function updateMember(noKtaOrId, patchData) {
+    if (!noKtaOrId) {
+      throw _createServiceError('SPWN_VALIDATION_ERROR', 'ID atau Nomor KTA wajib disertakan untuk pembaruan profil');
     }
 
     // Hindari pembaruan kolom sensitif secara ilegal
@@ -330,27 +387,29 @@ var MemberService = (function() {
     delete safePatch.created_at;
 
     var memberRepo = _getMemberRepo();
-    return memberRepo.update(noKta, safePatch, 'no_kta');
+    var col = (noKtaOrId.toString().indexOf('MBR-') === 0) ? 'id' : 'no_kta';
+    return memberRepo.update(noKtaOrId, safePatch, col);
   }
 
   /**
    * Deaktivasi keanggotaan (Soft Delete).
    * 
-   * @param {string} noKta 
+   * @param {string} noKtaOrId 
    * @param {string} [reason='Permohonan Anggota / Sanksi'] 
    * @returns {boolean}
    */
-  function deactivateMember(noKta, reason) {
-    if (!noKta) {
-      throw _createServiceError('SPWN_VALIDATION_ERROR', 'Nomor KTA wajib disertakan untuk penonaktifan');
+  function deactivateMember(noKtaOrId, reason) {
+    if (!noKtaOrId) {
+      throw _createServiceError('SPWN_VALIDATION_ERROR', 'ID atau Nomor KTA wajib disertakan untuk penonaktifan');
     }
 
     var memberRepo = _getMemberRepo();
-    memberRepo.update(noKta, {
+    var col = (noKtaOrId.toString().indexOf('MBR-') === 0) ? 'id' : 'no_kta';
+    memberRepo.update(noKtaOrId, {
       status: 'INACTIVE',
       deactivation_reason: reason || 'Deaktivasi Mandiri / Penonaktifan',
       deactivated_at: new Date().toISOString()
-    }, 'no_kta');
+    }, col);
 
     return true;
   }
@@ -358,10 +417,14 @@ var MemberService = (function() {
   return {
     getAvailableKrida: getAvailableKrida,
     registerMember: registerMember,
+    register: registerMember,
     getMember: getMember,
+    findById: getMember,
     listMembers: listMembers,
     findAll: listMembers,
     updateMember: updateMember,
-    deactivateMember: deactivateMember
+    update: updateMember,
+    deactivateMember: deactivateMember,
+    deactivate: deactivateMember
   };
 })();
