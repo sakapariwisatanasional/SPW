@@ -1,6 +1,9 @@
 /**
  * SPWN Apps 2.0 - Auth API Client Module
  * Location: src/services/api/auth.api.ts
+ *
+ * Frontend Hardening:
+ * - Menyesuaikan payload dengan Router SPWN Backend
  */
 
 import { apiClient, ApiResponse } from './apiClient';
@@ -44,24 +47,50 @@ export interface MeResponseData {
 }
 
 export const authApi = {
-  /**
-   * Otentikasi kredensial pengguna
-   */
-  login: async (credentials: LoginPayload): Promise<ApiResponse<LoginResponseData>> => {
-    return apiClient.post<LoginResponseData>('auth.login', credentials as unknown as Record<string, unknown>);
+
+  login: async (
+    credentials: LoginPayload
+  ): Promise<ApiResponse<LoginResponseData>> => {
+
+    return apiClient.post<LoginResponseData>(
+      'auth.login',
+      {
+        body: credentials
+      }
+    );
+
   },
 
-  /**
-   * Mengambil data profil dan permission sesi aktif
-   */
-  me: async (): Promise<ApiResponse<MeResponseData>> => {
-    return apiClient.get<MeResponseData>('auth.me');
+
+  me: async (
+    userId: string
+  ): Promise<ApiResponse<MeResponseData>> => {
+
+    return apiClient.post<MeResponseData>(
+      'auth.me',
+      {
+        body:{
+          user_id:userId
+        }
+      }
+    );
+
   },
 
-  /**
-   * Mengakhiri sesi pengguna
-   */
-  logout: async (): Promise<ApiResponse<{ loggedOut: boolean }>> => {
-    return apiClient.post<{ loggedOut: boolean }>('auth.logout');
+
+  logout: async (
+    userId: string
+  ): Promise<ApiResponse<{ loggedOut:boolean }>> => {
+
+    return apiClient.post<{ loggedOut:boolean }>(
+      'auth.logout',
+      {
+        body:{
+          user_id:userId
+        }
+      }
+    );
+
   }
+
 };
