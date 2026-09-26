@@ -39,8 +39,9 @@ export const DashboardPage: React.FC = () => {
 
       try{
 
-        const response = await apiClient.get<any>(
-          'dashboard.summary'
+        const response = await apiClient.post<any>(
+          'admin.dashboard.summary',
+          {}
         );
 
         const data = response.data || {};
@@ -48,10 +49,10 @@ export const DashboardPage: React.FC = () => {
         setMetrics(prev => prev.map((item,index)=>{
 
           const values = [
-            data.totalMembers || 0,
-            data.verifiedDestinations || 0,
-            data.totalProducts || 0,
-            data.totalContent || 0
+            data.total_member || 0,
+            data.active_member || 0,
+            data.total_product || 0,
+            data.total_content || 0
           ];
 
           return {
@@ -83,8 +84,9 @@ export const DashboardPage: React.FC = () => {
 
     try {
 
-      const response = await apiClient.get<any>(
-        'dashboard.summary'
+      const response = await apiClient.post<any>(
+        'admin.dashboard.summary',
+        {}
       );
 
       const data = response.data || {};
@@ -92,10 +94,10 @@ export const DashboardPage: React.FC = () => {
       setMetrics(prev => prev.map((item,index)=>{
 
         const values = [
-          data.totalMembers || 0,
-          data.verifiedDestinations || 0,
-          data.totalProducts || 0,
-          data.totalContent || 0
+          data.total_member || 0,
+          data.active_member || 0,
+          data.total_product || 0,
+          data.total_content || 0
         ];
 
         return {
