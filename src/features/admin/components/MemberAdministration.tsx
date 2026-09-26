@@ -698,7 +698,7 @@ export const MemberAdministration: React.FC = () => {
                         </div>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             await memberApi.reviewMember(
                                  m.id,
                                  'Berkas diverifikasi absah oleh Admin Wilayah'
