@@ -1239,11 +1239,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
    */
   loadMembers: async () => {
     try {
-      const response = await apiClient.get<any>(
-        'member.list'
+      const response = await apiClient.post<any>(
+        'admin.member.pending',
+        {}
       );
 
-      const fetched = response.data || (response as any).members || [];
+      const fetched =
+        response.data ||
+        (response as any).members ||
+        (response as any).data?.members ||
+        [];
 
       if (Array.isArray(fetched) && fetched.length > 0) {
         set({
