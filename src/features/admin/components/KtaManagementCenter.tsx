@@ -269,7 +269,7 @@ export const KtaManagementCenter: React.FC = () => {
             {autoIssueQueue.length > 0 && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   await memberApi.batchGenerateKta(
                     autoIssueQueue.map((m) => m.id),
                     'Penerbitan Batch Otomatis'
@@ -325,7 +325,7 @@ export const KtaManagementCenter: React.FC = () => {
                   <div className="pt-2 flex justify-end">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const res = await memberApi.generateKta(
                           m.id,
                           'Penerbitan KTA Resmi'
