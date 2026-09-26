@@ -53,6 +53,7 @@ import {
 } from '../../../services/wilayahService';
 import { OrganizationLevelType } from '../../../types/membership';
 import { useUIStore } from '../../../stores/uiStore';
+import { memberApi } from '../../../services/api/member.api';
 
 export const MemberAdministration: React.FC = () => {
   const { addToast } = useUIStore();
@@ -75,6 +76,14 @@ export const MemberAdministration: React.FC = () => {
     selectedMemberId,
     setSelectedMemberId,
   } = useAdminStore();
+
+  const refreshMembersFromApi = async () => {
+    try {
+      await useAdminStore.getState().loadMembers();
+    } catch (error) {
+      console.error('Gagal memuat ulang data anggota:', error);
+    }
+  };
 
   const [subTab, setSubTab] = useState<'directory' | 'approval' | 'create'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -690,7 +699,11 @@ export const MemberAdministration: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            reviewMember(m.id, 'Berkas diverifikasi absah oleh Admin Wilayah', 'Admin Wilayah', simulatedScope);
+                            await memberApi.reviewMember(
+                                 m.id,
+                                 'Berkas diverifikasi absah oleh Admin Wilayah'
+                               );
+                               await refreshMembersFromApi();
                             addToast({
                               type: 'success',
                               title: 'Berkas Terverifikasi',
