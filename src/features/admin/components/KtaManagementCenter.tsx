@@ -34,6 +34,7 @@ import { storage } from '../../../services/storage';
 import { resolveProvinsiName, resolveKabupatenName, resolveKecamatanName } from '../../../services/wilayahService';
 import { KtaMemberBindingData } from '../../../types/kta.types';
 import { useUIStore } from '../../../stores/uiStore';
+import { memberApi } from '../../../services/api/member.api';
 
 export const KtaManagementCenter: React.FC = () => {
   const { addToast } = useUIStore();
@@ -43,9 +44,7 @@ export const KtaManagementCenter: React.FC = () => {
     simulatedScope,
     scopeProvinceId,
     scopeRegencyId,
-    activateMember,
-    regenerateKta,
-    batchGenerateKta,
+    loadMembers,
   } = useAdminStore();
 
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'batch' | 'logs'>('queue');
@@ -96,7 +95,7 @@ export const KtaManagementCenter: React.FC = () => {
   }, [scopedMembers]);
 
   // Handle Regenerate Submit
-  const handleRegenSubmit = (e: React.FormEvent) => {
+  const handleRegenSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regenMember) return;
     if (!regenReason.trim() || regenReason.trim().length < 5) {
@@ -105,11 +104,12 @@ export const KtaManagementCenter: React.FC = () => {
     }
 
     try {
-      const res = regenerateKta(
+      const res = await memberApi.regenerateKta(
         regenMember.id,
-        `${regenReason} (Otoritas: ${regenAuthority})`,
-        simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Nasional'
+        `${regenReason} (Otoritas: ${regenAuthority})`
       );
+
+      await loadMembers();
       addToast({
         type: 'success',
         title: 'KTA Berhasil Diregenerasi',
@@ -270,11 +270,12 @@ export const KtaManagementCenter: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  batchGenerateKta(
+                  await memberApi.batchGenerateKta(
                     autoIssueQueue.map((m) => m.id),
-                    'Penerbitan Batch Otomatis',
-                    'Admin SPWN'
+                    'Penerbitan Batch Otomatis'
                   );
+
+                  await loadMembers();
                   addToast({
                     type: 'success',
                     title: 'Penerbitan KTA Massal Selesai',
@@ -325,7 +326,12 @@ export const KtaManagementCenter: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const res = activateMember(m.id, 'Penerbitan KTA Resmi', 'Admin SPWN');
+                        const res = await memberApi.generateKta(
+                          m.id,
+                          'Penerbitan KTA Resmi'
+                        );
+
+                        await loadMembers();
                         addToast({
                           type: 'success',
                           title: 'KTA Berhasil Diterbitkan',
