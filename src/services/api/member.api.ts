@@ -97,7 +97,9 @@ export const memberApi = {
    * Mengambil daftar anggota terpaginasi
    */
   list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
-    const response = await apiClient.get<any[]>('member.list', params as Record<string, string | number>);
+    const response = await apiClient.post<any[]>('member.list', {
+      query: params || {}
+    });
 
     return {
       ...response,
@@ -218,7 +220,9 @@ export const memberApi = {
    * Mengambil antrean anggota pending dari Google Apps Script
    */
   getPendingMembers: async (params?: Record<string, unknown>): Promise<ApiResponse<any[]>> => {
-    return apiClient.get<any[]>('admin.member.pending', params as Record<string, string | number>);
+    return apiClient.post<any[]>('admin.member.pending', {
+      query: params || {}
+    });
   },
 
   /**
