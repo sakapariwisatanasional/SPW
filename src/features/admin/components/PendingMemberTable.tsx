@@ -98,12 +98,23 @@ export const PendingMemberTable: React.FC = () => {
     setErrorMsg(null);
     try {
       const response = await memberApi.getPendingMembers();
-      const rawData = response.data || (response as any).members || [];
+      const rawData =
+        response.data ||
+        (response as any).members ||
+        (response as any).data?.members ||
+        [];
 
       if (Array.isArray(rawData)) {
         setMembersList(rawData);
       } else {
         setMembersList([]);
+      }
+
+      // Sinkronisasi state admin global (non-blocking)
+      try {
+        await loadMembers();
+      } catch {
+        // tidak menghambat tabel pending
       }
     } catch (err: any) {
       const msg = err?.message || 'Gagal memuat daftar anggota pending dari server.';
