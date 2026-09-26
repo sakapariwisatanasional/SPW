@@ -25,7 +25,11 @@ import { AuditAccountability } from '../components/AuditAccountability';
 import { AdminActiveTab } from '../types/admin.types';
 
 export const AdminPortalPage: React.FC = () => {
-  const { activeTab, setActiveTab, simulatedScope } = useAdminStore();
+  const { activeTab, setActiveTab, simulatedScope, loadMembers } = useAdminStore();
+
+  React.useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
 
   const TABS: { id: AdminActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: 'Dashboard & Analitik', icon: LayoutDashboard },

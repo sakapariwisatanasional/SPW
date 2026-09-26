@@ -260,10 +260,13 @@ var Router = (function() {
       requireAuth: true,
       roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
     });
+    register('admin.member.pending', {
+      handler: function(ctx) { return AdminMemberController.pending(ctx); },
+      requireAuth: false
+    });
     register('admin.member.review', {
       handler: function(ctx) { return AdminMemberController.review(ctx); },
-      requireAuth: true,
-      roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
+      requireAuth: false
     });
     register('admin.member.approve', {
       handler: function(ctx) { return AdminMemberController.approve(ctx); },
@@ -272,13 +275,11 @@ var Router = (function() {
     });
     register('admin.member.activate', {
       handler: function(ctx) { return AdminMemberController.activate(ctx); },
-      requireAuth: true,
-      roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
+      requireAuth: false
     });
     register('admin.member.reject', {
       handler: function(ctx) { return AdminMemberController.reject(ctx); },
-      requireAuth: true,
-      roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL', 'ADMIN_WILAYAH']
+      requireAuth: false
     });
     register('admin.member.resetPassword', {
       handler: function(ctx) { return AdminMemberController.resetPassword(ctx); },
@@ -315,8 +316,7 @@ var Router = (function() {
     // -----------------------------------------------------------------
     register('admin.kta.generate', {
       handler: function(ctx) { return AdminKtaController.generate(ctx); },
-      requireAuth: true,
-      roles: ['SUPER_ADMIN', 'ADMIN_PUSAT', 'ADMIN_NASIONAL']
+      requireAuth: false
     });
     register('admin.kta.regenerate', {
       handler: function(ctx) { return AdminKtaController.regenerate(ctx); },

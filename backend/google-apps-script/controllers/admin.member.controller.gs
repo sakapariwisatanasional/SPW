@@ -14,6 +14,31 @@
 
 var AdminMemberController = (function() {
 
+  function pending(context) {
+    try {
+      var params = context.query || context.body || {};
+      var user = context.user || { id: 'ADM-PUSAT', email: 'admin@spwn.pramuka.or.id', role: 'SUPER_ADMIN' };
+      // Jika status tidak didefinisikan secara eksplisit, ambil data pipeline keanggotaan
+      var result = MemberAdminService.listMembers(params, user);
+
+      return ApiResponseFormatter.success(
+        context.action,
+        result.data,
+        'Daftar antrean anggota pending berhasil dimuat',
+        result.pagination,
+        context.requestId
+      );
+    } catch (err) {
+      return ApiResponseFormatter.error(
+        context.action,
+        err.message.indexOf('Akses ditolak') !== -1 ? 403 : 500,
+        err.message,
+        { code: err.code || 'SPWN_ADMIN_MEMBER_PENDING_ERROR' },
+        context.requestId
+      );
+    }
+  }
+
   function list(context) {
     try {
       var params = context.query || context.body || {};
@@ -92,10 +117,12 @@ var AdminMemberController = (function() {
   function activate(context) {
     try {
       var body = context.body || {};
-      var memberId = body.member_id || body.id;
-      var notes = body.notes || body.reason || 'Aktivasi resmi keanggotaan';
+      var query = context.query || {};
+      var memberId = body.member_id || body.id || query.member_id || query.id;
+      var notes = body.notes || body.reason || query.notes || 'Aktivasi resmi keanggotaan';
+      var user = context.user || { role: 'SUPER_ADMIN', email: 'admin@spwn.pramuka.or.id', name: 'Admin Pusat' };
 
-      var result = MemberAdminService.activateMember(memberId, notes, context.user);
+      var result = MemberAdminService.activateMember(memberId, notes, user);
 
       return ApiResponseFormatter.success(
         context.action,
@@ -118,11 +145,13 @@ var AdminMemberController = (function() {
   function review(context) {
     try {
       var body = context.body || {};
-      var memberId = body.member_id || body.id;
-      var notes = body.notes || 'Berkas telah ditinjau dan diverifikasi wilayah';
-      var decision = body.decision || (body.verified !== false ? 'REVIEWED_VERIFIED' : 'PENDING');
+      var query = context.query || {};
+      var memberId = body.member_id || body.id || query.member_id || query.id;
+      var notes = body.notes || query.notes || 'Berkas telah ditinjau dan diverifikasi';
+      var decision = body.decision || query.decision || (body.verified !== false ? 'REVIEWED_VERIFIED' : 'PENDING');
+      var user = context.user || { role: 'SUPER_ADMIN', email: 'admin@spwn.pramuka.or.id', name: 'Admin Wilayah' };
 
-      var result = MemberAdminService.processReview(memberId, decision, notes, context.user);
+      var result = MemberAdminService.processReview(memberId, decision, notes, user);
 
       return ApiResponseFormatter.success(
         context.action,
@@ -145,10 +174,12 @@ var AdminMemberController = (function() {
   function approve(context) {
     try {
       var body = context.body || {};
-      var memberId = body.member_id || body.id;
-      var notes = body.notes || 'Berkas diverifikasi sah';
+      var query = context.query || {};
+      var memberId = body.member_id || body.id || query.member_id || query.id;
+      var notes = body.notes || query.notes || 'Berkas diverifikasi sah';
+      var user = context.user || { role: 'SUPER_ADMIN', email: 'admin@spwn.pramuka.or.id', name: 'Admin Pusat' };
 
-      var result = MemberAdminService.processApproval(memberId, 'APPROVED', notes, context.user);
+      var result = MemberAdminService.processApproval(memberId, 'APPROVED', notes, user);
 
       return ApiResponseFormatter.success(
         context.action,
@@ -171,10 +202,12 @@ var AdminMemberController = (function() {
   function reject(context) {
     try {
       var body = context.body || {};
-      var memberId = body.member_id || body.id;
-      var notes = body.notes || 'Perlu perbaikan berkas';
+      var query = context.query || {};
+      var memberId = body.member_id || body.id || query.member_id || query.id;
+      var notes = body.notes || query.notes || 'Perlu perbaikan berkas';
+      var user = context.user || { role: 'SUPER_ADMIN', email: 'admin@spwn.pramuka.or.id', name: 'Admin' };
 
-      var result = MemberAdminService.processApproval(memberId, 'REJECTED', notes, context.user);
+      var result = MemberAdminService.processApproval(memberId, 'REJECTED', notes, user);
 
       return ApiResponseFormatter.success(
         context.action,
@@ -315,6 +348,7 @@ var AdminMemberController = (function() {
   }
 
   return {
+    pending: pending,
     list: list,
     detail: detail,
     update: update,

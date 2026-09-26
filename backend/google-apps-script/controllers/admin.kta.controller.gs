@@ -15,8 +15,9 @@ var AdminKtaController = (function() {
   function generate(context) {
     try {
       var body = context.body || {};
-      var memberId = body.member_id || body.id;
-      var reason = body.reason || 'Penerbitan KTA Otomatis';
+      var query = context.query || {};
+      var memberId = body.member_id || body.id || query.member_id || query.id;
+      var reason = body.reason || query.reason || 'Penerbitan KTA Otomatis';
 
       var result = KtaManagementService.generateKtaForMember(memberId, context.user, reason);
 

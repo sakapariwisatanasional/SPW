@@ -42,6 +42,7 @@ import {
 import { useAdminStore } from '../stores/adminStore';
 import { KRIDA_MASTER } from '../../../config/constants';
 import { AdminMemberRecord } from '../types/admin.types';
+import { PendingMemberTable } from './PendingMemberTable';
 
 export const AdminDashboardOverview: React.FC = () => {
   const {
@@ -517,7 +518,12 @@ export const AdminDashboardOverview: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. WILAYAH MONITORING & 4 KRIDA SPECIALIZATION                            */}
+      {/* 4. TABEL PENDING MEMBER (INTEGRASI GOOGLE APPS SCRIPT APPROVAL WORKFLOW)  */}
+      {/* ========================================================================= */}
+      <PendingMemberTable />
+
+      {/* ========================================================================= */}
+      {/* 5. WILAYAH MONITORING & 4 KRIDA SPECIALIZATION                            */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Wilayah Monitoring (Ranking Kwarda / Kwarcab) */}

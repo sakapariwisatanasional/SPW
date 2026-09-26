@@ -566,6 +566,7 @@ interface AdminState {
   resetAdminPassword: (appointmentId: string, temporaryPassword?: string, reason?: string, sessionUserName?: string) => { temporaryPassword: string; message: string };
   runRegionSeed: (force?: boolean) => Promise<void>;
   batchGenerateKta: (memberIds: string[], reason: string, sessionUserName: string) => void;
+  loadMembers: () => Promise<AdminMemberRecord[]>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -1237,20 +1238,25 @@ export const useAdminStore = create<AdminState>((set, get) => ({
    * menggantikan INITIAL_MEMBERS dummy
    */
   loadMembers: async () => {
+    try {
+      const response = await apiClient.get<any>(
+        'member.list'
+      );
 
-    const response = await apiClient.get<any>(
-      'member.list'
-    );
+      const fetched = response.data || (response as any).members || [];
 
-    const members =
-      response.data || (response as any).members || [];
+      if (Array.isArray(fetched) && fetched.length > 0) {
+        set({
+          members: fetched
+        });
+        return fetched;
+      }
 
-    set({
-      members
-    });
-
-    return members;
-
+      return get().members;
+    } catch (e) {
+      console.warn('Gagal memuat data anggota dari backend GAS:', e);
+      return get().members;
+    }
   },
 
   assignAdmin: (data) => {
