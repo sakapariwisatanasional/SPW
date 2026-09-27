@@ -103,8 +103,25 @@ export const MemberAdministration: React.FC = () => {
   const [inspectMember, setInspectMember] = useState<AdminMemberRecord | null>(null);
   const [drawerTab, setDrawerTab] = useState<MemberDrawerTab>('overview');
 
-  const openMemberDrawer = (m: AdminMemberRecord, tab: MemberDrawerTab = 'overview') => {
-    setInspectMember(m);
+  const openMemberDrawer = async (m: AdminMemberRecord, tab: MemberDrawerTab = 'overview') => {
+    try {
+      // Ambil data detail terbaru dari GAS sebelum membuka drawer
+      const detail = await memberApi.detail(m.id);
+
+      const detailMember =
+        detail?.data?.member ||
+        detail?.data ||
+        detail ||
+        m;
+
+      setInspectMember(detailMember as AdminMemberRecord);
+    } catch (error) {
+      console.error('Gagal mengambil detail anggota:', error);
+
+      // Fallback: tetap buka menggunakan data dari tabel
+      setInspectMember(m);
+    }
+
     setDrawerTab(tab);
   };
 
