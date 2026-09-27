@@ -1,17 +1,50 @@
 /**
- * SPWN Apps 2.0 - Auth API Client Module FINAL
+ * SPWN Apps 2.0 - Auth API Client Module FINAL v4
  *
  * Location:
  * src/services/api/auth.api.ts
  *
- * Perbaikan:
- * - Menyesuaikan response GAS:
- *   data langsung berisi user atau
- *   data berisi { user, token, expiresAt }
- * - Normalisasi agar frontend selalu mendapatkan user.permissions
+ * Patch:
+ * - Support GAS response with memberProfile
+ * - Preserve member database fields from Sheet Anggota
+ * - Normalize login response
  */
 
 import { apiClient, ApiResponse } from './apiClient';
+
+
+export interface MemberProfile {
+
+  id?: string;
+
+  no_kta?: string;
+
+  full_name?: string;
+
+  email?: string;
+
+  phone?: string;
+
+  province?: string;
+
+  city?: string;
+
+  district?: string;
+
+  position?: string;
+
+  krida?: string;
+
+  status?: string;
+
+  photo_url?: string;
+
+  verification_url?: string;
+
+  qr_token?: string;
+
+}
+
 
 
 export interface SpwnUser {
@@ -36,6 +69,8 @@ export interface SpwnUser {
 
   role: string;
 
+  status?: string;
+
   tingkatan?: string;
 
   krida?: string;
@@ -47,6 +82,11 @@ export interface SpwnUser {
   foto?: string;
 
   permissions: string[];
+
+  /**
+   * Data utama anggota dari Sheet Anggota GAS
+   */
+  memberProfile?: MemberProfile | null;
 
 }
 
@@ -60,7 +100,7 @@ export interface LoginPayload {
 
   email?: string;
 
-  password: string;
+  password:string;
 
 }
 
@@ -82,19 +122,17 @@ export interface MeResponseData {
 
   user: SpwnUser;
 
-  role: string;
+  role:string;
 
-  permissions: string[];
+  permissions:string[];
 
-  serverTime: string;
+  serverTime:string;
 
 }
 
 
 
-function normalizeLoginResponse(
-  response:any
-):any{
+function normalizeLoginResponse(response:any):any {
 
 
   if(
@@ -106,6 +144,7 @@ function normalizeLoginResponse(
     return response;
 
   }
+
 
 
   if(
@@ -125,6 +164,7 @@ function normalizeLoginResponse(
         expiresAt:
           response.data.expiresAt,
 
+
         user:
           response.data
 
@@ -141,24 +181,18 @@ function normalizeLoginResponse(
 
 
 
-
 export const authApi = {
 
 
-  login: async (
-
-    credentials: LoginPayload
-
-  ): Promise<ApiResponse<LoginResponseData>> => {
+  login: async(
+    credentials:LoginPayload
+  ):Promise<ApiResponse<LoginResponseData>>=>{
 
 
     const response =
       await apiClient.post<LoginResponseData>(
-
         'auth.login',
-
         credentials
-
       );
 
 
@@ -168,53 +202,33 @@ export const authApi = {
 
 
 
-
-
-  me: async (
-
+  me: async(
     userId:string
-
-  ):Promise<ApiResponse<MeResponseData>> => {
+  ):Promise<ApiResponse<MeResponseData>>=>{
 
 
     return apiClient.post<MeResponseData>(
-
       'auth.me',
-
       {
-
         user_id:userId
-
       }
-
     );
-
 
   },
 
 
 
-
-
-  logout: async (
-
+  logout: async(
     userId:string
-
-  ):Promise<ApiResponse<{loggedOut:boolean}>> => {
+  ):Promise<ApiResponse<{loggedOut:boolean}>>=>{
 
 
     return apiClient.post<{loggedOut:boolean}>(
-
       'auth.logout',
-
       {
-
         user_id:userId
-
       }
-
     );
-
 
   }
 
