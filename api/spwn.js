@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    const GAS_URL = process.env.SPWN_GAS_URL;
+    const GAS_URL = process.env.https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec;
 
     if (!GAS_URL) {
       return res.status(500).json({
