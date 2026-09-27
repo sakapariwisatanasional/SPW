@@ -97,9 +97,7 @@ export const memberApi = {
    * Mengambil daftar anggota terpaginasi
    */
   list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
-    const response = await apiClient.post<any[]>('member.list', {
-      query: params || {}
-    });
+    const response = await apiClient.get<any[]>('admin.member.list', params as Record<string, string | number>);
 
     return {
       ...response,
@@ -220,9 +218,7 @@ export const memberApi = {
    * Mengambil antrean anggota pending dari Google Apps Script
    */
   getPendingMembers: async (params?: Record<string, unknown>): Promise<ApiResponse<any[]>> => {
-    return apiClient.post<any[]>('admin.member.pending', {
-      query: params || {}
-    });
+    return apiClient.post<any[]>('admin.member.pending', params || {} as Record<string, unknown>);
   },
 
   /**
@@ -236,7 +232,6 @@ export const memberApi = {
   ): Promise<ApiResponse<any>> => {
     return apiClient.post<any>('admin.member.review', {
       member_id: memberId,
-      id: memberId,
       decision,
       notes,
     });
@@ -252,7 +247,6 @@ export const memberApi = {
   ): Promise<ApiResponse<any>> => {
     return apiClient.post<any>('admin.member.activate', {
       member_id: memberId,
-      id: memberId,
       notes,
     });
   },
@@ -267,7 +261,6 @@ export const memberApi = {
   ): Promise<ApiResponse<any>> => {
     return apiClient.post<any>('admin.member.reject', {
       member_id: memberId,
-      id: memberId,
       notes,
     });
   },
@@ -282,7 +275,6 @@ export const memberApi = {
   ): Promise<ApiResponse<any>> => {
     return apiClient.post<any>('admin.kta.generate', {
       member_id: memberId,
-      id: memberId,
       reason,
     });
   },
