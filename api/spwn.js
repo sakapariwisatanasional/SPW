@@ -1,170 +1,89 @@
-/**
- * SPWN Apps 2.0
- * Vercel API Proxy Gateway
- *
- * Perbaikan:
- * - Menangani response GAS yang bukan JSON
- * - Menampilkan error backend asli
- * - Mencegah JSON parse crash
- */
-
 export default async function handler(req, res) {
-
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, OPTIONS"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-
-
-  if (req.method === "OPTIONS") {
-
-    return res.status(200).json({
-      success: true
-    });
-
-  }
-
-
   try {
+    const GAS_URL = process.env.SPWN_GAS_URL;
 
-    const SPWN_SCRIPT_URL =
-      "https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec";
+    if (!GAS_URL) {
+      return res.status(500).json({
+        success: false,
+        message: "SPWN_GAS_URL belum dikonfigurasi"
+      });
+    }
 
+    const action =
+      req.query.action ||
+      req.body?.action ||
+      "";
 
-    const url =
-      new URL(SPWN_SCRIPT_URL);
+    if (!action) {
+      return res.status(400).json({
+        success: false,
+        message: "Action tidak ditemukan"
+      });
+    }
 
+    let body = undefined;
 
-    Object.entries(
-      req.query || {}
-    ).forEach(
-      ([key, value]) => {
+    if (req.method === "POST") {
+      body =
+        typeof req.body === "string"
+          ? req.body
+          : JSON.stringify(req.body || {});
+    }
 
-        url.searchParams.set(
-          key,
-          String(value)
-        );
+    const forwardHeaders = {
+      "Content-Type":
+        req.headers["content-type"] ||
+        "application/json",
 
+      "Accept":
+        "application/json"
+    };
+
+    if (req.headers.authorization) {
+      forwardHeaders["Authorization"] =
+        req.headers.authorization;
+    }
+
+    const gasUrl = new URL(GAS_URL);
+
+    gasUrl.searchParams.set(
+      "action",
+      action
+    );
+
+    const response = await fetch(
+      gasUrl.toString(),
+      {
+        method: req.method,
+        headers: forwardHeaders,
+        body
       }
     );
 
+    const text = await response.text();
 
-    let body;
-
-
-    if (req.method === "POST") {
-
-      body =
-        JSON.stringify(
-          req.body || {}
-        );
-
-    }
-
-
-    const forwardHeaders = {
-
-      "Content-Type":
-        "application/json"
-
-    };
-
-
-    if (
-      req.headers &&
-      req.headers.authorization
-    ) {
-
-      forwardHeaders["Authorization"] =
-        req.headers.authorization;
-
-    }
-
-
-    const response =
-      await fetch(
-        url.toString(),
-        {
-          method:req.method,
-          headers:forwardHeaders,
-          body
-        }
-      );
-
-
-    const rawText =
-      await response.text();
-
-
-    let data;
-
+    let result;
 
     try {
-
-      data =
-        JSON.parse(rawText);
-
-
-    } catch(error) {
-
-
-      return res
-        .status(502)
-        .json({
-
-          success:false,
-
-          error_code:
-            "GAS_RESPONSE_INVALID",
-
-          message:
-            "Google Apps Script mengembalikan response bukan JSON",
-
-          gas_status:
-            response.status,
-
-          gas_response:
-            rawText.substring(0,1000)
-
-        });
-
+      result = JSON.parse(text);
+    } catch {
+      result = {
+        success: false,
+        message: "Response GAS bukan JSON",
+        raw: text
+      };
     }
-
-
 
     return res
       .status(response.status)
-      .json(data);
+      .json(result);
 
+  } catch (error) {
 
-
-  } catch(error) {
-
-
-    return res
-      .status(500)
-      .json({
-
-        success:false,
-
-        error_code:
-          "PROXY_ERROR",
-
-        message:
-          error.message
-
-      });
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Proxy error"
+    });
 
   }
-
 }
