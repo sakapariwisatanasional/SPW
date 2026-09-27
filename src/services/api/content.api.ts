@@ -70,9 +70,7 @@ export const contentApi = {
     return apiClient.post<ContentItem>(
       'content.detail',
       {
-        body:{
-          content_id:contentId
-        }
+        content_id: contentId
       }
     );
 
@@ -85,9 +83,7 @@ export const contentApi = {
 
     return apiClient.post<ContentItem>(
       'content.create',
-      {
-        body:payload
-      }
+      payload
     );
 
   },
@@ -101,10 +97,8 @@ export const contentApi = {
     return apiClient.post(
       'content.approve',
       {
-        body:{
-          content_id:contentId,
-          user
-        }
+        content_id: contentId,
+        user
       }
     );
 
@@ -119,10 +113,8 @@ export const contentApi = {
     return apiClient.post(
       'content.reject',
       {
-        body:{
-          content_id:contentId,
-          user
-        }
+        content_id: contentId,
+        user
       }
     );
 
