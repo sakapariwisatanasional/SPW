@@ -112,7 +112,66 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   // Current working member from store
   const currentMember = useMemo(() => {
     if (!member) return null;
-    return members.find((m) => m.id === member.id) || member;
+
+    const rawMember: any =
+      members.find((m) => m.id === member.id) || member;
+
+    /**
+     * Compatibility layer:
+     * GAS API menggunakan field database langsung seperti:
+     * full_name, phone, birth_place, gender
+     *
+     * Frontend Drawer menggunakan:
+     * nama_lengkap, nomor_telepon, tempat_lahir, jenis_kelamin
+     *
+     * Mapping ini hanya menambahkan fallback alias,
+     * tidak mengubah workflow, approval, audit, KTA,
+     * maupun fitur admin lainnya.
+     */
+    return {
+      ...rawMember,
+
+      nama_lengkap:
+        rawMember.nama_lengkap ||
+        rawMember.full_name ||
+        rawMember.name ||
+        "",
+
+      email:
+        rawMember.email ||
+        "",
+
+      nomor_telepon:
+        rawMember.nomor_telepon ||
+        rawMember.phone ||
+        rawMember.whatsapp ||
+        "",
+
+      tempat_lahir:
+        rawMember.tempat_lahir ||
+        rawMember.birth_place ||
+        "",
+
+      tanggal_lahir:
+        rawMember.tanggal_lahir ||
+        rawMember.birth_date ||
+        "",
+
+      jenis_kelamin:
+        rawMember.jenis_kelamin ||
+        rawMember.gender ||
+        "L",
+
+      alamat_domisili:
+        rawMember.alamat_domisili ||
+        rawMember.address ||
+        "",
+
+      foto_url:
+        rawMember.foto_url ||
+        rawMember.photo_url ||
+        "",
+    };
   }, [members, member]);
 
   // Form State for editing
