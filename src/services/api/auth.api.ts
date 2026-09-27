@@ -54,9 +54,7 @@ export const authApi = {
 
     return apiClient.post<LoginResponseData>(
       'auth.login',
-      {
-        body: credentials
-      }
+      credentials
     );
 
   },
@@ -69,9 +67,7 @@ export const authApi = {
     return apiClient.post<MeResponseData>(
       'auth.me',
       {
-        body:{
-          user_id:userId
-        }
+        user_id: userId
       }
     );
 
@@ -85,9 +81,7 @@ export const authApi = {
     return apiClient.post<{ loggedOut:boolean }>(
       'auth.logout',
       {
-        body:{
-          user_id:userId
-        }
+        user_id: userId
       }
     );
 
