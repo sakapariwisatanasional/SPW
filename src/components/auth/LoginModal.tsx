@@ -51,7 +51,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           title: 'Login Berhasil',
           message: res.message || 'Selamat datang di SPWN Apps 2.0',
         });
+        setIdentifier('');
+        setPassword('');
+        setErrorMessage(null);
+
         onClose();
+
         if (targetViewAfterLogin) {
           setActiveView(targetViewAfterLogin);
         } else if (res.user?.role === ROLES.MEMBER) {
