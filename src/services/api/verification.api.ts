@@ -27,16 +27,30 @@ export interface QrVerificationResult {
 
 export const verificationApi = {
   /**
-   * Verifikasi QR Token KTA secara publik (Rate Limited)
+   * Verifikasi QR Token KTA secara publik
    */
-  verifyQr: async (token: string): Promise<ApiResponse<QrVerificationResult>> => {
-    return apiClient.get<QrVerificationResult>('verify.kta', { token });
+  verifyQr: async (
+    token: string
+  ): Promise<ApiResponse<QrVerificationResult>> => {
+    return apiClient.post<QrVerificationResult>(
+      'verification.qr',
+      {
+        qr_token: token
+      }
+    );
   },
 
   /**
-   * Verifikasi internal KTA via Nomor KTA (Khusus Admin / Pengurus Berizin)
+   * Verifikasi internal KTA melalui nomor KTA
    */
-  verifyInternal: async (noKta: string): Promise<ApiResponse<QrVerificationResult>> => {
-    return apiClient.get<QrVerificationResult>('verify.internal', { no_kta: noKta });
+  verifyInternal: async (
+    noKta: string
+  ): Promise<ApiResponse<QrVerificationResult>> => {
+    return apiClient.post<QrVerificationResult>(
+      'verification.kta',
+      {
+        nomor_kta: noKta
+      }
+    );
   }
 };
