@@ -25,7 +25,13 @@ import { Button } from '../ui/Button';
 import { MemberProfileModal } from '../../features/membership/components/MemberProfileModal';
 
 export const Header: React.FC = () => {
-  const { currentUser, switchRole, isAuthenticated, logout } = useAuthStore();
+  const {
+    currentUser,
+    switchRole,
+    isAuthenticated,
+    logout,
+    updateCurrentUserProfile
+  } = useAuthStore();
   const {
     toggleSidebar,
     activeView,
@@ -279,6 +285,8 @@ export const Header: React.FC = () => {
           <MemberProfileModal
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
+            currentUser={currentUser}
+            updateCurrentUserProfile={updateCurrentUserProfile}
           />,
           document.body
         )}
