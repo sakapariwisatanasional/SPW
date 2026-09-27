@@ -1346,12 +1346,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   batchGenerateKta: async (memberIds, reason, sessionUserName) => {
-    memberIds.forEach((id) => {
+    for (const id of memberIds) {
       try {
         await get().activateMember(id, reason, sessionUserName);
       } catch (e) {
         // Continue next
       }
-    });
+    }
   },
 }));
