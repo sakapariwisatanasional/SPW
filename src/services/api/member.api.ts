@@ -118,12 +118,35 @@ export const memberApi = {
    * Mengambil detail profil anggota berdasarkan ID atau no_kta
    */
   detail: async (idOrNoKta: string): Promise<ApiResponse<SpwnUser>> => {
-    const response = await apiClient.get<any>('member.detail', { id: idOrNoKta });
+
+    /**
+     * GAS MemberAdminController.detail membaca:
+     * request.body.member_id
+     *
+     * Jangan gunakan query parameter { id: ... }
+     * karena akan menyebabkan:
+     * "Member ID wajib diisi"
+     */
+
+    const response = await apiClient.post<any>('member.detail', {
+      member_id: idOrNoKta,
+    });
+
+
+    const detailData =
+      response?.data?.data ||
+      response?.data?.member ||
+      response?.data ||
+      response;
+
 
     return {
       ...response,
-      data: response.data ? normalizeMemberKtaData(response.data) as SpwnUser : response.data,
+      data: detailData
+        ? normalizeMemberKtaData(detailData) as SpwnUser
+        : response.data,
     };
+
   },
 
   /**
