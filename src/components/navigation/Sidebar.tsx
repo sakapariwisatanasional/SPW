@@ -251,7 +251,7 @@ export const Sidebar: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-[#F7941D]" />
                 <span className="text-[11px] font-bold text-slate-700">Wonderful Indonesia</span>
               </div>
-              <p className="text-[10px] text-slate-400">Enterprise Digital Ecosystem</p>
+              <p className="text-[10px] text-slate-400">@sang_pandunegeri</p>
             </div>
           ) : (
             <div className="w-7 h-7 mx-auto rounded-lg bg-slate-100 flex items-center justify-center text-[#0066B3] text-[10px] font-bold">
