@@ -1,7 +1,12 @@
-// authStore.ts
-// SPWN Apps 2.0 Frontend Hardening
-// Backend authentication only - mock login removed
-// FINAL PATCH: preserve GAS memberProfile data
+/**
+ * SPWN Apps 2.0
+ * authStore FINAL v5
+ *
+ * Fix:
+ * - Preserve full GAS auth.login response
+ * - Keep memberProfile from Sheet Anggota
+ * - Fix session storage losing profile data
+ */
 
 import { create } from 'zustand';
 import { ROLES, UserRole } from '../config/constants';
@@ -26,21 +31,15 @@ function getInitialAuthState(){
     if(token && user){
 
       return {
-
         currentUser:{
           ...user,
-
           permissions:
             user.permissions ||
             ROLE_DEFAULT_PERMISSIONS[user.role] ||
             []
-
         },
-
         token,
-
         isAuthenticated:true
-
       };
 
     }
@@ -48,7 +47,7 @@ function getInitialAuthState(){
   }catch(e){
 
     console.warn(
-      'Session restore gagal',
+      'Restore session gagal',
       e
     );
 
@@ -81,7 +80,7 @@ interface AuthState{
 
   setSession:
     (
-      user:UserProfile,
+      user:any,
       token:string
     )=>void;
 
@@ -121,6 +120,7 @@ create<AuthState>((set,get)=>({
 
     try{
 
+
       const response =
         await authApi.login({
 
@@ -133,6 +133,7 @@ create<AuthState>((set,get)=>({
 
 
       if(
+        !response ||
         !response.success ||
         !response.data
       ){
@@ -140,7 +141,7 @@ create<AuthState>((set,get)=>({
         return {
           success:false,
           message:
-            response.message ||
+            response?.message ||
             'Login gagal'
         };
 
@@ -148,18 +149,36 @@ create<AuthState>((set,get)=>({
 
 
 
-      const user =
+      /*
+        GAS mengirim:
+
+        data:{
+          id,
+          email,
+          memberProfile,
+          token,
+          expiresAt
+        }
+
+        Tidak selalu memakai data.user
+      */
+
+      const loginData =
         response.data.user ||
         response.data;
 
 
 
+      const token =
+        loginData.token ||
+        response.data.token ||
+        '';
+
+
+
       get().setSession(
-
-        user as UserProfile,
-
-        response.data.token
-
+        loginData,
+        token
       );
 
 
@@ -168,14 +187,17 @@ create<AuthState>((set,get)=>({
 
         success:true,
 
-        message:'Login berhasil',
+        message:
+          'Login berhasil',
 
-        user:user
+        user:
+          loginData
 
       };
 
 
     }catch(error:any){
+
 
       return {
 
@@ -197,47 +219,34 @@ create<AuthState>((set,get)=>({
   (user,token)=>{
 
 
-    const permissions =
-      (user as any).permissions ||
-      ROLE_DEFAULT_PERMISSIONS[
-        user.role as UserRole
-      ] ||
-      [];
+    const sessionUser = {
+
+      ...user,
 
 
-
-    /*
-      Pastikan data dari GAS tetap tersimpan:
-
-      memberProfile:{
-        full_name,
-        phone,
-        province,
-        krida,
-        photo_url,
-        no_kta
-      }
-    */
+      permissions:
+        user.permissions ||
+        ROLE_DEFAULT_PERMISSIONS[
+          user.role as UserRole
+        ] ||
+        [],
 
 
-    const sessionUser =
-      {
+      /*
+        Pastikan profil anggota tidak hilang
+      */
 
-        ...user,
+      memberProfile:
+        user.memberProfile ||
+        null
 
-        permissions,
-
-        memberProfile:
-          (user as any).memberProfile ||
-          null
-
-      };
+    };
 
 
 
     localStorage.setItem(
       'spwn_session_token',
-      token
+      token || ''
     );
 
 
@@ -282,13 +291,9 @@ create<AuthState>((set,get)=>({
 
       }
 
-
     }catch(error){
 
-      console.warn(
-        'Logout backend gagal, session lokal tetap dibersihkan',
-        error
-      );
+      console.warn(error);
 
     }
 
@@ -302,7 +307,6 @@ create<AuthState>((set,get)=>({
     localStorage.removeItem(
       'spwn_session_user'
     );
-
 
 
     set({
@@ -345,7 +349,7 @@ create<AuthState>((set,get)=>({
 
 
     return (
-      (user as any).permissions || []
+      user.permissions || []
     )
     .includes(permission);
 
