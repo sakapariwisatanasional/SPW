@@ -26,6 +26,7 @@ import { useUIStore } from '../../../stores/uiStore';
 import { formatCurrencyIDR } from '../../../utils/formatters';
 import { apiClient } from '../../../services/api/apiClient';
 import { KridaGridSection } from '../../krida/components/KridaGridSection';
+import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuthStore();
@@ -344,6 +345,21 @@ export const DashboardPage: React.FC = () => {
       .substring(0,2)
       .toUpperCase();
 
+  const dashboardKtaMember = {
+    id: profile.id || currentUser?.memberId || '',
+    fullName: displayName,
+    noKta: displayKta,
+    role: profile.position || displayRole,
+    kridaName: displayKrida,
+    province: displayProvince,
+    photoUrl: displayPhoto,
+    verificationToken:
+      profile.qr_token ||
+      profile.verification_url ||
+      '',
+    status: displayStatus
+  };
+
   return (
     <div className="space-y-6">
       {/* Workspace App Header Card */}
@@ -487,63 +503,12 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-4 items-stretch">
-              <div className="rounded-2xl bg-gradient-to-tr from-[#0066B3] via-[#004C85] to-[#009B4D] text-white shadow-xs relative overflow-hidden p-5 min-h-[220px]">
-                <div className="absolute -top-14 -right-12 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                <div className="absolute -bottom-16 -left-10 w-36 h-36 bg-[#F7941D]/15 rounded-full blur-2xl pointer-events-none" />
-
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-200 font-bold">
-                        SAKA PARIWISATA INDONESIA
-                      </p>
-                      <p className="text-lg font-black tracking-tight mt-1">
-                        {displayName}
-                      </p>
-                      <p className="text-xs text-slate-200 mt-1">
-                        {displayRole}
-                      </p>
-                    </div>
-
-                    {displayPhoto ? (
-                      <img
-                        src={displayPhoto}
-                        alt={displayName}
-                        className="w-16 h-16 rounded-2xl object-cover border-2 border-white/30 shadow-md"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-white/20 border border-white/20 flex items-center justify-center text-white font-black text-lg shadow-md">
-                        {displayInitials}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
-                    <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
-                      <p className="text-[10px] text-slate-200 uppercase tracking-wide">Nomor KTA</p>
-                      <p className="font-mono font-bold tracking-wider text-sm mt-0.5 break-all">
-                        {displayKta}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
-                      <p className="text-[10px] text-slate-200 uppercase tracking-wide">Krida</p>
-                      <p className="font-semibold text-sm mt-0.5">
-                        {displayKrida}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
-                      <p className="text-[10px] text-slate-200 uppercase tracking-wide">Pangkalan / Wilayah</p>
-                      <p className="font-semibold text-sm mt-0.5">
-                        {displayPangkalan}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2">
-                      <p className="text-[10px] text-slate-200 uppercase tracking-wide">Email Anggota</p>
-                      <p className="font-semibold text-sm mt-0.5 break-all">
-                        {currentUser?.email || '-'}
-                      </p>
-                    </div>
-                  </div>
+              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="w-full max-w-[620px] mx-auto overflow-hidden rounded-xl">
+                  <DigitalMemberCard
+                    member={dashboardKtaMember}
+                    previewSettings={null}
+                  />
                 </div>
               </div>
 
