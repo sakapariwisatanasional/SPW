@@ -278,5 +278,23 @@ export const memberApi = {
       reason,
     });
   },
+
+  /**
+   * Update profil anggota dari halaman profil pribadi
+   * Digunakan oleh AuthStore.updateCurrentUserProfile()
+   */
+  updateProfile: async (
+    payload: {
+      member_id: string;
+      data: Record<string, unknown>;
+      actor?: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>(
+      'member.update_profile',
+      payload as unknown as Record<string, unknown>
+    );
+  },
+
 };
 
