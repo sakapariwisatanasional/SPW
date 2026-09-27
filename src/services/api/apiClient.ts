@@ -117,6 +117,7 @@ class SpwnApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options?.headers || {}),
         },
         body: JSON.stringify({
@@ -127,7 +128,10 @@ class SpwnApiClient {
         signal: options?.signal,
       });
 
-      const json = await response.json();
+      const json = await response.json().catch(() => ({
+        success: false,
+        message: 'Invalid JSON response from API'
+      }));
 
       if (!json.success || response.status >= 400) {
         throw new SpwnApiError(
@@ -158,12 +162,16 @@ class SpwnApiClient {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(options?.headers || {}),
         },
         signal: options?.signal,
       });
 
-      const json = await response.json();
+      const json = await response.json().catch(() => ({
+        success: false,
+        message: 'Invalid JSON response from API'
+      }));
 
       if (!json.success || response.status >= 400) {
         throw new SpwnApiError(
