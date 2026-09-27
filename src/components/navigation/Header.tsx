@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Menu,
   Search,
@@ -78,7 +79,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between gap-3 sm:gap-4 shadow-xs">
+    <header className="sticky top-0 z-40 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between gap-3 sm:gap-4 shadow-xs">
       {/* Left: Mobile Toggle, Breadcrumb & Search */}
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
         <button
@@ -271,11 +272,16 @@ export const Header: React.FC = () => {
         ) : null}
       </div>
 
-      {/* Member Profile Correction & Password Reset Modal */}
-      <MemberProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-      />
+      {/* Member Profile Correction & Password Reset Modal
+          Render outside header stacking context */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <MemberProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+          />,
+          document.body
+        )}
     </header>
   );
 };
