@@ -16,7 +16,6 @@ import {
   AdminAppointmentRecord,
   AdminTierLevel,
 } from '../types/admin.types';
-import { ktaService } from '../../../services/ktaService';
 import { ROLES, UserRole } from '../../../config/constants';
 import { apiClient } from '../../../services/api/apiClient';
 
@@ -547,16 +546,16 @@ interface AdminState {
 
   // Actions - Phase 3 Lifecycle Management & Privacy Refactor
   addMember: (memberData: Omit<AdminMemberRecord, 'id' | 'created_at' | 'updated_at'>) => AdminMemberRecord;
-  reviewMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => void;
+  reviewMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
   reviewMemberWilayah: (memberId: string, notes: string, reviewerName: string) => void;
   requestRevisionMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => void;
-  approveMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => void;
+  approveMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
   approveMemberPusat: (memberId: string, notes: string, sessionUserName: string) => void;
-  rejectMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => void;
-  generateKta: (memberId: string, reason: string, sessionUserName: string) => { nomorKta: string; qrToken: string };
+  rejectMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
+  generateKta: (memberId: string, reason: string, sessionUserName: string) => Promise<{ nomorKta: string; qrToken: string }>;
   revokeKta: (memberId: string, reason: string, sessionUserName: string) => void;
   activateMember: (memberId: string, notes: string, sessionUserName: string) => { nomorKta: string; qrToken: string };
-  regenerateKta: (memberId: string, reason: string, sessionUserName: string) => { nomorKta: string; qrToken: string };
+  regenerateKta: (memberId: string, reason: string, sessionUserName: string) => Promise<{ nomorKta: string; qrToken: string }>;
   updateMemberPhoto: (memberId: string, newPhotoUrl: string, reason: string, sessionUserName: string, sessionUserRole: string) => void;
   updateMemberAdmin: (memberId: string, updates: Partial<AdminMemberRecord>, reason: string, sessionUserName: string, sessionUserRole: string) => void;
   resetMemberPassword: (memberId: string, temporaryPassword?: string, reason?: string, sessionUserName?: string, sessionUserRole?: string) => { temporaryPassword: string; message: string };
@@ -652,9 +651,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     return newRecord;
   },
 
-  reviewMember: (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
+  reviewMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
     const nowIso = new Date().toISOString();
     const effectiveRole = reviewerRole || get().simulatedScope;
+    await apiClient.post('admin.member.review', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     set((state) => {
       const updatedMembers = state.members.map((m) => {
         if (m.id === memberId) {
@@ -753,13 +753,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  approveMember: (memberId, notes, reviewerName, reviewerRole = 'ADMIN_PUSAT') => {
+  approveMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_PUSAT') => {
     const effectiveRole = reviewerRole || get().simulatedScope;
     if (effectiveRole === 'ADMIN_WILAYAH') {
       throw new Error('Admin Wilayah tidak memiliki wewenang Final Approval. Wewenang ini khusus Admin Pusat atau Super Admin.');
     }
 
     const nowIso = new Date().toISOString();
+    await apiClient.post('admin.member.approve', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'REVIEWED_VERIFIED';
 
@@ -814,7 +815,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
   },
 
-  rejectMember: (memberId, notes, reviewerName, reviewerRole = 'ADMIN') => {
+  rejectMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN') => {
     const nowIso = new Date().toISOString();
     const effectiveRole = reviewerRole || get().simulatedScope;
     const member = get().members.find((m) => m.id === memberId);
@@ -864,7 +865,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  generateKta: (memberId, reason, sessionUserName) => {
+  generateKta: async (memberId, reason, sessionUserName) => {
     const state = get();
     const effectiveRole = state.simulatedScope;
     if (effectiveRole === 'ADMIN_WILAYAH') {
@@ -881,17 +882,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     const nowIso = new Date().toISOString();
-    const nextSeq = state.members.filter((m) => m.nomor_kta).length + 1;
-
-    const nomorKta = ktaService.generateKtaNumber({
-      level: member.level_organisasi,
-      kodeKabupaten: member.kabupaten_id || '3201',
-      kodeKecamatan: member.kecamatan_id || member.wilayah_kecamatan_id || '010',
-      sequence: nextSeq,
-    });
-
-    const qrToken = ktaService.generateMemberQrToken(24);
-    const qrUrl = ktaService.generateMemberQrUrl(qrToken);
+    const gasResult:any = await apiClient.post('admin.kta.generate', { member_id: memberId, reason });
+    const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
+    const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
+    const qrUrl = gasResult.data?.qr_url || '';
 
     const logEntry: KtaGenerationLogEntry = {
       id: 'KLOG-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
@@ -984,14 +978,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }));
   },
 
-  activateMember: (memberId, notes, sessionUserName) => {
+  activateMember: async (memberId, notes, sessionUserName) => {
     // Approve member Pusat if not active
-    get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
-    // Generate KTA
-    return get().generateKta(memberId, notes, sessionUserName);
+    await get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
+    return await get().generateKta(memberId, notes, sessionUserName);
   },
 
-  regenerateKta: (memberId, reason, sessionUserName) => {
+  regenerateKta: async (memberId, reason, sessionUserName) => {
     const state = get();
     const effectiveRole = state.simulatedScope;
     if (effectiveRole === 'ADMIN_WILAYAH') {
@@ -1012,15 +1005,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       ? parseInt(member.nomor_kta.split('.').pop() || '1', 10)
       : state.members.filter((m) => m.nomor_kta).length + 1;
 
-    const nomorKta = ktaService.generateKtaNumber({
-      level: member.level_organisasi,
-      kodeKabupaten: member.kabupaten_id || '3201',
-      kodeKecamatan: member.kecamatan_id || member.wilayah_kecamatan_id || '010',
-      sequence: seq,
-    });
-
-    const qrToken = ktaService.generateMemberQrToken(24);
-    const qrUrl = ktaService.generateMemberQrUrl(qrToken);
+    const gasResult:any = await apiClient.post('admin.kta.regenerate', { member_id: memberId, reason });
+    const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
+    const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
+    const qrUrl = gasResult.data?.qr_url || '';
 
     const logEntry: KtaGenerationLogEntry = {
       id: 'KLOG-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
@@ -1357,10 +1345,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  batchGenerateKta: (memberIds, reason, sessionUserName) => {
+  batchGenerateKta: async (memberIds, reason, sessionUserName) => {
     memberIds.forEach((id) => {
       try {
-        get().activateMember(id, reason, sessionUserName);
+        await get().activateMember(id, reason, sessionUserName);
       } catch (e) {
         // Continue next
       }
