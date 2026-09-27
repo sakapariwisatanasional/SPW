@@ -557,7 +557,7 @@ interface AdminState {
   activateMember: (memberId: string, notes: string, sessionUserName: string) => { nomorKta: string; qrToken: string };
   regenerateKta: (memberId: string, reason: string, sessionUserName: string) => Promise<{ nomorKta: string; qrToken: string }>;
   updateMemberPhoto: (memberId: string, newPhotoUrl: string, reason: string, sessionUserName: string, sessionUserRole: string) => void;
-  updateMemberAdmin: (memberId: string, updates: Partial<AdminMemberRecord>, reason: string, sessionUserName: string, sessionUserRole: string) => void;
+  updateMemberAdmin: (memberId: string, updates: Partial<AdminMemberRecord>, reason: string, sessionUserName: string, sessionUserRole: string) => Promise<void>;
   resetMemberPassword: (memberId: string, temporaryPassword?: string, reason?: string, sessionUserName?: string, sessionUserRole?: string) => { temporaryPassword: string; message: string };
   assignAdmin: (data: Omit<AdminAppointmentRecord, 'id' | 'appointed_at'>) => AdminAppointmentRecord;
   revokeAdmin: (id: string, reason: string, sessionUserName: string) => void;
@@ -1113,13 +1113,21 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }));
   },
 
-  updateMemberAdmin: (memberId, updates, reason, sessionUserName, sessionUserRole) => {
+  updateMemberAdmin: async (memberId, updates, reason, sessionUserName, sessionUserRole) => {
     const state = get();
     const member = state.members.find((m) => m.id === memberId);
+
     if (!member) throw new Error('Member tidak ditemukan');
     if (!reason || reason.trim().length < 3) {
       throw new Error('Alasan perubahan data administrasi wajib diisi!');
     }
+
+    // Sinkronisasi ke backend GAS agar perubahan masuk Spreadsheet
+    await apiClient.post('member.update_profile', {
+      member_id: memberId,
+      data: updates,
+      actor: sessionUserName,
+    });
 
     const nowIso = new Date().toISOString();
     const changeRecords: MemberChangeHistoryEntry[] = [];
@@ -1127,6 +1135,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     (Object.keys(updates) as (keyof AdminMemberRecord)[]).forEach((field) => {
       const oldVal = String(member[field] || '');
       const newVal = String(updates[field] || '');
+
       if (oldVal !== newVal) {
         changeRecords.push({
           id: 'HIST-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
@@ -1136,7 +1145,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           new_value: newVal,
           actor_id: sessionUserName,
           actor_role: sessionUserRole,
-          reason: reason,
+          reason,
           timestamp: nowIso,
         });
       }
