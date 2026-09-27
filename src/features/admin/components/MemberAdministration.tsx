@@ -108,13 +108,64 @@ export const MemberAdministration: React.FC = () => {
       // Ambil data detail terbaru dari GAS sebelum membuka drawer
       const detail = await memberApi.detail(m.id);
 
-      const detailMember =
+      const rawDetail =
         detail?.data?.member ||
         detail?.data ||
         detail ||
-        m;
+        {};
 
-      setInspectMember(detailMember as AdminMemberRecord);
+      /**
+       * Normalisasi field agar kompatibel dengan MemberDrawer.
+       * API GAS dapat mengembalikan:
+       * full_name / fullName / nama_lengkap
+       * phone / nomor_telepon
+       * sedangkan drawer memakai struktur AdminMemberRecord.
+       */
+      const detailMember: AdminMemberRecord = {
+        ...m,
+        ...rawDetail,
+
+        full_name:
+          rawDetail.full_name ||
+          rawDetail.fullName ||
+          rawDetail.nama_lengkap ||
+          m.full_name ||
+          m.nama_lengkap ||
+          m.nama ||
+          '',
+
+        nama_lengkap:
+          rawDetail.nama_lengkap ||
+          rawDetail.full_name ||
+          rawDetail.fullName ||
+          m.nama_lengkap ||
+          m.full_name ||
+          m.nama ||
+          '',
+
+        email:
+          rawDetail.email ||
+          m.email ||
+          '',
+
+        nomor_telepon:
+          rawDetail.nomor_telepon ||
+          rawDetail.phone ||
+          rawDetail.whatsapp ||
+          m.nomor_telepon ||
+          '',
+
+        phone:
+          rawDetail.phone ||
+          rawDetail.nomor_telepon ||
+          rawDetail.whatsapp ||
+          m.phone ||
+          '',
+
+      };
+
+      setInspectMember(detailMember);
+
     } catch (error) {
       console.error('Gagal mengambil detail anggota:', error);
 
