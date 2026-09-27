@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   User,
   Mail,
@@ -62,6 +62,65 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
   const availableDistricts = React.useMemo(() => {
     return profileData.cityId ? getDistrictsByRegency(profileData.cityId) : [];
   }, [profileData.cityId]);
+
+
+  // Sinkronisasi ulang data dari GAS / Sheet Anggota
+  // karena currentUser.memberProfile dapat tersedia setelah session restore
+  useEffect(() => {
+
+    const member = currentUser.memberProfile;
+
+    if (!member) return;
+
+
+    const matchedKrida =
+      KRIDA_MASTER.find((k) =>
+        String(k.name || "")
+          .toLowerCase()
+          .trim() ===
+        String(member.krida || "")
+          .toLowerCase()
+          .trim()
+      );
+
+
+    const matchedProvince =
+      PROVINCES.find((p) =>
+        String(p.name || "")
+          .toLowerCase()
+          .trim() ===
+        String(member.province || "")
+          .toLowerCase()
+          .trim()
+      );
+
+
+    setProfileData((prev) => ({
+      ...prev,
+
+      fullName:
+        member.full_name ||
+        prev.fullName,
+
+      phone:
+        member.phone ||
+        prev.phone,
+
+      avatarUrl:
+        member.photo_url ||
+        prev.avatarUrl,
+
+      kridaId:
+        matchedKrida?.id ||
+        prev.kridaId,
+
+      provinceId:
+        matchedProvince?.code ||
+        prev.provinceId
+
+    }));
+
+  }, [currentUser.memberProfile]);
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
