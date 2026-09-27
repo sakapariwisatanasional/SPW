@@ -99,11 +99,18 @@ export const memberApi = {
   list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
     const response = await apiClient.get<any[]>('member.list', params as Record<string, string | number>);
 
+    const members =
+      Array.isArray(response.data)
+        ? response.data
+        : (
+            Array.isArray(response.data?.data)
+              ? response.data.data
+              : []
+          );
+
     return {
       ...response,
-      data: Array.isArray(response.data)
-        ? response.data.map(normalizeMemberKtaData) as SpwnUser[]
-        : response.data,
+      data: members.map(normalizeMemberKtaData) as SpwnUser[],
     };
   },
 
