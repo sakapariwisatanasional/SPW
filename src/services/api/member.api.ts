@@ -97,7 +97,10 @@ export const memberApi = {
    * Mengambil daftar anggota terpaginasi
    */
   list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
-    const response = await apiClient.get<any[]>('admin.member.list', params as Record<string, string | number>);
+    const response = await apiClient.post<any[]>(
+      'admin.member.pending',
+      params || {}
+    );
 
     return {
       ...response,
