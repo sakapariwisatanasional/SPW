@@ -87,13 +87,15 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
     const selectedReg = availableRegencies.find((r) => r.code === profileData.cityId);
     const selectedDist = availableDistricts.find((d) => d.districtCode3 === profileData.districtId || d.code === profileData.districtId);
 
-    updateCurrentUserProfile({
-      ...profileData,
-      province: selectedProv ? selectedProv.name : currentUser.province,
-      cityName: selectedReg ? selectedReg.name : currentUser.cityName,
-      districtName: selectedDist ? selectedDist.name : currentUser.districtName,
-      kridaName: selectedKrida ? selectedKrida.name : profileData.kridaId,
-    });
+    if (typeof updateCurrentUserProfile === 'function') {
+      updateCurrentUserProfile({
+        ...profileData,
+        province: selectedProv ? selectedProv.name : currentUser.province,
+        cityName: selectedReg ? selectedReg.name : currentUser.cityName,
+        districtName: selectedDist ? selectedDist.name : currentUser.districtName,
+        kridaName: selectedKrida ? selectedKrida.name : profileData.kridaId,
+      });
+    }
 
     setTimeout(() => {
       setIsSavingProfile(false);
@@ -151,11 +153,11 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] my-auto">
         {/* Header Modal */}
         <div className="bg-gradient-to-r from-[#0066B3] to-[#009B4D] p-5 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="relative">
               <img
                 src={profileData.avatarUrl || currentUser.avatarUrl || 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80'}
@@ -166,7 +168,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-white">{currentUser.fullName}</h3>
+                <h3 className="font-bold text-sm sm:text-base text-white truncate max-w-[180px] sm:max-w-none">{currentUser.fullName}</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/20">
                   {currentUser.roleName}
                 </span>
@@ -215,7 +217,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
         </div>
 
         {/* Content Body */}
-        <div className="overflow-y-auto p-5 space-y-4 flex-1">
+        <div className="overflow-y-auto p-3 sm:p-5 space-y-4 flex-1">
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-900 flex items-start gap-2.5">
