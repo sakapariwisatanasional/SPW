@@ -13,19 +13,101 @@ import { SpwnUser } from './auth.api';
 export function normalizeMemberKtaData(member: any) {
   return {
     ...member,
-    fullName: member.fullName || member.full_name || member.nama || member.nama_lengkap || '',
+
+    // identity compatibility
+    nama_lengkap:
+      member.nama_lengkap ||
+      member.full_name ||
+      member.fullName ||
+      member.nama ||
+      '',
+
+    fullName:
+      member.fullName ||
+      member.full_name ||
+      member.nama ||
+      member.nama_lengkap ||
+      '',
+
+    // contact compatibility
+    email:
+      member.email || '',
+
+    nomor_telepon:
+      member.nomor_telepon ||
+      member.phone ||
+      member.telepon ||
+      '',
+
+    phone:
+      member.phone ||
+      member.nomor_telepon ||
+      member.telepon ||
+      '',
+
+    // biodata
+    tempat_lahir:
+      member.tempat_lahir || '',
+
+    tanggal_lahir:
+      member.tanggal_lahir || '',
+
+    jenis_kelamin:
+      member.jenis_kelamin || '',
+
+    golongan_darah:
+      member.golongan_darah || '',
+
+    // address
+    alamat_domisili:
+      member.alamat_domisili ||
+      member.alamat ||
+      '',
+
+    // KTA fields
     nationalMemberNumber:
-      member.nationalMemberNumber || member.no_kta || member.nomor_kta || '',
-    photoUrl: member.photoUrl || member.photo_url || member.foto || '',
+      member.nationalMemberNumber ||
+      member.no_kta ||
+      member.nomor_kta ||
+      '',
+
+    photoUrl:
+      member.photoUrl ||
+      member.photo_url ||
+      member.foto ||
+      member.foto_url ||
+      '',
+
     membershipLevel:
-      member.membershipLevel || member.position || member.tingkatan || '',
+      member.membershipLevel ||
+      member.position ||
+      member.tingkatan ||
+      '',
+
     currentPosition:
-      member.currentPosition || member.position || member.tingkatan || '',
-    krida: member.krida || '',
-    province: member.province || member.provinsi_id || '',
-    city: member.city || member.kwartir_daerah || '',
-    district: member.district || '',
-    status: member.status || '',
+      member.currentPosition ||
+      member.position ||
+      member.tingkatan ||
+      '',
+
+    krida:
+      member.krida || '',
+
+    province:
+      member.province ||
+      member.provinsi_id ||
+      '',
+
+    city:
+      member.city ||
+      member.kwartir_daerah ||
+      '',
+
+    district:
+      member.district || '',
+
+    status:
+      member.status || '',
   };
 }
 
