@@ -654,7 +654,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   reviewMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
     const nowIso = new Date().toISOString();
     const effectiveRole = reviewerRole || get().simulatedScope;
-    await apiClient.post('admin.member.review', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
+    await apiClient.post('member.approval', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     set((state) => {
       const updatedMembers = state.members.map((m) => {
         if (m.id === memberId) {
@@ -760,7 +760,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     const nowIso = new Date().toISOString();
-    await apiClient.post('admin.member.approve', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
+    await apiClient.post('member.approval', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'REVIEWED_VERIFIED';
 
@@ -882,7 +882,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     const nowIso = new Date().toISOString();
-    const gasResult:any = await apiClient.post('admin.kta.generate', { member_id: memberId, reason });
+    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
     const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
     const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
     const qrUrl = gasResult.data?.qr_url || '';
@@ -1005,7 +1005,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       ? parseInt(member.nomor_kta.split('.').pop() || '1', 10)
       : state.members.filter((m) => m.nomor_kta).length + 1;
 
-    const gasResult:any = await apiClient.post('admin.kta.regenerate', { member_id: memberId, reason });
+    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
     const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
     const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
     const qrUrl = gasResult.data?.qr_url || '';
@@ -1228,7 +1228,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   loadMembers: async () => {
     try {
       const response = await apiClient.post<any>(
-        'admin.member.pending',
+        'member.list',
         {}
       );
 
