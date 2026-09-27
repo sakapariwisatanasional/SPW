@@ -22,6 +22,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { PROVINCES, getRegenciesByProvince, getDistrictsByRegency, resolveDistrictName } from '../../../data/wilayahData';
+import { memberApi } from '../../../services/api/member.api';
 
 interface MemberProfileModalProps {
   isOpen: boolean;
@@ -135,8 +136,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   // Handle Profile Update
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!profileData.fullName.trim()) {
       addToast({ type: 'error', title: 'Validasi', message: 'Nama lengkap wajib diisi!' });
       return;
@@ -144,29 +146,61 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
 
     setIsSavingProfile(true);
 
-    const selectedKrida = KRIDA_MASTER.find((k) => k.id === profileData.kridaId);
-    const selectedProv = PROVINCES.find((p) => p.code === profileData.provinceId);
-    const selectedReg = availableRegencies.find((r) => r.code === profileData.cityId);
-    const selectedDist = availableDistricts.find((d) => d.districtCode3 === profileData.districtId || d.code === profileData.districtId);
+    try {
 
-    if (typeof updateCurrentUserProfile === 'function') {
-      updateCurrentUserProfile({
-        ...profileData,
-        province: selectedProv ? selectedProv.name : currentUser.province,
-        cityName: selectedReg ? selectedReg.name : currentUser.cityName,
-        districtName: selectedDist ? selectedDist.name : currentUser.districtName,
-        kridaName: selectedKrida ? selectedKrida.name : profileData.kridaId,
-      });
-    }
+      const selectedKrida = KRIDA_MASTER.find((k) => k.id === profileData.kridaId);
+      const selectedProv = PROVINCES.find((p) => p.code === profileData.provinceId);
+      const selectedReg = availableRegencies.find((r) => r.code === profileData.cityId);
+      const selectedDist = availableDistricts.find((d) => d.districtCode3 === profileData.districtId || d.code === profileData.districtId);
 
-    setTimeout(() => {
-      setIsSavingProfile(false);
+
+      const payload = {
+        fullName: profileData.fullName,
+        phone: profileData.phone,
+        avatarUrl: profileData.avatarUrl,
+
+        province:
+          selectedProv?.name ||
+          currentUser.province,
+
+        cityName:
+          selectedReg?.name ||
+          currentUser.cityName,
+
+        districtName:
+          selectedDist?.name ||
+          currentUser.districtName,
+
+        kridaName:
+          selectedKrida?.name ||
+          profileData.kridaId
+      };
+
+
+      await updateCurrentUserProfile(payload);
+
+
       addToast({
         type: 'success',
         title: 'Profil Diperbarui',
-        message: 'Koreksi data profil & wilayah anggota Anda berhasil disimpan ke sistem.',
+        message: 'Koreksi data profil berhasil disimpan ke sistem.',
       });
-    }, 400);
+
+
+    } catch (err:any) {
+
+      addToast({
+        type: 'error',
+        title: 'Gagal Menyimpan Profil',
+        message: err.message || 'Profil gagal diperbarui.',
+      });
+
+
+    } finally {
+
+      setIsSavingProfile(false);
+
+    }
   };
 
   // Handle Member Password Reset
