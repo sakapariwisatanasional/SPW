@@ -1,89 +1,75 @@
+// SPWN GAS Proxy
+// Vercel Free Compatible
+// Direct GAS URL configuration
+
+const SPW_GAS_URL =
+  "https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec";
+
 export default async function handler(req, res) {
   try {
-    const GAS_URL = process.env.https://script.google.com/macros/s/AKfycbzuR8k2KbXHb6om2eNaIGM3yBBBsZtEFoLKji1H2dAWp4a6v8nrBAbwQj_S5S-SPBtXOg/exec;
-
-    if (!GAS_URL) {
+    if (!SPW_GAS_URL) {
       return res.status(500).json({
         success: false,
-        message: "SPWN_GAS_URL belum dikonfigurasi"
+        message: "SPW GAS URL belum dikonfigurasi"
       });
     }
 
-    const action =
-      req.query.action ||
-      req.body?.action ||
-      "";
+    const method = req.method || "GET";
 
-    if (!action) {
-      return res.status(400).json({
-        success: false,
-        message: "Action tidak ditemukan"
-      });
+    let url = SPW_GAS_URL;
+
+    // Teruskan query parameter
+    if (req.url.includes("?")) {
+      const query = req.url.split("?")[1];
+      url += "?" + query;
     }
 
-    let body = undefined;
-
-    if (req.method === "POST") {
-      body =
-        typeof req.body === "string"
-          ? req.body
-          : JSON.stringify(req.body || {});
-    }
-
-    const forwardHeaders = {
-      "Content-Type":
-        req.headers["content-type"] ||
-        "application/json",
-
-      "Accept":
-        "application/json"
+    const headers = {
+      "Content-Type": "application/json"
     };
 
+    // Teruskan authorization jika ada
     if (req.headers.authorization) {
-      forwardHeaders["Authorization"] =
-        req.headers.authorization;
+      headers.Authorization = req.headers.authorization;
     }
 
-    const gasUrl = new URL(GAS_URL);
+    const options = {
+      method,
+      headers
+    };
 
-    gasUrl.searchParams.set(
-      "action",
-      action
-    );
+    // POST body
+    if (method !== "GET" && req.body) {
+      options.body =
+        typeof req.body === "string"
+          ? req.body
+          : JSON.stringify(req.body);
+    }
 
-    const response = await fetch(
-      gasUrl.toString(),
-      {
-        method: req.method,
-        headers: forwardHeaders,
-        body
-      }
-    );
+    const response = await fetch(url, options);
 
     const text = await response.text();
 
-    let result;
+    let data;
 
     try {
-      result = JSON.parse(text);
+      data = JSON.parse(text);
     } catch {
-      result = {
+      data = {
         success: false,
-        message: "Response GAS bukan JSON",
-        raw: text
+        message: text
       };
     }
 
-    return res
-      .status(response.status)
-      .json(result);
+    return res.status(response.status).json(data);
 
   } catch (error) {
 
+    console.error("SPWN GAS Proxy Error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message || "Proxy error"
+      message: error.message || "Proxy GAS gagal"
     });
-
   }
 }
