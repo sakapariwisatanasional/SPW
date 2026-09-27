@@ -33,7 +33,7 @@ export const verificationApi = {
     token: string
   ): Promise<ApiResponse<QrVerificationResult>> => {
     return apiClient.post<QrVerificationResult>(
-      'verification.qr',
+      'verify.qr',
       {
         qr_token: token
       }
@@ -47,7 +47,7 @@ export const verificationApi = {
     noKta: string
   ): Promise<ApiResponse<QrVerificationResult>> => {
     return apiClient.post<QrVerificationResult>(
-      'verification.kta',
+      'verify.kta',
       {
         nomor_kta: noKta
       }
