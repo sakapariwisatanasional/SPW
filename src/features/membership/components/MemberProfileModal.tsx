@@ -32,13 +32,16 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
   const { currentUser, updateCurrentUserProfile, resetCurrentUserPassword } = useAuthStore();
   const { addToast } = useUIStore();
 
+  // Data anggota dari database GAS / Sheet Anggota
+  const memberProfile = currentUser.memberProfile || {};
+
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
 
   // Profile Form State
   const [profileData, setProfileData] = useState({
-    fullName: currentUser.fullName || '',
+    fullName: memberProfile.full_name || currentUser.fullName || '',
     email: currentUser.email || '',
-    phone: currentUser.phone || '',
+    phone: memberProfile.phone || currentUser.phone || '',
     birthPlace: currentUser.birthPlace || '',
     birthDate: currentUser.birthDate || '',
     gender: currentUser.gender || 'L',
@@ -48,8 +51,8 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
     provinceId: currentUser.provinceId || '32',
     cityId: currentUser.cityId || '',
     districtId: currentUser.districtId || '',
-    kridaId: currentUser.kridaId || 'KRIDA_PEMANDU',
-    avatarUrl: currentUser.avatarUrl || '',
+    kridaId: memberProfile.kridaId || currentUser.kridaId || 'KRIDA_PEMANDU',
+    avatarUrl: memberProfile.photo_url || currentUser.avatarUrl || '',
   });
 
   const availableRegencies = React.useMemo(() => {
@@ -160,21 +163,21 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({ isOpen, 
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative">
               <img
-                src={profileData.avatarUrl || currentUser.avatarUrl || 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80'}
-                alt={currentUser.fullName}
+                src={profileData.avatarUrl || memberProfile.photo_url || currentUser.avatarUrl || 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80'}
+                alt={memberProfile.full_name || currentUser.fullName}
                 className="w-12 h-12 rounded-xl object-cover border-2 border-white/40 shadow-sm"
               />
               <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-white truncate max-w-[180px] sm:max-w-none">{currentUser.fullName}</h3>
+                <h3 className="font-bold text-sm sm:text-base text-white truncate max-w-[180px] sm:max-w-none">{memberProfile.full_name || currentUser.fullName}</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/20">
                   {currentUser.roleName}
                 </span>
               </div>
               <p className="text-xs text-white/80 mt-0.5">
-                {currentUser.memberId ? `KTA: ${currentUser.memberId}` : currentUser.email} • {currentUser.province || 'Kwartir Nasional'}
+                {memberProfile.no_kta ? `KTA: ${memberProfile.no_kta}` : currentUser.email} • {memberProfile.province || currentUser.province || 'Kwartir Nasional'}
               </p>
             </div>
           </div>
