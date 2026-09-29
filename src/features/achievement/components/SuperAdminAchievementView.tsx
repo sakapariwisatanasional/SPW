@@ -1,4 +1,6 @@
 /**
+
+import { useAdminAchievementStore } from "@/stores/adminAchievementStore";
  * SPWN Apps 2.0 - SuperAdmin National Achievement & Progress Center
  * Location: src/features/achievement/components/SuperAdminAchievementView.tsx
  * -------------------------------------------------------------------------
@@ -36,8 +38,8 @@ import {
   User,
 } from 'lucide-react';
 import {
-  achievementMembers,
-} from '../../../stores/adminAchievementStore';
+  useAdminAchievementStore,
+} from "@/stores/adminAchievementStore";
 
 import {
   NationalMemberAchievement,
