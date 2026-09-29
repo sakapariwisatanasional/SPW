@@ -1,6 +1,6 @@
 /**
 
-import { useAdminAchievementStore } from "@/stores/adminAchievementStore";
+import { useAdminAchievementStore } from "@/store/adminAchievementStore";
  * SPWN Apps 2.0 - SuperAdmin National Achievement & Progress Center
  * Location: src/features/achievement/components/SuperAdminAchievementView.tsx
  * -------------------------------------------------------------------------
@@ -56,13 +56,16 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 }) => {
 
   const {
-    achievementMembers,
-    loadMemberAchievements,
+    dashboard,
+    statistics,
+    loadDashboard,
+    loadStatistics,
   } = useAdminAchievementStore();
 
   useEffect(() => {
-    loadMemberAchievements();
-  }, [loadMemberAchievements]);
+    loadDashboard();
+    loadStatistics();
+  }, [loadDashboard, loadStatistics]);
 
   // Filter States
   const [selectedKwarda, setSelectedKwarda] = useState<string>('ALL');
