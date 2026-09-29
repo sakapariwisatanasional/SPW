@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import {
   useAdminAchievementStore,
-} from "@/stores/adminAchievementStore";
+} from "@/store/adminAchievementStore";
 
 import {
   NationalMemberAchievement,
