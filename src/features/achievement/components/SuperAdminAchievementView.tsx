@@ -9,7 +9,7 @@
  * - Riwayat kegiatan dan portofolio partisipasi wisata masing-masing anggota
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Award,
   Users,
@@ -36,7 +36,10 @@ import {
   User,
 } from 'lucide-react';
 import {
-  NATIONAL_ACHIEVEMENT_MEMBERS,
+  achievementMembers,
+} from '../../../stores/adminAchievementStore';
+
+import {
   NationalMemberAchievement,
 } from '../data/nationalAchievementMembers';
 import { MemberLevel, SkkStatusType } from '../../../types/achievement';
@@ -49,6 +52,16 @@ interface SuperAdminAchievementViewProps {
 export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps> = ({
   onSwitchToPersonal,
 }) => {
+
+  const {
+    achievementMembers,
+    loadMemberAchievements,
+  } = useAdminAchievementStore();
+
+  useEffect(() => {
+    loadMemberAchievements();
+  }, [loadMemberAchievements]);
+
   // Filter States
   const [selectedKwarda, setSelectedKwarda] = useState<string>('ALL');
   const [selectedKrida, setSelectedKrida] = useState<string>('ALL');
@@ -62,13 +75,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Daftar Kwarda unik untuk filter
   const kwardaOptions = useMemo(() => {
-    const list = Array.from(new Set(NATIONAL_ACHIEVEMENT_MEMBERS.map((m) => m.kwarda)));
+    const list = Array.from(new Set(achievementMembers.map((m) => m.kwarda)));
     return list.sort();
   }, []);
 
   // Filtered Members
   const filteredMembers = useMemo(() => {
-    return NATIONAL_ACHIEVEMENT_MEMBERS.filter((m) => {
+    return achievementMembers.filter((m) => {
       const matchKwarda = selectedKwarda === 'ALL' || m.kwarda === selectedKwarda;
       const matchKrida = selectedKrida === 'ALL' || m.kridaUtamaId === selectedKrida;
       const matchLevel = selectedLevel === 'ALL' || m.level === selectedLevel;
@@ -90,21 +103,21 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Statistik Agregat Nasional
   const nationalStats = useMemo(() => {
-    const totalMembers = NATIONAL_ACHIEVEMENT_MEMBERS.length;
-    const totalUtama = NATIONAL_ACHIEVEMENT_MEMBERS.filter((m) => m.level === 'UTAMA').length;
-    const totalMadya = NATIONAL_ACHIEVEMENT_MEMBERS.filter((m) => m.level === 'MADYA').length;
-    const totalPurwa = NATIONAL_ACHIEVEMENT_MEMBERS.filter((m) => m.level === 'PURWA').length;
+    const totalMembers = achievementMembers.length;
+    const totalUtama = achievementMembers.filter((m) => m.level === 'UTAMA').length;
+    const totalMadya = achievementMembers.filter((m) => m.level === 'MADYA').length;
+    const totalPurwa = achievementMembers.filter((m) => m.level === 'PURWA').length;
 
     const avgProgress =
-      NATIONAL_ACHIEVEMENT_MEMBERS.reduce((acc, curr) => acc + curr.summary.progressPercent, 0) /
+      achievementMembers.reduce((acc, curr) => acc + curr.summary.progressPercent, 0) /
       (totalMembers || 1);
 
-    const totalSkkCompleted = NATIONAL_ACHIEVEMENT_MEMBERS.reduce(
+    const totalSkkCompleted = achievementMembers.reduce(
       (acc, curr) => acc + curr.summary.completedSkk,
       0
     );
 
-    const totalActivities = NATIONAL_ACHIEVEMENT_MEMBERS.reduce(
+    const totalActivities = achievementMembers.reduce(
       (acc, curr) => acc + curr.activities.length,
       0
     );
