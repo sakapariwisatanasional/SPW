@@ -2,24 +2,70 @@
  * SPWN Apps 2.0
  * Admin Achievement Store
  *
- * Terpisah dari achievementStore member.
+ * Scope:
+ * - Admin Achievement Dashboard
+ * - Achievement Statistics
+ * - Member Achievement Detail
+ * - Member list integration
+ *
+ * Catatan:
+ * Tidak mengubah GAS.
+ * Member list memakai existing memberApi.
  */
 
 import { create } from "zustand";
-import { adminAchievementApi } from "../services/api/adminAchievement.api";
+
+import { adminAchievementApi } from "@/services/api/adminAchievement.api";
+import { memberApi } from "@/services/api/member.api";
 
 
-export const useAdminAchievementStore = create((set)=>({
+interface AdminAchievementState {
+
+  dashboard: any | null;
+
+  statistics: any | null;
+
+  members: any[];
+
+  selectedMember: any | null;
+
+  loading: boolean;
+
+  error: string | null;
+
+
+  loadDashboard: () => Promise<void>;
+
+  loadStatistics: () => Promise<void>;
+
+  loadMembers: () => Promise<void>;
+
+  loadMemberDetail: (
+    memberId: string
+  ) => Promise<void>;
+
+  clearSelectedMember: () => void;
+
+}
+
+
+
+export const useAdminAchievementStore =
+create<AdminAchievementState>((set)=>({
+
 
   dashboard:null,
 
   statistics:null,
+
+  members:[],
 
   selectedMember:null,
 
   loading:false,
 
   error:null,
+
 
 
   loadDashboard: async()=>{
@@ -29,24 +75,34 @@ export const useAdminAchievementStore = create((set)=>({
       error:null
     });
 
+
     try{
 
-      const res =
+      const response =
         await adminAchievementApi
         .getDashboard();
 
 
       set({
-        dashboard:res.data,
+
+        dashboard:
+          response.data,
+
         loading:false
+
       });
 
 
-    }catch(error){
+    }catch(error:any){
 
       set({
+
         loading:false,
-        error:error.message || "Gagal memuat dashboard achievement"
+
+        error:
+          error.message ||
+          "Gagal memuat dashboard achievement"
+
       });
 
     }
@@ -54,24 +110,33 @@ export const useAdminAchievementStore = create((set)=>({
   },
 
 
+
   loadStatistics: async()=>{
+
 
     try{
 
-      const res =
+      const response =
         await adminAchievementApi
         .getStatistics();
 
 
       set({
-        statistics:res.data
+
+        statistics:
+          response.data
+
       });
 
 
-    }catch(error){
+    }catch(error:any){
 
       set({
-        error:error.message || "Gagal memuat statistik achievement"
+
+        error:
+          error.message ||
+          "Gagal memuat statistik achievement"
+
       });
 
     }
@@ -79,40 +144,97 @@ export const useAdminAchievementStore = create((set)=>({
   },
 
 
-  loadMemberDetail: async(memberId:string)=>{
+
+  loadMembers: async()=>{
+
+
+    try{
+
+
+      const response =
+        await memberApi.list();
+
+
+      set({
+
+        members:
+          response.data || []
+
+      });
+
+
+    }catch(error:any){
+
+      set({
+
+        error:
+          error.message ||
+          "Gagal memuat data anggota"
+
+      });
+
+    }
+
+  },
+
+
+
+  loadMemberDetail:
+  async(memberId:string)=>{
+
 
     set({
-      loading:true
+      loading:true,
+      error:null
     });
 
 
     try{
 
-      const res =
+
+      const response =
         await adminAchievementApi
         .getMemberDetail(memberId);
 
 
       set({
 
-        selectedMember:res.data,
+        selectedMember:
+          response.data,
 
         loading:false
 
       });
 
 
-    }catch(error){
+
+    }catch(error:any){
+
 
       set({
 
         loading:false,
 
-        error:error.message || "Gagal memuat detail achievement"
+        error:
+          error.message ||
+          "Gagal memuat detail achievement"
 
       });
 
+
     }
+
+  },
+
+
+
+  clearSelectedMember:()=>{
+
+    set({
+
+      selectedMember:null
+
+    });
 
   }
 
