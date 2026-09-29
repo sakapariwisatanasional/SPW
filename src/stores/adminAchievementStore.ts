@@ -2,101 +2,72 @@
  * SPWN Apps 2.0
  * Admin Achievement Store
  *
- * Source:
- * - admin achievement API
- * - no dummy data
- * - GAS untouched
+ * Frontend only
+ * GAS untouched
  */
 
 import { create } from "zustand";
 
 import {
-  adminAchievementApi
-} from "../services/api/adminAchievement.api";
+  adminAchievementApi,
+} from "@/services/api/adminAchievement.api";
 
 
 interface AdminAchievementState {
+  dashboard: any | null;
+  statistics: any | null;
+  selectedMember: any | null;
 
-  dashboard:any | null;
+  loading: boolean;
+  error: string | null;
 
-  statistics:any | null;
+  loadDashboard: () => Promise<void>;
+  loadStatistics: () => Promise<void>;
+  loadMemberDetail: (memberId: string) => Promise<void>;
 
-  selectedMember:any | null;
-
-  loading:boolean;
-
-  error:string | null;
-
-
-  loadDashboard:()=>Promise<void>;
-
-  loadStatistics:()=>Promise<void>;
-
-  loadMemberDetail:(memberId:string)=>Promise<void>;
-
-  clearSelectedMember:()=>void;
-
+  clearSelectedMember: () => void;
 }
 
 
-
 export const useAdminAchievementStore =
-create<AdminAchievementState>((set)=>({
+create<AdminAchievementState>((set) => ({
+
+  dashboard: null,
+
+  statistics: null,
+
+  selectedMember: null,
+
+  loading: false,
+
+  error: null,
 
 
-  dashboard:null,
-
-  statistics:null,
-
-  selectedMember:null,
-
-  loading:false,
-
-  error:null,
-
-
-
-  loadDashboard:async()=>{
+  loadDashboard: async () => {
 
     set({
-      loading:true,
-      error:null
+      loading: true,
+      error: null,
     });
 
-
-    try{
+    try {
 
       const response =
-        await adminAchievementApi
-        .getDashboard();
-
+        await adminAchievementApi.getDashboard();
 
       set({
-
-        dashboard:
-          response.data,
-
-        loading:false
-
+        dashboard: response.data,
+        loading: false,
       });
 
 
-    }catch(error:any){
-
-      console.error(
-        "Admin achievement dashboard error:",
-        error
-      );
-
+    } catch (error: any) {
 
       set({
-
-        loading:false,
-
+        loading: false,
         error:
-          error.message ||
-          "Gagal memuat dashboard"
-
+          error?.message ||
+          "Gagal memuat dashboard achievement",
       });
 
     }
@@ -104,134 +75,80 @@ create<AdminAchievementState>((set)=>({
   },
 
 
-
-  loadStatistics:async()=>{
-
+  loadStatistics: async () => {
 
     set({
-      loading:true,
-      error:null
+      loading: true,
+      error: null,
     });
 
-
-    try{
-
+    try {
 
       const response =
-        await adminAchievementApi
-        .getStatistics();
-
-
+        await adminAchievementApi.getStatistics();
 
       set({
-
-        statistics:
-          response.data,
-
-        loading:false
-
+        statistics: response.data,
+        loading: false,
       });
 
 
-
-    }catch(error:any){
-
-
-      console.error(
-        "Admin achievement statistics error:",
-        error
-      );
-
+    } catch (error: any) {
 
       set({
-
-        loading:false,
-
+        loading: false,
         error:
-          error.message ||
-          "Gagal memuat statistik"
-
+          error?.message ||
+          "Gagal memuat statistik achievement",
       });
-
 
     }
-
 
   },
 
 
-
-
-  loadMemberDetail:async(memberId:string)=>{
-
+  loadMemberDetail: async (memberId: string) => {
 
     set({
-
-      loading:true,
-
-      error:null
-
+      loading: true,
+      error: null,
     });
 
 
-
-    try{
-
+    try {
 
       const response =
         await adminAchievementApi
-        .getMemberDetail(memberId);
-
+          .getMemberDetail(memberId);
 
 
       set({
-
-        selectedMember:
-          response.data,
-
-        loading:false
-
+        selectedMember: response.data,
+        loading: false,
       });
 
 
-
-    }catch(error:any){
-
-
-      console.error(
-        "Admin achievement member detail error:",
-        error
-      );
-
+    } catch (error: any) {
 
       set({
-
-        loading:false,
-
+        loading: false,
         error:
-          error.message ||
-          "Gagal memuat detail anggota"
-
+          error?.message ||
+          "Gagal memuat detail achievement anggota",
       });
-
 
     }
-
 
   },
 
 
-
-
-  clearSelectedMember:()=>{
+  clearSelectedMember: () => {
 
     set({
-
-      selectedMember:null
-
+      selectedMember: null,
     });
 
-  }
+  },
 
 
 }));
