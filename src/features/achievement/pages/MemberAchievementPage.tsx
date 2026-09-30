@@ -57,6 +57,13 @@ export const MemberAchievementPage: React.FC = () => {
 
   useEffect(() => {
 
+    if (
+      currentUser?.role === ROLES.SUPER_ADMIN ||
+      currentUser?.role === ROLES.ADMIN_PUSAT
+    ) {
+      return;
+    }
+
     const memberId =
       currentUser?.no_kta ||
       currentUser?.nomor_kta ||
