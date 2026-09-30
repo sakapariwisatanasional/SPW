@@ -2,489 +2,188 @@
  * SPWN Apps 2.0
  * Admin Achievement Store FINAL
  *
- * Source:
- * - member.list
- * - admin.achievement.member.detail
- *
- * GAS untouched
+ * SuperAdmin menggunakan:
+ * admin.achievement.directory
  */
 
-
 import { create } from "zustand";
-
-import {
-  memberApi
-} from "@/services/api/member.api";
-
 
 import {
   adminAchievementApi
 } from "@/services/api/adminAchievement.api";
 
 
-import {
-  mapMemberAchievement
-} from "@/features/achievement/utils/adminAchievement.mapper";
-
-
-
 interface AdminAchievementState {
 
-
   dashboard:any | null;
-
   statistics:any | null;
-
-
   members:any[];
-
   achievementMembers:any[];
-
-
   selectedMember:any | null;
 
-
   loading:boolean;
-
   error:string | null;
 
-
-
-  loadDashboard:
-    ()=>Promise<void>;
-
-
-  loadStatistics:
-    ()=>Promise<void>;
-
-
-  loadMembers:
-    ()=>Promise<void>;
-
-
-  loadMemberAchievements:
-    ()=>Promise<void>;
-
-
-  loadMemberDetail:
-    (memberId:string)=>Promise<void>;
-
-
-  clearSelectedMember:
-    ()=>void;
+  loadDashboard:()=>Promise<void>;
+  loadStatistics:()=>Promise<void>;
+  loadMemberAchievements:()=>Promise<void>;
+  loadMemberDetail:(memberId:string)=>Promise<void>;
+  clearSelectedMember:()=>void;
 
 }
-
-
 
 
 export const useAdminAchievementStore =
 create<AdminAchievementState>((set,get)=>({
 
+  dashboard:null,
+  statistics:null,
 
-dashboard:null,
+  members:[],
+  achievementMembers:[],
 
+  selectedMember:null,
 
-statistics:null,
-
-
-members:[],
-
-
-achievementMembers:[],
-
-
-selectedMember:null,
+  loading:false,
+  error:null,
 
 
-loading:false,
+  loadDashboard:async()=>{
+
+    const members =
+      get().achievementMembers || [];
+
+    set({
+      dashboard:{
+        totalMembers:members.length,
+        totalCompletedSkk:
+          members.reduce(
+            (a,b)=>a + Number(b.completedSkk || 0),
+            0
+          )
+      }
+    });
+
+  },
 
 
-error:null,
+  loadStatistics:async()=>{
 
+    const members =
+      get().achievementMembers || [];
 
+    const levels:any = {};
 
-
-
-/**
- * Dashboard metric
- *
- * Tidak mengambil GAS route.
- * Dihitung dari data achievement anggota.
- */
-loadDashboard:async()=>{
-
-
- const members =
-   get().achievementMembers;
-
-
- const total =
-   members.length;
-
-
-
- const completed =
-   members.reduce(
-    (
-      total,
-      item
-    )=>{
-
-      return total +
-      Number(
-        item.completedSkk || 0
-      );
-
-    },
-    0
-   );
-
-
-
- set({
-
-  dashboard:{
-
-    totalMembers:
-      total,
-
-    totalCompletedSkk:
-      completed
-
-  }
-
- });
-
-
-},
-
-
-
-
-
-/**
- * Statistik achievement
- */
-loadStatistics:async()=>{
-
-
- const members =
-   get().achievementMembers;
-
-
-
- const levels =
-   members.reduce(
-    (
-      result,
-      item
-    )=>{
-
+    members.forEach(item=>{
 
       const level =
-        item.level ||
-        "Belum Ada";
+        item.level || "Belum Ada";
+
+      levels[level] =
+        (levels[level] || 0) + 1;
+
+    });
 
 
-      result[level] =
-        (
-          result[level] || 0
-        ) + 1;
+    set({
+      statistics:{
+        total:members.length,
+        levelDistribution:levels
+      }
+    });
+
+  },
 
 
-      return result;
+  loadMemberAchievements:async()=>{
+
+    set({
+      loading:true,
+      error:null
+    });
 
 
-    },
-    {}
-   );
+    try{
+
+      const response =
+        await adminAchievementApi
+          .getDirectory();
 
 
+      const data =
+        response.data || [];
 
- set({
 
-  statistics:{
+      set({
 
-    total:
-      members.length,
+        members:data,
 
-    levelDistribution:
-      levels
+        achievementMembers:data,
+
+        loading:false
+
+      });
+
+
+      await get().loadDashboard();
+      await get().loadStatistics();
+
+
+    }catch(error:any){
+
+      set({
+
+        loading:false,
+
+        error:
+          error?.message ||
+          "Gagal memuat achievement directory"
+
+      });
+
+    }
+
+  },
+
+
+  loadMemberDetail:async(memberId:string)=>{
+
+    try{
+
+      const response =
+        await adminAchievementApi
+          .getMemberDetail(memberId);
+
+
+      set({
+
+        selectedMember:
+          response.data
+
+      });
+
+
+    }catch(error:any){
+
+      set({
+
+        error:
+          error?.message ||
+          "Gagal memuat detail member"
+
+      });
+
+    }
+
+  },
+
+
+  clearSelectedMember:()=>{
+
+    set({
+      selectedMember:null
+    });
 
   }
-
- });
-
-
-
-},
-
-
-
-
-
-/**
- * Ambil anggota dari GAS
- */
-loadMembers:async()=>{
-
-
- set({
-
-  loading:true,
-
-  error:null
-
- });
-
-
-
- try{
-
-
-  const response =
-    await memberApi.list();
-
-
-
-  set({
-
-    members:
-      response.data || [],
-
-
-    loading:false
-
-  });
-
-
-
- }catch(error:any){
-
-
-  set({
-
-    loading:false,
-
-    error:
-      error?.message ||
-      "Gagal mengambil anggota"
-
-  });
-
-
- }
-
-
-
-},
-
-
-
-
-
-/**
- * Gabungkan member.list
- * + achievement detail GAS
- */
-loadMemberAchievements:async()=>{
-
-
- let members =
-   get().members;
-
-
-
- if(
-   !members.length
- ){
-
-
-  await get()
-   .loadMembers();
-
-
-
-  members =
-    get().members;
-
-
- }
-
-
-
-
- set({
-
-  loading:true
-
- });
-
-
-
- const result:any[]=[];
-
-
-
- for(
-   const member of members
- ){
-
-
-  try{
-
-
-   const detail =
-    await adminAchievementApi
-      .getMemberDetail(
-        member.no_kta
-      );
-
-
-
-   result.push(
-
-    mapMemberAchievement(
-
-      member,
-
-      detail.data || {}
-
-    )
-
-   );
-
-
-
-  }catch(error){
-
-
-   result.push(
-
-    mapMemberAchievement(
-
-      member,
-
-      {}
-
-    )
-
-   );
-
-
-  }
-
-
- }
-
-
-
- set({
-
-  achievementMembers:
-    result,
-
-
-  loading:false
-
-
- });
-
-
-
- // setelah data masuk,
- // hitung metric
-
-
- await get()
-  .loadDashboard();
-
-
-
- await get()
-  .loadStatistics();
-
-
-
-},
-
-
-
-
-
-loadMemberDetail:async(
- memberId:string
-)=>{
-
-
- set({
-
-  loading:true
-
- });
-
-
-
- try{
-
-
-  const response =
-    await adminAchievementApi
-      .getMemberDetail(
-        memberId
-      );
-
-
-
-  set({
-
-    selectedMember:
-      response.data,
-
-
-    loading:false
-
-  });
-
-
-
- }catch(error:any){
-
-
-  set({
-
-   loading:false,
-
-   error:
-    error?.message ||
-    "Gagal mengambil detail anggota"
-
-  });
-
-
- }
-
-
-
-},
-
-
-
-
-
-clearSelectedMember:()=>{
-
-
- set({
-
-  selectedMember:null
-
- });
-
-
-}
-
-
 
 }));
