@@ -3,8 +3,8 @@
  * Admin Achievement Store FINAL
  *
  * Source:
- * - MEMBER -> member.list
- * - ACHIEVEMENT -> admin.achievement.member.detail
+ * - member.list
+ * - admin.achievement.member.detail
  *
  * GAS untouched
  */
@@ -13,13 +13,13 @@
 import { create } from "zustand";
 
 import {
-  adminAchievementApi
-} from "@/services/api/adminAchievement.api";
+  memberApi
+} from "@/services/api/member.api";
 
 
 import {
-  memberApi
-} from "@/services/api/member.api";
+  adminAchievementApi
+} from "@/services/api/adminAchievement.api";
 
 
 import {
@@ -78,10 +78,8 @@ interface AdminAchievementState {
 
 
 
-
 export const useAdminAchievementStore =
 create<AdminAchievementState>((set,get)=>({
-
 
 
 dashboard:null,
@@ -108,39 +106,55 @@ error:null,
 
 
 
+/**
+ * Dashboard metric
+ *
+ * Tidak mengambil GAS route.
+ * Dihitung dari data achievement anggota.
+ */
 loadDashboard:async()=>{
 
- try{
+
+ const members =
+   get().achievementMembers;
 
 
-  const response =
-   await adminAchievementApi
-    .getDashboard();
-
-
-
-  set({
-
-    dashboard:
-      response.data
-
-  });
+ const total =
+   members.length;
 
 
 
- }catch(error:any){
+ const completed =
+   members.reduce(
+    (
+      total,
+      item
+    )=>{
+
+      return total +
+      Number(
+        item.completedSkk || 0
+      );
+
+    },
+    0
+   );
 
 
-  set({
 
-    error:
-      error.message ||
-      "Gagal memuat dashboard"
+ set({
 
-  });
+  dashboard:{
 
+    totalMembers:
+      total,
 
- }
+    totalCompletedSkk:
+      completed
+
+  }
+
+ });
 
 
 },
@@ -149,39 +163,58 @@ loadDashboard:async()=>{
 
 
 
+/**
+ * Statistik achievement
+ */
 loadStatistics:async()=>{
 
 
- try{
-
-
-  const response =
-   await adminAchievementApi
-    .getStatistics();
+ const members =
+   get().achievementMembers;
 
 
 
-  set({
-
-    statistics:
-      response.data
-
-  });
-
-
- }catch(error:any){
+ const levels =
+   members.reduce(
+    (
+      result,
+      item
+    )=>{
 
 
-  set({
-
-   error:
-    error.message ||
-    "Gagal memuat statistik"
-
-  });
+      const level =
+        item.level ||
+        "Belum Ada";
 
 
- }
+      result[level] =
+        (
+          result[level] || 0
+        ) + 1;
+
+
+      return result;
+
+
+    },
+    {}
+   );
+
+
+
+ set({
+
+  statistics:{
+
+    total:
+      members.length,
+
+    levelDistribution:
+      levels
+
+  }
+
+ });
 
 
 
@@ -191,6 +224,9 @@ loadStatistics:async()=>{
 
 
 
+/**
+ * Ambil anggota dari GAS
+ */
 loadMembers:async()=>{
 
 
@@ -208,17 +244,17 @@ loadMembers:async()=>{
 
 
   const response =
-   await memberApi.list();
+    await memberApi.list();
 
 
 
   set({
 
-   members:
-    response.data || [],
+    members:
+      response.data || [],
 
 
-   loading:false
+    loading:false
 
   });
 
@@ -229,11 +265,11 @@ loadMembers:async()=>{
 
   set({
 
-   loading:false,
+    loading:false,
 
-   error:
-    error.message ||
-    "Gagal memuat anggota"
+    error:
+      error?.message ||
+      "Gagal mengambil anggota"
 
   });
 
@@ -248,6 +284,10 @@ loadMembers:async()=>{
 
 
 
+/**
+ * Gabungkan member.list
+ * + achievement detail GAS
+ */
 loadMemberAchievements:async()=>{
 
 
@@ -256,16 +296,18 @@ loadMemberAchievements:async()=>{
 
 
 
- if(!members.length){
+ if(
+   !members.length
+ ){
 
 
   await get()
-    .loadMembers();
+   .loadMembers();
 
 
 
   members =
-   get().members;
+    get().members;
 
 
  }
@@ -275,9 +317,7 @@ loadMemberAchievements:async()=>{
 
  set({
 
-  loading:true,
-
-  error:null
+  loading:true
 
  });
 
@@ -287,7 +327,9 @@ loadMemberAchievements:async()=>{
 
 
 
- for(const member of members){
+ for(
+   const member of members
+ ){
 
 
   try{
@@ -295,9 +337,9 @@ loadMemberAchievements:async()=>{
 
    const detail =
     await adminAchievementApi
-     .getMemberDetail(
-       member.no_kta
-     );
+      .getMemberDetail(
+        member.no_kta
+      );
 
 
 
@@ -305,9 +347,9 @@ loadMemberAchievements:async()=>{
 
     mapMemberAchievement(
 
-     member,
+      member,
 
-     detail.data || {}
+      detail.data || {}
 
     )
 
@@ -322,9 +364,9 @@ loadMemberAchievements:async()=>{
 
     mapMemberAchievement(
 
-     member,
+      member,
 
-     {}
+      {}
 
     )
 
@@ -334,7 +376,6 @@ loadMemberAchievements:async()=>{
   }
 
 
-
  }
 
 
@@ -342,7 +383,7 @@ loadMemberAchievements:async()=>{
  set({
 
   achievementMembers:
-   result,
+    result,
 
 
   loading:false
@@ -352,13 +393,29 @@ loadMemberAchievements:async()=>{
 
 
 
+ // setelah data masuk,
+ // hitung metric
+
+
+ await get()
+  .loadDashboard();
+
+
+
+ await get()
+  .loadStatistics();
+
+
+
 },
 
 
 
 
 
-loadMemberDetail:async(memberId:string)=>{
+loadMemberDetail:async(
+ memberId:string
+)=>{
 
 
  set({
@@ -373,20 +430,20 @@ loadMemberDetail:async(memberId:string)=>{
 
 
   const response =
-   await adminAchievementApi
-    .getMemberDetail(
-      memberId
-    );
+    await adminAchievementApi
+      .getMemberDetail(
+        memberId
+      );
 
 
 
   set({
 
-   selectedMember:
-    response.data,
+    selectedMember:
+      response.data,
 
 
-   loading:false
+    loading:false
 
   });
 
@@ -399,13 +456,11 @@ loadMemberDetail:async(memberId:string)=>{
 
    loading:false,
 
-
    error:
-    error.message ||
-    "Gagal memuat detail"
+    error?.message ||
+    "Gagal mengambil detail anggota"
 
   });
-
 
 
  }
