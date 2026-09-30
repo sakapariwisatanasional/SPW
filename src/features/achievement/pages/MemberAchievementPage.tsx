@@ -56,8 +56,24 @@ export const MemberAchievementPage: React.FC = () => {
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    const memberId = currentUser?.memberId || 'SPWN.32.01.2024.089';
-    loadAchievement(memberId, currentUser?.role, currentUser?.memberId);
+
+    const memberId =
+      currentUser?.no_kta ||
+      currentUser?.nomor_kta ||
+      currentUser?.memberProfile?.no_kta ||
+      currentUser?.memberId ||
+      '';
+
+    if (!memberId) {
+      return;
+    }
+
+    loadAchievement(
+      memberId,
+      currentUser?.role,
+      memberId
+    );
+
   }, [currentUser, loadAchievement]);
 
   const handleSwitchDemoProfile = async (type: 'active' | 'empty') => {
@@ -67,8 +83,8 @@ export const MemberAchievementPage: React.FC = () => {
 
   const hasNoAchievements =
     profile &&
-    profile.summary.completedSkk === 0 &&
-    profile.summary.inProgressSkk === 0 &&
+    (profile.summary?.completedSkk || 0) === 0 &&
+    (profile.summary?.inProgressSkk || 0) === 0 &&
     badges.length === 0 &&
     activities.length === 0;
 
@@ -132,8 +148,24 @@ export const MemberAchievementPage: React.FC = () => {
               type="button"
               id="btn-refresh-achievement"
               onClick={() => {
-                const memberId = demoType === 'empty' ? 'SPWN.31.02.2026.012' : (currentUser?.memberId || 'SPWN.32.01.2024.089');
-                loadAchievement(memberId, currentUser?.role, currentUser?.memberId);
+
+                const memberId =
+                  currentUser?.no_kta ||
+                  currentUser?.nomor_kta ||
+                  currentUser?.memberProfile?.no_kta ||
+                  currentUser?.memberId ||
+                  '';
+
+                if (!memberId) {
+                  return;
+                }
+
+                loadAchievement(
+                  memberId,
+                  currentUser?.role,
+                  memberId
+                );
+
               }}
               disabled={isLoading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition-all disabled:opacity-50"
