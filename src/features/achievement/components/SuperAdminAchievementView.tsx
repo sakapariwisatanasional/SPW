@@ -58,14 +58,20 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
   const {
     dashboard,
     statistics,
+    achievementMembers,
     loadDashboard,
     loadStatistics,
+    loadMemberAchievements,
+    loading,
   } = useAdminAchievementStore();
+
+  const members = achievementMembers || [];
 
   useEffect(() => {
     loadDashboard();
     loadStatistics();
-  }, [loadDashboard, loadStatistics]);
+    loadMemberAchievements();
+  }, [loadDashboard, loadStatistics, loadMemberAchievements]);
 
   // Filter States
   const [selectedKwarda, setSelectedKwarda] = useState<string>('ALL');
@@ -80,13 +86,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Daftar Kwarda unik untuk filter
   const kwardaOptions = useMemo(() => {
-    const list = Array.from(new Set(achievementMembers.map((m) => m.kwarda)));
+    const list = Array.from(new Set(members.map((m) => m.kwarda)));
     return list.sort();
-  }, []);
+  }, [members]);
 
   // Filtered Members
   const filteredMembers = useMemo(() => {
-    return achievementMembers.filter((m) => {
+    return members.filter((m) => {
       const matchKwarda = selectedKwarda === 'ALL' || m.kwarda === selectedKwarda;
       const matchKrida = selectedKrida === 'ALL' || m.kridaUtamaId === selectedKrida;
       const matchLevel = selectedLevel === 'ALL' || m.level === selectedLevel;
@@ -108,10 +114,10 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Statistik Agregat Nasional
   const nationalStats = useMemo(() => {
-    const totalMembers = achievementMembers.length;
-    const totalUtama = achievementMembers.filter((m) => m.level === 'UTAMA').length;
-    const totalMadya = achievementMembers.filter((m) => m.level === 'MADYA').length;
-    const totalPurwa = achievementMembers.filter((m) => m.level === 'PURWA').length;
+    const totalMembers = members.length;
+    const totalUtama = members.filter((m) => m.level === 'UTAMA').length;
+    const totalMadya = members.filter((m) => m.level === 'MADYA').length;
+    const totalPurwa = members.filter((m) => m.level === 'PURWA').length;
 
     const avgProgress =
       achievementMembers.reduce((acc, curr) => acc + curr.summary.progressPercent, 0) /
@@ -136,7 +142,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
       totalSkkCompleted,
       totalActivities,
     };
-  }, []);
+  }, [members]);
 
   // Helper render Level Badge
   const renderLevelBadge = (level: MemberLevel) => {
