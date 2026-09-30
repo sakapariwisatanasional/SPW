@@ -66,6 +66,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
   } = useAdminAchievementStore();
 
   const members = useMemo(() => {
+
     if (Array.isArray(achievementMembers)) {
       return achievementMembers;
     }
@@ -79,6 +80,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
     }
 
     return [];
+
   }, [achievementMembers]);
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
       return matchKwarda && matchKrida && matchLevel && matchSearch;
     });
-  }, [selectedKwarda, selectedKrida, selectedLevel, searchQuery]);
+  }, [members, selectedKwarda, selectedKrida, selectedLevel, searchQuery]);
 
   // Statistik Agregat Nasional
   const nationalStats = useMemo(() => {
