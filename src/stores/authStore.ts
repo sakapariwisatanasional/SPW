@@ -26,6 +26,22 @@ interface AuthState {
 
   isAuthenticated:boolean;
 
+  // SuperAdmin role simulation
+  impersonatedUser:any | null;
+
+  setImpersonatedUser:
+    (user:any)=>void;
+
+  clearImpersonation:
+    ()=>void;
+
+  getEffectiveUser:
+    ()=>any;
+
+  // Compatibility for legacy components
+  switchRole:
+    (role:string)=>void;
+
 
   loginWithCredentials:
     (
@@ -86,7 +102,9 @@ function getInitialAuthState(){
 
         token,
 
-        isAuthenticated:true
+        isAuthenticated:true,
+
+        impersonatedUser:null
 
       };
 
@@ -108,7 +126,9 @@ function getInitialAuthState(){
 
     token:null,
 
-    isAuthenticated:false
+    isAuthenticated:false,
+
+    impersonatedUser:null
 
   };
 
@@ -405,6 +425,61 @@ create<AuthState>((set,get)=>({
 
   },
 
+
+
+  setImpersonatedUser:(user)=>{
+
+    set({
+      impersonatedUser:user
+    });
+
+  },
+
+
+  clearImpersonation:()=>{
+
+    set({
+      impersonatedUser:null
+    });
+
+  },
+
+
+  getEffectiveUser:()=>{
+
+    const state = get();
+
+    return (
+      state.impersonatedUser ||
+      state.currentUser
+    );
+
+  },
+
+
+  switchRole:(role:string)=>{
+
+    const user =
+      get().currentUser;
+
+
+    if(!user){
+      return;
+    }
+
+
+    const updatedUser = {
+      ...user,
+      role
+    };
+
+
+    set({
+      currentUser:updatedUser
+    });
+
+
+  },
 
 
   logout:()=>{
