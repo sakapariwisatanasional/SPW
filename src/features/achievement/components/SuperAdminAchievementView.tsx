@@ -65,7 +65,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
     loading,
   } = useAdminAchievementStore();
 
-  const members = achievementMembers || [];
+  const members = Array.isArray(achievementMembers)
+    ? achievementMembers
+    : (
+        achievementMembers?.members ||
+        achievementMembers?.data ||
+        []
+      );
 
   useEffect(() => {
     loadDashboard();
@@ -120,16 +126,16 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
     const totalPurwa = members.filter((m) => m.level === 'PURWA').length;
 
     const avgProgress =
-      achievementMembers.reduce((acc, curr) => acc + curr.summary.progressPercent, 0) /
+      members.reduce((acc, curr) => acc + Number(curr?.summary?.progressPercent || 0), 0) /
       (totalMembers || 1);
 
-    const totalSkkCompleted = achievementMembers.reduce(
-      (acc, curr) => acc + curr.summary.completedSkk,
+    const totalSkkCompleted = members.reduce(
+      (acc, curr) => acc + Number(curr?.summary?.completedSkk || 0),
       0
     );
 
-    const totalActivities = achievementMembers.reduce(
-      (acc, curr) => acc + curr.activities.length,
+    const totalActivities = members.reduce(
+      (acc, curr) => acc + Number(curr?.activities?.length || 0),
       0
     );
 
@@ -508,10 +514,10 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold border border-purple-200">
-                          {member.badges.length} Badges
+                          {(Array.isArray(member.badges) ? member.badges.length : 0)} Badges
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                          {member.activities.length} Giat
+                          {(Array.isArray(member.activities) ? member.activities.length : 0)} Giat
                         </span>
                       </div>
                     </td>
@@ -599,13 +605,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold block">Lencana Digital</span>
                 <span className="text-sm font-bold text-purple-700">
-                  {selectedMember.badges.length} Badges Terverifikasi
+                  {(Array.isArray(selectedMember.badges) ? selectedMember.badges.length : 0)} Badges Terverifikasi
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold block">Riwayat Kegiatan</span>
                 <span className="text-sm font-bold text-amber-700">
-                  {selectedMember.activities.length} Event Partisipasi
+                  {(Array.isArray(selectedMember.activities) ? selectedMember.activities.length : 0)} Event Partisipasi
                 </span>
               </div>
             </div>
@@ -679,7 +685,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
                   {/* Grid SKK Items */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {selectedMember.skkMatrix
+                    {(Array.isArray(selectedMember.skkMatrix) ? selectedMember.skkMatrix : [])
                       .filter((s) => inspectorKridaFilter === 'all' || s.kridaId === inspectorKridaFilter)
                       .map((skk) => (
                         <div
@@ -740,13 +746,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               {/* TAB 2: RIWAYAT KEGIATAN MASING-MASING */}
               {inspectorTab === 'activities' && (
                 <div className="space-y-3">
-                  {selectedMember.activities.length === 0 ? (
+                  {(Array.isArray(selectedMember.activities) ? selectedMember.activities : []).length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                       Belum ada riwayat kegiatan tercatat untuk anggota ini.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedMember.activities.map((act) => (
+                      {(Array.isArray(selectedMember.activities) ? selectedMember.activities : []).map((act) => (
                         <div
                           key={act.id}
                           className="flex flex-col sm:flex-row gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-2xs"
@@ -789,7 +795,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               {/* TAB 3: KOLEKSI LENCANA DIGITAL */}
               {inspectorTab === 'badges' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {selectedMember.badges.map((b) => (
+                  {(Array.isArray(selectedMember.badges) ? selectedMember.badges : []).map((b) => (
                     <div
                       key={b.id}
                       className="p-4 rounded-2xl border border-slate-200 bg-white flex items-start gap-3 shadow-2xs"
