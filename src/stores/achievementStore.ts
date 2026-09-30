@@ -2,209 +2,102 @@
  * SPWN Apps 2.0
  * Achievement Store FINAL
  *
- * Member Achievement
- *
- * Source:
- * - GAS Achievement Database
- * - member.achievement
- * - member.skk.status
- * - member.badges
- * - member.activities
+ * Tidak menggunakan data dummy.
+ * Semua sumber dari API database.
  */
 
-
 import { create } from "zustand";
-
-import {
-  achievementApi
-} from "../services/api/achievement.api";
+import { achievementApi } from "../services/api/achievement.api";
 
 
+export const useAchievementStore = create((set) => ({
 
-interface AchievementState {
-
-  profile:any | null;
-
-  skkItems:any[];
-
-  badges:any[];
-
-  activities:any[];
-
-
-  selectedKrida:string;
-
-
-  loading:boolean;
-
-  isLoading:boolean;
-
-
-  error:string | null;
-
-
-  privacyScoreVisible:boolean;
+  profile: null,
+  skk: [],
+  badges: [],
+  activities: [],
+  loading: false,
+  error: null,
 
 
 
-  loadAchievement:
-    (
-      memberId:string,
-      viewerRole?:string,
-      viewerMemberId?:string
-    )=>Promise<void>;
+  loadSimulationAchievement: (user:any) => {
 
-
-
-  setSelectedKrida:
-    (krida:string)=>void;
-
-
-
-  togglePrivacyView:
-    ()=>void;
-
-
-
-  loadDemoProfile:
-    (type:string)=>Promise<void>;
-
-}
-
-
-
-export const useAchievementStore =
-create<AchievementState>((set)=>({
-
-
-  profile:null,
-
-
-  skkItems:[],
-
-
-  badges:[],
-
-
-  activities:[],
-
-
-
-  selectedKrida:"all",
-
-
-
-  loading:false,
-
-  isLoading:false,
-
-
-
-  error:null,
-
-
-
-  privacyScoreVisible:true,
-
-
-
-
-
-  loadAchievement:async(
-    memberId:string,
-    viewerRole?:string,
-    viewerMemberId?:string
-  )=>{
-
+    if (!user) return;
 
     set({
+      profile: {
+        member: {
+          id: user.id,
+          memberId: user.memberId,
+          nama: user.nama || user.full_name,
+          no_kta: user.no_kta,
+          province: user.province,
+          level: user.level || user.achievement?.level || "PURWA"
+        },
+        summary: user.summary || {
+          completedSkk: 0,
+          inProgressSkk: 0,
+          progressPercent: 0
+        }
+      },
+      skkItems: user.skkItems || [],
+      badges: user.badges || [],
+      activities: user.activities || [],
+      loading: false,
+      error: null
+    });
 
-      loading:true,
+  },
 
-      isLoading:true,
+  loadAchievement: async (
+    memberId,
+    viewerRole,
+    viewerMemberId
+  ) => {
 
-      error:null
-
+    set({
+      loading: true,
+      error: null
     });
 
 
-
-    try{
-
+    try {
 
       const [
-
         profileRes,
-
         skkRes,
-
         badgesRes,
-
         activitiesRes
-
-
       ] = await Promise.all([
 
+        achievementApi.getAchievement(memberId),
 
-        achievementApi
-          .getAchievement(memberId),
+        achievementApi.getSkkStatus(memberId),
 
+        achievementApi.getBadges(memberId),
 
-
-        achievementApi
-          .getSkkStatus(memberId),
-
-
-
-        achievementApi
-          .getBadges(memberId),
-
-
-
-        achievementApi
-          .getActivities(memberId)
-
+        achievementApi.getActivities(memberId)
 
       ]);
 
 
-
-
       set({
 
+        profile: profileRes.data,
 
-        profile:
-          profileRes.data,
+        skk: skkRes.data || [],
 
+        badges: badgesRes.data || [],
 
+        activities: activitiesRes.data || [],
 
-        skkItems:
-          skkRes.data || [],
-
-
-
-        badges:
-          badgesRes.data || [],
-
-
-
-        activities:
-          activitiesRes.data || [],
-
-
-
-        loading:false,
-
-        isLoading:false
-
+        loading:false
 
       });
 
 
-
-    }catch(error:any){
-
-
+    } catch(error){
 
       console.error(
         "Achievement loading error:",
@@ -212,78 +105,17 @@ create<AchievementState>((set)=>({
       );
 
 
-
       set({
 
         loading:false,
 
-        isLoading:false,
-
-
-        error:
-          error?.message ||
-          "Gagal memuat pencapaian"
-
+        error:error.message || "Gagal memuat pencapaian"
 
       });
 
 
-
     }
 
-
-  },
-
-
-
-
-
-  setSelectedKrida:(krida:string)=>{
-
-
-    set({
-
-      selectedKrida:krida
-
-    });
-
-
-  },
-
-
-
-
-
-  togglePrivacyView:()=>{
-
-
-    set(state=>({
-
-      privacyScoreVisible:
-        !state.privacyScoreVisible
-
-    }));
-
-
-  },
-
-
-
-
-
-  /**
-   * Compatibility handler
-   * Tidak menggunakan dummy.
-   * Dipertahankan agar halaman lama tidak crash.
-   */
-  loadDemoProfile:async()=>{
-
-
-    return;
-
-
   }
-
-
 
 }));
