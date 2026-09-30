@@ -27,7 +27,8 @@ import { MemberProfileModal } from '../../features/membership/components/MemberP
 export const Header: React.FC = () => {
   const {
     currentUser,
-    switchRole,
+    setImpersonatedUser,
+    clearImpersonation,
     isAuthenticated,
     logout,
     updateCurrentUserProfile
