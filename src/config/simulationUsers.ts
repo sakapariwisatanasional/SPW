@@ -1,12 +1,14 @@
 /**
  * SPWN Apps 2.0
- * SuperAdmin Role Simulation Data
+ * SuperAdmin Simulation Users
  *
- * Dummy user untuk testing semua level akses
- * Tidak terhubung ke GAS
+ * Dummy data untuk testing seluruh role aplikasi
+ * Tidak terhubung dengan GAS / database produksi
  */
 
+
 export const SIMULATION_USERS = {
+
 
   MEMBER_AKTIF: {
 
@@ -16,17 +18,15 @@ export const SIMULATION_USERS = {
 
     role: "MEMBER",
 
-    nama:
-      "Fajar Pratama",
+    nama: "Fajar Pratama",
 
-    no_kta:
-      "SIM-KTA-001",
+    full_name: "Fajar Pratama",
 
-    province:
-      "Jawa Timur",
+    no_kta: "SIM-KTA-001",
 
-    level:
-      "MADYA",
+    province: "Jawa Timur",
+
+    level: "MADYA",
 
 
     summary: {
@@ -35,7 +35,20 @@ export const SIMULATION_USERS = {
 
       inProgressSkk: 3,
 
-      progressPercent: 75
+      progressPercent: 75,
+
+      totalSkk: 15
+
+    },
+
+
+    achievement: {
+
+      level: "MADYA",
+
+      completedSkk: 12,
+
+      averageScore: 88
 
     },
 
@@ -43,26 +56,51 @@ export const SIMULATION_USERS = {
     badges: [
 
       {
-        id:"badge-001",
-        name:"SKK Purwa",
-        status:"VERIFIED"
+        id: "BADGE-001",
+        name: "SKK Purwa",
+        status: "VERIFIED"
+      },
+
+      {
+        id: "BADGE-002",
+        name: "Pelatih Dasar",
+        status: "VERIFIED"
       }
 
     ],
 
 
-    activities:[
+    activities: [
 
       {
-        id:"act-001",
+        id:"ACT-001",
         title:"Kemah Bakti Wisata",
-        year:2026
+        year:2026,
+        status:"SELESAI"
       },
 
       {
-        id:"act-002",
+        id:"ACT-002",
         title:"Pelatihan Pariwisata",
-        year:2026
+        year:2026,
+        status:"SELESAI"
+      }
+
+    ],
+
+
+    skkItems:[
+
+      {
+        id:"SKK-001",
+        name:"Pemandu Wisata",
+        status:"DONE"
+      },
+
+      {
+        id:"SKK-002",
+        name:"Kewirausahaan",
+        status:"PROCESS"
       }
 
     ]
@@ -72,54 +110,67 @@ export const SIMULATION_USERS = {
 
   MEMBER_BARU: {
 
+
     id:"SIM-MEMBER-002",
 
     memberId:"SIM-MEMBER-002",
 
     role:"MEMBER",
 
-    nama:
-      "Anggota Baru",
+    nama:"Anggota Baru",
 
-    no_kta:
-      "SIM-KTA-002",
+    full_name:"Anggota Baru",
 
-    province:
-      "DKI Jakarta",
+    no_kta:"SIM-KTA-002",
 
-    level:
-      "PURWA",
+    province:"DKI Jakarta",
+
+    level:"PURWA",
 
 
-    summary: {
+    summary:{
 
       completedSkk:0,
 
       inProgressSkk:0,
 
-      progressPercent:0
+      progressPercent:0,
+
+      totalSkk:0
+
+    },
+
+
+    achievement:{
+
+      level:"PURWA",
+
+      completedSkk:0,
+
+      averageScore:0
 
     },
 
 
     badges:[],
 
-    activities:[]
+    activities:[],
+
+    skkItems:[]
 
   },
 
 
   PEMBINA_SAKA: {
 
+
     id:"SIM-PEMBINA-001",
 
     role:"PEMBINA",
 
-    nama:
-      "Pembina SAKA Demo",
+    nama:"Pembina SAKA Demo",
 
-    province:
-      "Bali",
+    province:"Bali",
 
 
     dashboard:{
@@ -135,17 +186,16 @@ export const SIMULATION_USERS = {
   },
 
 
-  PENGURUS_PROVINSI: {
+  PENGURUS_PROVINSI:{
+
 
     id:"SIM-PENGURUS-001",
 
     role:"PENGURUS_PROVINSI",
 
-    nama:
-      "Pengurus Provinsi Demo",
+    nama:"Pengurus Provinsi Demo",
 
-    province:
-      "Jawa Barat",
+    province:"Jawa Barat",
 
 
     dashboard:{
@@ -161,14 +211,15 @@ export const SIMULATION_USERS = {
   },
 
 
-  ADMIN_PUSAT: {
+  ADMIN_PUSAT:{
+
 
     id:"SIM-ADMIN-001",
 
     role:"ADMIN_PUSAT",
 
-    nama:
-      "Admin Pusat Demo"
+    nama:"Admin Pusat Demo"
+
 
   }
 
@@ -177,4 +228,6 @@ export const SIMULATION_USERS = {
 
 
 export type SimulationUser =
-  typeof SIMULATION_USERS[keyof typeof SIMULATION_USERS];
+typeof SIMULATION_USERS[
+ keyof typeof SIMULATION_USERS
+];
