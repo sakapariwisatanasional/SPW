@@ -206,10 +206,20 @@ export const Header: React.FC = () => {
                         onClick={() => {
                           if (item.role === ROLES.MEMBER) {
                             sessionStorage.setItem('spwn_simulated_from_superadmin', 'true');
-                            switchRole(item.role);
+                            setImpersonatedUser({
+                               ...currentUser,
+                               role:item.role,
+                               simulationRole:item.role,
+                               simulationLabel:item.label
+                             });
                             setActiveView('membership');
                           } else {
-                            switchRole(item.role);
+                            setImpersonatedUser({
+                               ...currentUser,
+                               role:item.role,
+                               simulationRole:item.role,
+                               simulationLabel:item.label
+                             });
                           }
                           setIsRoleDropdownOpen(false);
                         }}
