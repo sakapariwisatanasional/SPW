@@ -23,6 +23,7 @@ import { Avatar } from '../ui/Avatar';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { MemberProfileModal } from '../../features/membership/components/MemberProfileModal';
+import { SIMULATION_USERS } from '../../config/simulationUsers';
 
 export const Header: React.FC = () => {
   const {
@@ -47,15 +48,13 @@ export const Header: React.FC = () => {
 
   const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
-  const availableRoles: { role: UserRole; label: string; badgeVariant: 'blue' | 'green' | 'orange' | 'purple' | 'magenta' | 'neutral' }[] = [
-    { role: ROLES.SUPER_ADMIN, label: 'Super Admin', badgeVariant: 'blue' },
-    { role: ROLES.ADMIN_PUSAT, label: 'Admin Pusat (Kwarnas)', badgeVariant: 'purple' },
-    { role: ROLES.ADMIN_WILAYAH, label: 'Admin Wilayah (Kwarda Jabar)', badgeVariant: 'green' },
-    { role: ROLES.TOURISM_MANAGER, label: 'Tourism Manager (Bali)', badgeVariant: 'orange' },
-    { role: ROLES.CONTENT_MANAGER, label: 'Content Manager (DIY)', badgeVariant: 'magenta' },
-    { role: ROLES.COMMERCE_MANAGER, label: 'Commerce Manager (Jateng)', badgeVariant: 'blue' },
-    { role: ROLES.MEMBER, label: 'Member SAKA (Fajar)', badgeVariant: 'green' },
-    { role: ROLES.PUBLIC_USER, label: 'Public User (Tamu)', badgeVariant: 'neutral' },
+  const availableRoles = [
+    { key:'ADMIN_PUSAT', role:ROLES.ADMIN_PUSAT, label:'Admin Pusat (Kwarnas)', badgeVariant:'purple' },
+    { key:'PENGURUS_PROVINSI', role:'PENGURUS_PROVINSI' as UserRole, label:'Pengurus Provinsi Demo', badgeVariant:'green' },
+    { key:'PEMBINA_SAKA', role:'PEMBINA' as UserRole, label:'Pembina SAKA Demo', badgeVariant:'orange' },
+    { key:'MEMBER_AKTIF', role:ROLES.MEMBER, label:'Member Aktif (Fajar)', badgeVariant:'green' },
+    { key:'MEMBER_BARU', role:ROLES.MEMBER, label:'Member Baru', badgeVariant:'blue' },
+    { key:'SUPER_ADMIN', role:ROLES.SUPER_ADMIN, label:'Kembali Super Admin', badgeVariant:'blue' },
   ];
 
   // Map active view to workspace title
