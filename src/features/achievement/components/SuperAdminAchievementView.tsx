@@ -65,13 +65,21 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
     loading,
   } = useAdminAchievementStore();
 
-  const members = Array.isArray(achievementMembers)
-    ? achievementMembers
-    : (
-        achievementMembers?.members ||
-        achievementMembers?.data ||
-        []
-      );
+  const members = useMemo(() => {
+    if (Array.isArray(achievementMembers)) {
+      return achievementMembers;
+    }
+
+    if (Array.isArray(achievementMembers?.members)) {
+      return achievementMembers.members;
+    }
+
+    if (Array.isArray(achievementMembers?.data)) {
+      return achievementMembers.data;
+    }
+
+    return [];
+  }, [achievementMembers]);
 
   useEffect(() => {
     loadDashboard();
