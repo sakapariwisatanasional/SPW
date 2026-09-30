@@ -102,7 +102,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Daftar Kwarda unik untuk filter
   const kwardaOptions = useMemo(() => {
-    const list = Array.from(new Set(members.map((m) => m.kwarda)));
+    const list = Array.from(new Set((members || []).map((m) => m.kwarda)));
     return list.sort();
   }, [members]);
 
@@ -126,7 +126,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
       return matchKwarda && matchKrida && matchLevel && matchSearch;
     });
-  }, [members, selectedKwarda, selectedKrida, selectedLevel, searchQuery]);
+  }, [selectedKwarda, selectedKrida, selectedLevel, searchQuery]);
 
   // Statistik Agregat Nasional
   const nationalStats = useMemo(() => {
