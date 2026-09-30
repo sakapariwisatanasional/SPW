@@ -47,11 +47,45 @@ export const DashboardPage: React.FC = () => {
       try{
 
         const response = await apiClient.post<any>(
-          'admin.dashboard.summary',
+          'admin.achievement.directory',
           {}
         );
 
-        const data = response.data || {};
+        const rawData = response.data || [];
+
+        const members = Array.isArray(rawData)
+          ? rawData
+          : (
+              rawData.members ||
+              rawData.data ||
+              []
+            );
+
+        const data = {
+          total_member: members.length,
+          active_member: members.filter(
+            (item:any) =>
+              String(item.status || '').toUpperCase() === 'ACTIVE'
+          ).length,
+          total_product: members.reduce(
+            (sum:number, item:any) =>
+              sum + Number(item.total_product || 0),
+            0
+          ),
+          total_content: members.reduce(
+            (sum:number, item:any) =>
+              sum + Number(item.total_content || 0),
+            0
+          ),
+          pangkalan_terbanyak:
+            members[0]?.pangkalan ||
+            members[0]?.position ||
+            null,
+          destinasi_terverifikasi:
+            `${members.filter((item:any)=>item.status === 'ACTIVE').length} anggota aktif`,
+          pasar_umkm:
+            `${members.length} data anggota`
+        };
 
         setNationalIntegration({
           pangkalan:
@@ -113,7 +147,41 @@ export const DashboardPage: React.FC = () => {
         {}
       );
 
-      const data = response.data || {};
+      const rawData = response.data || [];
+
+        const members = Array.isArray(rawData)
+          ? rawData
+          : (
+              rawData.members ||
+              rawData.data ||
+              []
+            );
+
+        const data = {
+          total_member: members.length,
+          active_member: members.filter(
+            (item:any) =>
+              String(item.status || '').toUpperCase() === 'ACTIVE'
+          ).length,
+          total_product: members.reduce(
+            (sum:number, item:any) =>
+              sum + Number(item.total_product || 0),
+            0
+          ),
+          total_content: members.reduce(
+            (sum:number, item:any) =>
+              sum + Number(item.total_content || 0),
+            0
+          ),
+          pangkalan_terbanyak:
+            members[0]?.pangkalan ||
+            members[0]?.position ||
+            null,
+          destinasi_terverifikasi:
+            `${members.filter((item:any)=>item.status === 'ACTIVE').length} anggota aktif`,
+          pasar_umkm:
+            `${members.length} data anggota`
+        };
 
       setNationalIntegration({
         pangkalan:
