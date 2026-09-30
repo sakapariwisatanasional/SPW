@@ -26,7 +26,11 @@ import { SuperAdminAchievementView } from '../components/SuperAdminAchievementVi
 import { Button } from '../../../components/ui';
 
 export const MemberAchievementPage: React.FC = () => {
-  const { currentUser } = useAuthStore();
+  const {
+    currentUser,
+    impersonatedUser,
+    getEffectiveUser
+  } = useAuthStore();
   const {
     profile,
     skkItems,
@@ -37,6 +41,7 @@ export const MemberAchievementPage: React.FC = () => {
     error,
     privacyScoreVisible,
     loadAchievement,
+    loadSimulationAchievement,
     setSelectedKrida,
     togglePrivacyView,
     loadDemoProfile
@@ -56,6 +61,14 @@ export const MemberAchievementPage: React.FC = () => {
   }, [isSuperAdmin]);
 
   useEffect(() => {
+
+    if (
+      impersonatedUser &&
+      String(impersonatedUser.id || "").startsWith("SIM-")
+    ) {
+      loadSimulationAchievement(impersonatedUser);
+      return;
+    }
 
     if (
       currentUser?.role === ROLES.SUPER_ADMIN ||
