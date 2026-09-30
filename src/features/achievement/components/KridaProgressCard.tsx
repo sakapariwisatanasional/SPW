@@ -20,14 +20,14 @@ import {
 import { MemberSkkItem, SkkStatusType } from '../../../types/achievement';
 
 interface KridaProgressCardProps {
-  skkItems: MemberSkkItem[];
+  skkItems?: MemberSkkItem[];
   selectedKrida: string;
   onSelectKrida: (kridaId: string) => void;
   isPrivacyScoreVisible: boolean;
 }
 
 export const KridaProgressCard: React.FC<KridaProgressCardProps> = ({
-  skkItems,
+  skkItems = [],
   selectedKrida,
   onSelectKrida,
   isPrivacyScoreVisible
@@ -44,7 +44,11 @@ export const KridaProgressCard: React.FC<KridaProgressCardProps> = ({
   ];
 
   // Filtering
-  const filteredItems = skkItems.filter(item => {
+  const safeSkkItems = Array.isArray(skkItems)
+    ? skkItems
+    : [];
+
+  const filteredItems = safeSkkItems.filter(item => {
     const matchKrida = selectedKrida === 'all' || item.kridaId === selectedKrida;
     const matchStatus = statusFilter === 'ALL' || item.status === statusFilter;
     const matchSearch =
