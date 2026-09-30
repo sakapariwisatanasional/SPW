@@ -30,10 +30,19 @@ export const Header: React.FC = () => {
     currentUser,
     setImpersonatedUser,
     clearImpersonation,
+    getEffectiveUser,
     isAuthenticated,
     logout,
     updateCurrentUserProfile
   } = useAuthStore();
+
+  // User yang tampil mengikuti simulasi SuperAdmin
+  // Akun asli tetap tersimpan di currentUser
+  const displayUser =
+    getEffectiveUser
+      ? getEffectiveUser()
+      : currentUser;
+
   const {
     toggleSidebar,
     activeView,
@@ -46,7 +55,7 @@ export const Header: React.FC = () => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
+  const isPublicUser = !isAuthenticated || displayUser?.role === ROLES.PUBLIC_USER;
 
   const availableRoles = [
     { key:'ADMIN_PUSAT', role:ROLES.ADMIN_PUSAT, label:'Admin Pusat (Kwarnas)', badgeVariant:'purple' },
@@ -159,7 +168,7 @@ export const Header: React.FC = () => {
         ) : (
           <>
             {/* Quick Admin Portal Trigger */}
-            {(currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.ADMIN_PUSAT || currentUser.role === ROLES.ADMIN_WILAYAH) && (
+            {(displayUser?.role === ROLES.SUPER_ADMIN || displayUser?.role === ROLES.ADMIN_PUSAT || displayUser?.role === ROLES.ADMIN_WILAYAH) && (
               <Button
                 size="sm"
                 variant="primary"
@@ -174,7 +183,7 @@ export const Header: React.FC = () => {
         )}
 
         {/* Role Switcher Simulator (Enterprise RBAC Showcase) - KHUSUS SUPERADMIN */}
-        {currentUser.role === ROLES.SUPER_ADMIN && (
+        {displayUser?.role === ROLES.SUPER_ADMIN && (
           <div className="relative">
             <button
               onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
@@ -183,7 +192,7 @@ export const Header: React.FC = () => {
             >
               <Shield className="w-3.5 h-3.5 text-[#0066B3] group-hover:text-white shrink-0 transition-colors" />
               <span className="hidden lg:inline text-slate-500 group-hover:text-white/80 transition-colors">Peran:</span>
-              <span className="font-semibold text-slate-900 group-hover:text-white truncate max-w-[70px] sm:max-w-[110px] transition-colors">{currentUser.role}</span>
+              <span className="font-semibold text-slate-900 group-hover:text-white truncate max-w-[70px] sm:max-w-[110px] transition-colors">{displayUser?.role}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-white ml-0.5 shrink-0 transition-colors" />
             </button>
 
@@ -228,7 +237,7 @@ export const Header: React.FC = () => {
                           <p className="font-semibold truncate group-hover:text-white">{item.label}</p>
                           <p className="text-[10px] font-mono text-slate-400 group-hover:text-white/80">{item.role}</p>
                         </div>
-                        {currentUser.role === item.role ? (
+                        {displayUser?.role === item.role ? (
                           <Badge size="sm" variant={item.badgeVariant}>Aktif</Badge>
                         ) : (
                           <span className="text-[10px] text-slate-400 group-hover:text-white font-semibold">Pilih</span>
@@ -262,16 +271,16 @@ export const Header: React.FC = () => {
               className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl border border-slate-200/80 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-colors cursor-pointer text-left shadow-2xs group"
             >
               <Avatar
-                src={currentUser.avatarUrl}
-                name={currentUser.fullName}
+                src={displayUser?.avatarUrl}
+                name={(displayUser?.nama || displayUser?.fullName)}
                 size="sm"
                 status="online"
               />
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-semibold text-slate-900 group-hover:text-white leading-tight truncate max-w-[120px] transition-colors">
-                  {currentUser.fullName}
+                  {(displayUser?.nama || displayUser?.fullName)}
                 </p>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300 leading-tight truncate max-w-[120px] transition-colors">{currentUser.province || 'Nasional'}</p>
+                <p className="text-[10px] text-slate-400 group-hover:text-slate-300 leading-tight truncate max-w-[120px] transition-colors">{displayUser?.province || 'Nasional'}</p>
               </div>
             </button>
 
