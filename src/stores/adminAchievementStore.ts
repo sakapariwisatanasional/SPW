@@ -1,12 +1,8 @@
 /**
  * SPWN Apps 2.0
- * Admin Achievement Store FINAL
+ * Admin Achievement Store
  *
- * Source:
- * - admin.achievement.dashboard
- * - admin.achievement.statistics
- * - admin.achievement.member.detail
- *
+ * Frontend only
  * GAS untouched
  */
 
@@ -18,28 +14,18 @@ import {
 
 
 interface AdminAchievementState {
-
   dashboard: any | null;
-
   statistics: any | null;
-
   selectedMember: any | null;
 
   loading: boolean;
-
   error: string | null;
 
-
   loadDashboard: () => Promise<void>;
-
   loadStatistics: () => Promise<void>;
-
-  loadMemberDetail: (
-    memberId: string
-  ) => Promise<void>;
+  loadMemberDetail: (memberId: string) => Promise<void>;
 
   clearSelectedMember: () => void;
-
 }
 
 
@@ -64,37 +50,25 @@ create<AdminAchievementState>((set) => ({
       error: null,
     });
 
-
     try {
 
       const response =
-        await adminAchievementApi
-          .getDashboard();
-
+        await adminAchievementApi.getDashboard();
 
       set({
-
-        dashboard:
-          response.data,
-
-        loading:false,
-
+        dashboard: response.data,
+        loading: false,
       });
 
 
-    } catch(error:any){
-
+    } catch (error: any) {
 
       set({
-
-        loading:false,
-
+        loading: false,
         error:
           error?.message ||
-          "Gagal memuat dashboard achievement"
-
+          "Gagal memuat dashboard achievement",
       });
-
 
     }
 
@@ -104,111 +78,75 @@ create<AdminAchievementState>((set) => ({
   loadStatistics: async () => {
 
     set({
-
-      loading:true,
-
-      error:null,
-
+      loading: true,
+      error: null,
     });
-
 
     try {
 
-
       const response =
-        await adminAchievementApi
-          .getStatistics();
-
+        await adminAchievementApi.getStatistics();
 
       set({
-
-        statistics:
-          response.data,
-
-        loading:false,
-
+        statistics: response.data,
+        loading: false,
       });
 
 
-    } catch(error:any){
-
+    } catch (error: any) {
 
       set({
-
-        loading:false,
-
+        loading: false,
         error:
           error?.message ||
-          "Gagal memuat statistik achievement"
-
+          "Gagal memuat statistik achievement",
       });
-
 
     }
 
   },
 
 
-  loadMemberDetail:
-    async(memberId:string)=>{
+  loadMemberDetail: async (memberId: string) => {
+
+    set({
+      loading: true,
+      error: null,
+    });
+
+
+    try {
+
+      const response =
+        await adminAchievementApi
+          .getMemberDetail(memberId);
 
 
       set({
-
-        loading:true,
-
-        error:null,
-
+        selectedMember: response.data,
+        loading: false,
       });
 
 
-      try {
+    } catch (error: any) {
+
+      set({
+        loading: false,
+        error:
+          error?.message ||
+          "Gagal memuat detail achievement anggota",
+      });
+
+    }
+
+  },
 
 
-        const response =
-          await adminAchievementApi
-            .getMemberDetail(memberId);
-
-
-        set({
-
-          selectedMember:
-            response.data,
-
-          loading:false,
-
-        });
-
-
-      } catch(error:any){
-
-
-        set({
-
-          loading:false,
-
-          error:
-            error?.message ||
-            "Gagal memuat detail achievement anggota"
-
-        });
-
-
-      }
-
-
-    },
-
-
-  clearSelectedMember:()=>{
-
+  clearSelectedMember: () => {
 
     set({
-
-      selectedMember:null,
-
+      selectedMember: null,
     });
-
 
   },
 
