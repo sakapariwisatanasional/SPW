@@ -24,13 +24,15 @@ interface KridaProgressCardProps {
   selectedKrida: string;
   onSelectKrida: (kridaId: string) => void;
   isPrivacyScoreVisible: boolean;
+  onExploreKrida?: () => void;
 }
 
 export const KridaProgressCard: React.FC<KridaProgressCardProps> = ({
   skkItems = [],
   selectedKrida,
   onSelectKrida,
-  isPrivacyScoreVisible
+  isPrivacyScoreVisible,
+  onExploreKrida
 }) => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | SkkStatusType>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,6 +116,18 @@ export const KridaProgressCard: React.FC<KridaProgressCardProps> = ({
           />
         </div>
       </div>
+
+      {onExploreKrida && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={onExploreKrida}
+            className="px-4 py-2 rounded-xl bg-blue-50 text-[#0066B3] border border-blue-200 text-xs font-semibold hover:bg-blue-100 transition-all"
+          >
+            Pilih Krida Peminatan
+          </button>
+        </div>
+      )}
 
       {/* Krida Selector Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 border-b border-slate-100 scrollbar-none">
