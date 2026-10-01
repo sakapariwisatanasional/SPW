@@ -59,20 +59,27 @@ export const AdminDashboardOverview: React.FC = () => {
     setSelectedMemberId,
   } = useAdminStore();
 
+  // Defensive normalization:
+  // API member.list returns an array, but ensure components never receive undefined.
+  const safeMembers = Array.isArray(members) ? members : [];
+  const safeApprovals = Array.isArray(approvals) ? approvals : [];
+  const safeKtaLogs = Array.isArray(ktaLogs) ? ktaLogs : [];
+  const safeChangeHistory = Array.isArray(changeHistory) ? changeHistory : [];
+
   // Global Search Admin State
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [timelineFilter, setTimelineFilter] = useState<'ALL' | 'APPROVAL' | 'KTA' | 'AUDIT'>('ALL');
 
   // Filter members based on regional scope
   const scopedMembers = useMemo(() => {
-    return members.filter((m) => {
+    return safeMembers.filter((m) => {
       if (simulatedScope === 'ADMIN_WILAYAH') {
         if (scopeProvinceId !== 'ALL' && m.provinsi_id !== scopeProvinceId) return false;
         if (scopeRegencyId !== 'ALL' && m.kabupaten_id !== scopeRegencyId) return false;
       }
       return true;
     });
-  }, [members, simulatedScope, scopeProvinceId, scopeRegencyId]);
+  }, [safeMembers, simulatedScope, scopeProvinceId, scopeRegencyId]);
 
   // Operational Metrics
   const totalCount = scopedMembers.length;
@@ -103,7 +110,7 @@ export const AdminDashboardOverview: React.FC = () => {
 
   // Krida distribution
   const kridaCounts = useMemo(() => {
-    return KRIDA_MASTER.map((k) => {
+    return (Array.isArray(KRIDA_MASTER) ? KRIDA_MASTER : []).map((k) => {
       const count = scopedMembers.filter((m) => m.krida_id === k.id).length;
       const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
       return { ...k, count, percentage };
@@ -143,7 +150,7 @@ export const AdminDashboardOverview: React.FC = () => {
     const items: TimelineItem[] = [];
 
     // 1. Approvals
-    approvals.forEach((app) => {
+    safeApprovals.forEach((app) => {
       items.push({
         id: app.id,
         category: 'APPROVAL',
@@ -162,7 +169,7 @@ export const AdminDashboardOverview: React.FC = () => {
     });
 
     // 2. KTA Logs
-    ktaLogs.forEach((klog) => {
+    safeKtaLogs.forEach((klog) => {
       items.push({
         id: klog.id,
         category: 'KTA',
@@ -177,7 +184,7 @@ export const AdminDashboardOverview: React.FC = () => {
     });
 
     // 3. Change History / Audits
-    changeHistory.forEach((hist) => {
+    safeChangeHistory.forEach((hist) => {
       items.push({
         id: hist.id,
         category: 'AUDIT',
@@ -196,7 +203,7 @@ export const AdminDashboardOverview: React.FC = () => {
       .filter((item) => (timelineFilter === 'ALL' ? true : item.category === timelineFilter))
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 8);
-  }, [approvals, ktaLogs, changeHistory, timelineFilter]);
+  }, [safeApprovals, safeKtaLogs, safeChangeHistory, timelineFilter]);
 
   const handleOpenMember = (memberId: string) => {
     setSelectedMemberId(memberId);
