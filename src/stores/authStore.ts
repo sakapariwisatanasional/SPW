@@ -468,14 +468,77 @@ create<AuthState>((set,get)=>({
     }
 
 
+    // SuperAdmin simulation mode:
+    // Saat mengakses fitur anggota, gunakan identitas dummy
+    // agar fitur MEMBER dapat diuji tanpa mengubah data anggota asli.
+    if(role === ROLES.MEMBER){
+
+      const simulatedMember = {
+
+        ...user,
+
+        id:"DEMO-MEMBER-FAJAR",
+
+        role:ROLES.MEMBER,
+
+        memberId:
+          user.memberId ||
+          "SPWN.32.01.2024.089",
+
+        nama:"Fajar",
+
+        fullName:"Fajar",
+
+        simulationMode:true,
+
+        simulationRole:"MEMBER",
+
+        memberProfile:{
+
+          ...(user.memberProfile || {}),
+
+          id:
+            user.memberProfile?.id ||
+            "SPWN.32.01.2024.089",
+
+          member_id:
+            user.memberProfile?.member_id ||
+            "SPWN.32.01.2024.089",
+
+          full_name:"Fajar"
+
+        }
+
+      };
+
+
+      set({
+
+        currentUser:simulatedMember,
+
+        impersonatedUser:simulatedMember
+
+      });
+
+
+      return;
+
+    }
+
+
     const updatedUser = {
+
       ...user,
+
       role
+
     };
 
 
     set({
+
       currentUser:updatedUser
+
     });
 
 
