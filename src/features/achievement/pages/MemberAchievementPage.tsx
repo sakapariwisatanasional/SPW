@@ -56,12 +56,9 @@ export const MemberAchievementPage: React.FC = () => {
 
   const getActiveMemberId = () => {
     return (
-      effectiveUser?.simulationMember?.memberId ||
-      effectiveUser?.memberId ||
-      effectiveUser?.no_kta ||
-      effectiveUser?.nomor_kta ||
+      effectiveUser?.memberProfile?.id ||
       effectiveUser?.memberProfile?.memberId ||
-      effectiveUser?.memberProfile?.no_kta ||
+      effectiveUser?.memberId ||
       ''
     );
   };
@@ -77,8 +74,8 @@ export const MemberAchievementPage: React.FC = () => {
   useEffect(() => {
 
     if (
-      impersonatedUser?.simulationMode ||
-      impersonatedUser?.simulationMember
+      impersonatedUser?.memberProfile?.id ||
+      impersonatedUser?.memberId
     ) {
       loadSimulationAchievement(
         effectiveUser || impersonatedUser
@@ -181,9 +178,8 @@ export const MemberAchievementPage: React.FC = () => {
               onClick={() => {
 
                 const memberId =
-                  currentUser?.no_kta ||
-                  currentUser?.nomor_kta ||
-                  currentUser?.memberProfile?.no_kta ||
+                  currentUser?.memberProfile?.id ||
+                  currentUser?.memberProfile?.memberId ||
                   currentUser?.memberId ||
                   '';
 
@@ -245,7 +241,11 @@ export const MemberAchievementPage: React.FC = () => {
                 <AchievementEmptyState
                   memberNama={profile.member.nama}
                   onExploreCatalog={() => setSelectedKrida('pemandu')}
-                  onContactPembina={() => {}}
+                  onContactPembina={() => {
+                    window.dispatchEvent(
+                      new CustomEvent('spwn:contact-pembina')
+                    );
+                  }}
                 />
 
                 {/* Tetap tampilkan preview silabus SKK agar anggota tahu apa yang dapat dipelajari */}
