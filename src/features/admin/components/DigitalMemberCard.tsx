@@ -655,7 +655,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   ) : <span />}
                   {(previewSettings.showFrontMemberId ?? true) && (
                     <span className="font-mono text-slate-400 shrink-0 pl-2">
-                      {member?.id || 'SPWN-MEMBER'}
+                      {member?.nationalMemberNumber || member?.id || 'SPWN-MEMBER'}
                     </span>
                   )}
                 </div>
