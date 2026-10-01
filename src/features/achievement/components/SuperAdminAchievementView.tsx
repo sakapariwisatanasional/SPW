@@ -65,23 +65,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
     loading,
   } = useAdminAchievementStore();
 
-  const members = useMemo(() => {
-
-    if (Array.isArray(achievementMembers)) {
-      return achievementMembers;
-    }
-
-    if (Array.isArray(achievementMembers?.members)) {
-      return achievementMembers.members;
-    }
-
-    if (Array.isArray(achievementMembers?.data)) {
-      return achievementMembers.data;
-    }
-
-    return [];
-
-  }, [achievementMembers]);
+  const members = Array.isArray(achievementMembers)
+    ? achievementMembers
+    : (
+        achievementMembers?.members ||
+        achievementMembers?.data ||
+        []
+      );
 
   useEffect(() => {
     loadDashboard();
@@ -102,13 +92,13 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
   // Daftar Kwarda unik untuk filter
   const kwardaOptions = useMemo(() => {
-    const list = Array.from(new Set((members || []).map((m) => m.kwarda)));
+    const list = Array.from(new Set((Array.isArray(members) ? members : []).map((m) => m.kwarda)));
     return list.sort();
   }, [members]);
 
   // Filtered Members
   const filteredMembers = useMemo(() => {
-    return members.filter((m) => {
+    return (Array.isArray(members) ? members : []).filter((m) => {
       const matchKwarda = selectedKwarda === 'ALL' || m.kwarda === selectedKwarda;
       const matchKrida = selectedKrida === 'ALL' || m.kridaUtamaId === selectedKrida;
       const matchLevel = selectedLevel === 'ALL' || m.level === selectedLevel;
@@ -131,9 +121,9 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
   // Statistik Agregat Nasional
   const nationalStats = useMemo(() => {
     const totalMembers = members.length;
-    const totalUtama = members.filter((m) => m.level === 'UTAMA').length;
-    const totalMadya = members.filter((m) => m.level === 'MADYA').length;
-    const totalPurwa = members.filter((m) => m.level === 'PURWA').length;
+    const totalUtama = (Array.isArray(members) ? members : []).filter((m) => m.level === 'UTAMA').length;
+    const totalMadya = (Array.isArray(members) ? members : []).filter((m) => m.level === 'MADYA').length;
+    const totalPurwa = (Array.isArray(members) ? members : []).filter((m) => m.level === 'PURWA').length;
 
     const avgProgress =
       members.reduce((acc, curr) => acc + Number(curr?.summary?.progressPercent || 0), 0) /
