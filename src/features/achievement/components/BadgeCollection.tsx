@@ -51,7 +51,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ badges }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {badges.map(badge => (
+          {(Array.isArray(badges) ? badges : []).map(badge => (
             <div
               key={badge.id}
               className="p-4 rounded-xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 hover:shadow-md hover:border-[#0066B3]/40 transition-all flex flex-col justify-between"
