@@ -1,14 +1,10 @@
 /**
- * SPWN Apps 2.0 - Member Digital KTA Experience FINAL API SYNC
+ * SPWN Apps 2.0 - Member Digital KTA Experience FINAL API SYNC FIX
  *
- * Integrasi:
- * Frontend MemberKtaView
- *        |
- *        ↓
- * GAS Action: member.kta.detail
- *        |
- *        ↓
- * DigitalMemberCard Dynamic Renderer
+ * Fix:
+ * - Menghapus route member.kta.detail yang tidak tersedia
+ * - Menggunakan member.detail sesuai member.api.ts
+ * - Mendukung SuperAdmin simulation member
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -16,6 +12,7 @@ import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
 import { KtaCardSide, KtaMemberBindingData } from '../../../types/kta.types';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
+import { memberApi } from '../../../services/api/member.api';
 
 
 export const MemberKtaView: React.FC = () => {
@@ -25,16 +22,12 @@ export const MemberKtaView: React.FC = () => {
 
   const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
   const [ktaData, setKtaData] = useState<any>(null);
-  const [template, setTemplate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
 
   useEffect(() => {
-
     loadKta();
-
-  }, []);
-
+  }, [currentUser]);
 
 
   async function loadKta(){
@@ -43,19 +36,25 @@ export const MemberKtaView: React.FC = () => {
 
       setLoading(true);
 
+      const memberId =
+        currentUser?.memberId ||
+        currentUser?.id;
+
+
+      if(!memberId){
+        throw new Error("Member ID tidak tersedia");
+      }
+
 
       const response =
-        await fetch(
-          "/api?action=member.kta.detail&member_id=" +
-          currentUser.memberId
-        );
+        await memberApi.detail(memberId);
 
 
-      const result =
-        await response.json();
+      const member =
+        response?.data;
 
 
-      if(!result.success){
+      if(!member){
 
         throw new Error(
           "Data KTA tidak ditemukan"
@@ -64,17 +63,15 @@ export const MemberKtaView: React.FC = () => {
       }
 
 
-      setKtaData(
-        result.member
-      );
-
-
-      setTemplate(
-        result.template
-      );
+      setKtaData(member);
 
 
     }catch(e:any){
+
+      console.error(
+        "Member KTA loading error:",
+        e
+      );
 
       addToast({
         type:"error",
@@ -103,69 +100,76 @@ export const MemberKtaView: React.FC = () => {
         id:
           ktaData.id,
 
-
         nationalMemberNumber:
-          ktaData.noKta,
-
+          ktaData.nationalMemberNumber ||
+          ktaData.no_kta,
 
         fullName:
-          ktaData.fullName,
-
+          ktaData.fullName ||
+          ktaData.nama_lengkap,
 
         membershipLevel:
-          ktaData.position || "Anggota",
-
+          ktaData.membershipLevel ||
+          ktaData.position ||
+          "Anggota",
 
         currentPosition:
-          ktaData.position || "Anggota",
-
+          ktaData.currentPosition ||
+          ktaData.position ||
+          "Anggota",
 
         provinceName:
           ktaData.province,
 
-
         regencyName:
           ktaData.city,
-
 
         districtName:
           ktaData.district,
 
-
         kwartirName:
-          ktaData.city ? `Kwarcab ${ktaData.city}` : 'Kwarcab SAKA Pariwisata',
-
+          ktaData.city
+            ? `Kwarcab ${ktaData.city}`
+            : 'Kwarcab SAKA Pariwisata',
 
         kwartirHierarchy:
-          [ktaData.province ? `Kwarda ${ktaData.province}` : '', ktaData.city ? `Kwarcab ${ktaData.city}` : '', ktaData.district ? `Kwarran ${ktaData.district}` : ''].filter(Boolean).join(' • ') || 'Kwartir Nasional',
-
+          [
+            ktaData.province
+              ? `Kwarda ${ktaData.province}`
+              : '',
+            ktaData.city
+              ? `Kwarcab ${ktaData.city}`
+              : '',
+            ktaData.district
+              ? `Kwarran ${ktaData.district}`
+              : ''
+          ]
+          .filter(Boolean)
+          .join(' • ')
+          ||
+          'Kwartir Nasional',
 
         krida:
           ktaData.krida,
 
-
         phone:
           ktaData.phone,
-
 
         email:
           ktaData.email,
 
-
         status:
           ktaData.status,
-
 
         photoUrl:
           ktaData.photoUrl,
 
-
         qrUrl:
           ktaData.verificationUrl,
 
-
         qrToken:
-          ktaData.noKta
+          ktaData.nationalMemberNumber ||
+          ktaData.no_kta
 
       };
 
@@ -185,7 +189,6 @@ export const MemberKtaView: React.FC = () => {
   }
 
 
-
   if(!memberBinding){
 
     return (
@@ -195,7 +198,6 @@ export const MemberKtaView: React.FC = () => {
     );
 
   }
-
 
 
   return (
@@ -223,9 +225,7 @@ export const MemberKtaView: React.FC = () => {
 
           side={cardSide}
 
-          onSideChange={
-            setCardSide
-          }
+          onSideChange={setCardSide}
 
           showControls={true}
 
@@ -237,6 +237,5 @@ export const MemberKtaView: React.FC = () => {
     </div>
 
   );
-
 
 };
