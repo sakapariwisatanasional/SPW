@@ -1,74 +1,234 @@
 /**
  * SPWN Apps 2.0
- * Achievement Store FINAL
+ * Achievement Store FINAL FIX
  *
- * Tidak menggunakan data dummy.
- * Semua sumber dari API database.
+ * Support:
+ * - Real API member
+ * - SuperAdmin simulation member
+ * - Safe array contract
  */
 
 import { create } from "zustand";
 import { achievementApi } from "../services/api/achievement.api";
 
-
 export const useAchievementStore = create((set) => ({
 
   profile: null,
+
+  skkItems: [],
+
   skk: [],
+
   badges: [],
+
   activities: [],
+
+  selectedKrida: "pemandu",
+
   loading: false,
+
+  isLoading: false,
+
   error: null,
 
+  privacyScoreVisible: false,
 
 
-  loadSimulationAchievement: (user:any) => {
+  setSelectedKrida: (krida:any) => {
+    set({
+      selectedKrida: krida
+    });
+  },
 
-    if (!user) return;
+
+  togglePrivacyView: () => {
+    set((state:any)=>({
+      privacyScoreVisible:
+        !state.privacyScoreVisible
+    }));
+  },
+
+
+  loadDemoProfile: async(type:any)=>{
+
+    const active =
+      type === "active";
+
+    const user = active
+      ? {
+          id:"DEMO-MEMBER-FAJAR",
+          memberId:"SPWN.32.01.2024.089",
+          nama:"Fajar",
+          full_name:"Fajar",
+          no_kta:"SPWN.32.01.2024.089",
+          level:"MADYA",
+
+          summary:{
+            completedSkk:8,
+            inProgressSkk:2,
+            progressPercent:80
+          },
+
+          skkItems:[],
+          badges:[],
+          activities:[]
+        }
+      : {
+          id:"DEMO-MEMBER-BAGAS",
+          memberId:"SPWN.31.01.2026.001",
+          nama:"Bagas",
+          full_name:"Bagas",
+          level:"PURWA",
+
+          summary:{
+            completedSkk:0,
+            inProgressSkk:0,
+            progressPercent:0
+          },
+
+          skkItems:[],
+          badges:[],
+          activities:[]
+        };
+
 
     set({
-      profile: {
-        member: {
-          id: user.id,
-          memberId: user.memberId,
-          nama: user.nama || user.full_name,
-          no_kta: user.no_kta,
-          province: user.province,
-          level: user.level || user.achievement?.level || "PURWA"
+
+      profile:{
+        member:{
+          ...user
         },
-        summary: user.summary || {
-          completedSkk: 0,
-          inProgressSkk: 0,
-          progressPercent: 0
-        }
+
+        summary:user.summary
       },
-      skkItems: user.skkItems || [],
-      badges: user.badges || [],
-      activities: user.activities || [],
-      loading: false,
-      error: null
+
+      skkItems:
+        Array.isArray(user.skkItems)
+          ? user.skkItems
+          : [],
+
+      skk:
+        Array.isArray(user.skkItems)
+          ? user.skkItems
+          : [],
+
+      badges:
+        Array.isArray(user.badges)
+          ? user.badges
+          : [],
+
+      activities:
+        Array.isArray(user.activities)
+          ? user.activities
+          : [],
+
+      loading:false,
+      isLoading:false,
+      error:null
     });
 
   },
 
-  loadAchievement: async (
-    memberId,
-    viewerRole,
-    viewerMemberId
-  ) => {
+
+  loadSimulationAchievement:(user:any)=>{
+
+    if(!user){
+      return;
+    }
+
 
     set({
-      loading: true,
-      error: null
+
+      profile:{
+
+        member:{
+
+          id:user.id,
+
+          memberId:
+            user.memberId,
+
+          nama:
+            user.nama ||
+            user.full_name,
+
+          full_name:
+            user.full_name ||
+            user.nama,
+
+          no_kta:
+            user.no_kta,
+
+          province:
+            user.province,
+
+          level:
+            user.level ||
+            "PURWA"
+
+        },
+
+        summary:
+          user.summary ||
+          {
+            completedSkk:0,
+            inProgressSkk:0,
+            progressPercent:0
+          }
+
+      },
+
+
+      skkItems:
+        Array.isArray(user.skkItems)
+          ? user.skkItems
+          : [],
+
+      skk:
+        Array.isArray(user.skkItems)
+          ? user.skkItems
+          : [],
+
+      badges:
+        Array.isArray(user.badges)
+          ? user.badges
+          : [],
+
+      activities:
+        Array.isArray(user.activities)
+          ? user.activities
+          : [],
+
+      loading:false,
+      isLoading:false,
+      error:null
+
+    });
+
+  },
+
+
+  loadAchievement: async(
+    memberId:any,
+    viewerRole?:any,
+    viewerMemberId?:any
+  )=>{
+
+    set({
+      loading:true,
+      isLoading:true,
+      error:null
     });
 
 
-    try {
+    try{
 
       const [
         profileRes,
         skkRes,
         badgesRes,
         activitiesRes
+
       ] = await Promise.all([
 
         achievementApi.getAchievement(memberId),
@@ -84,20 +244,41 @@ export const useAchievementStore = create((set) => ({
 
       set({
 
-        profile: profileRes.data,
+        profile:
+          profileRes?.data || null,
 
-        skk: skkRes.data || [],
 
-        badges: badgesRes.data || [],
+        skkItems:
+          Array.isArray(skkRes?.data)
+            ? skkRes.data
+            : [],
 
-        activities: activitiesRes.data || [],
 
-        loading:false
+        skk:
+          Array.isArray(skkRes?.data)
+            ? skkRes.data
+            : [],
+
+
+        badges:
+          Array.isArray(badgesRes?.data)
+            ? badgesRes.data
+            : [],
+
+
+        activities:
+          Array.isArray(activitiesRes?.data)
+            ? activitiesRes.data
+            : [],
+
+
+        loading:false,
+        isLoading:false
 
       });
 
 
-    } catch(error){
+    }catch(error:any){
 
       console.error(
         "Achievement loading error:",
@@ -109,10 +290,23 @@ export const useAchievementStore = create((set) => ({
 
         loading:false,
 
-        error:error.message || "Gagal memuat pencapaian"
+        isLoading:false,
+
+        profile:null,
+
+        skkItems:[],
+
+        skk:[],
+
+        badges:[],
+
+        activities:[],
+
+        error:
+          error?.message ||
+          "Gagal memuat pencapaian"
 
       });
-
 
     }
 
