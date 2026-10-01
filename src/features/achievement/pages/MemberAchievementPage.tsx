@@ -52,6 +52,20 @@ export const MemberAchievementPage: React.FC = () => {
 
   const [demoType, setDemoType] = useState<'active' | 'empty'>('active');
 
+  const effectiveUser = getEffectiveUser();
+
+  const getActiveMemberId = () => {
+    return (
+      effectiveUser?.simulationMember?.memberId ||
+      effectiveUser?.memberId ||
+      effectiveUser?.no_kta ||
+      effectiveUser?.nomor_kta ||
+      effectiveUser?.memberProfile?.memberId ||
+      effectiveUser?.memberProfile?.no_kta ||
+      ''
+    );
+  };
+
   useEffect(() => {
     if (isSuperAdmin) {
       setViewMode('superadmin');
@@ -63,10 +77,12 @@ export const MemberAchievementPage: React.FC = () => {
   useEffect(() => {
 
     if (
-      impersonatedUser &&
-      String(impersonatedUser.id || "").startsWith("SIM-")
+      impersonatedUser?.simulationMode ||
+      impersonatedUser?.simulationMember
     ) {
-      loadSimulationAchievement(impersonatedUser);
+      loadSimulationAchievement(
+        effectiveUser || impersonatedUser
+      );
       return;
     }
 
@@ -77,12 +93,7 @@ export const MemberAchievementPage: React.FC = () => {
       return;
     }
 
-    const memberId =
-      currentUser?.no_kta ||
-      currentUser?.nomor_kta ||
-      currentUser?.memberProfile?.no_kta ||
-      currentUser?.memberId ||
-      '';
+    const memberId = getActiveMemberId();
 
     if (!memberId) {
       return;
