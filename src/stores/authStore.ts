@@ -1,134 +1,562 @@
 /**
  * SPWN Apps 2.0
- * AuthStore FINAL ROLE SIMULATION
+ * AuthStore FINAL v6
  *
- * Semua role tetap memakai member yang sama.
- * Role hanya mengubah permission.
+ * Full Auth Store
+ *
+ * Includes:
+ * - Login session
+ * - Restore session
+ * - Logout
+ * - Permission check
+ * - Member profile update sync
  */
 
-import { create } from "zustand";
-import { ROLES } from "../config/constants";
-import { DEMO_MEMBER } from "../config/simulation/simulationMember";
-import { SIMULATION_ROLES } from "../config/simulation/simulationRoles";
+import { create } from 'zustand';
+import { authApi } from '../services/api/auth.api';
+import { memberApi } from '../services/api/member.api';
+import { ROLES } from '../config/constants';
 
-export const useAuthStore = create<any>((set, get) => ({
 
-  currentUser: null,
-  token: null,
-  isAuthenticated: false,
-  impersonatedUser: null,
+interface AuthState {
 
-  setSession:(user:any, token:string)=>{
+  currentUser:any | null;
 
-    localStorage.setItem(
-      "spwn_session_token",
-      token || ""
+  token:string | null;
+
+  isAuthenticated:boolean;
+
+  // SuperAdmin role simulation
+  impersonatedUser:any | null;
+
+  setImpersonatedUser:
+    (user:any)=>void;
+
+  clearImpersonation:
+    ()=>void;
+
+  getEffectiveUser:
+    ()=>any;
+
+  // Compatibility for legacy components
+  switchRole:
+    (role:string)=>void;
+
+
+  loginWithCredentials:
+    (
+      identifier:string,
+      password:string
+    )=>Promise<any>;
+
+
+  setSession:
+    (
+      user:any,
+      token:string
+    )=>void;
+
+
+  updateCurrentUserProfile:
+    (
+      profileData:any
+    )=>Promise<any>;
+
+
+  logout:
+    ()=>void;
+
+
+  hasPermission:
+    (
+      permission:string
+    )=>boolean;
+
+}
+
+
+
+function getInitialAuthState(){
+
+  try{
+
+    const token =
+      localStorage.getItem(
+        "spwn_session_token"
+      );
+
+
+    const user =
+      JSON.parse(
+        localStorage.getItem(
+          "spwn_session_user"
+        ) || "null"
+      );
+
+
+    if(token && user){
+
+      return {
+
+        currentUser:user,
+
+        token,
+
+        isAuthenticated:true,
+
+        impersonatedUser:null
+
+      };
+
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Restore session gagal",
+      error
     );
 
-    localStorage.setItem(
-      "spwn_session_user",
-      JSON.stringify(user)
+  }
+
+
+  return {
+
+    currentUser:null,
+
+    token:null,
+
+    isAuthenticated:false,
+
+    impersonatedUser:null
+
+  };
+
+}
+
+
+
+const initial =
+  getInitialAuthState();
+
+
+
+export const useAuthStore =
+create<AuthState>((set,get)=>({
+
+
+  currentUser:
+    initial.currentUser,
+
+
+  token:
+    initial.token,
+
+
+  isAuthenticated:
+    initial.isAuthenticated,
+
+
+
+  loginWithCredentials:
+  async(identifier,password)=>{
+
+
+    const response =
+      await authApi.login({
+
+        email:identifier,
+
+        password
+
+      });
+
+
+
+    if(
+      !response ||
+      !response.success
+    ){
+
+      throw new Error(
+        response?.message ||
+        "Login gagal"
+      );
+
+    }
+
+
+
+    const user =
+      response.data.user ||
+      response.data;
+
+
+    const token =
+      user.token ||
+      response.data.token ||
+      "";
+
+
+
+    get().setSession(
+      user,
+      token
     );
 
-    set({
-      currentUser:user,
-      token,
-      isAuthenticated:true
-    });
+
+
+    return response;
+
   },
 
-  setImpersonatedUser:(user:any)=>{
+
+
+  setSession:
+  (user,token)=>{
+
+
+    const sessionUser = {
+
+      ...user,
+
+
+      memberProfile:
+        user.memberProfile ||
+        null
+
+    };
+
+
+
+    localStorage.setItem(
+
+      "spwn_session_token",
+
+      token || ""
+
+    );
+
+
+    localStorage.setItem(
+
+      "spwn_session_user",
+
+      JSON.stringify(sessionUser)
+
+    );
+
+
+
+    set({
+
+      currentUser:sessionUser,
+
+      token,
+
+      isAuthenticated:true
+
+    });
+
+
+  },
+
+
+
+  updateCurrentUserProfile:
+  async(profileData)=>{
+
+
+    const user =
+      get().currentUser;
+
+
+    if(!user){
+
+      throw new Error(
+        "User belum login"
+      );
+
+    }
+
+
+
+    const memberId =
+      user.memberProfile?.id ||
+      user.memberId;
+
+
+
+    if(!memberId){
+
+      throw new Error(
+        "Member ID tidak ditemukan"
+      );
+
+    }
+
+
+
+    const result =
+      await memberApi.updateProfile({
+
+        member_id:memberId,
+
+
+        data:{
+
+          full_name:
+            profileData.fullName,
+
+
+          phone:
+            profileData.phone,
+
+
+          province:
+            profileData.province,
+
+
+          city:
+            profileData.cityName,
+
+
+          district:
+            profileData.districtName,
+
+
+          krida:
+            profileData.kridaName,
+
+
+          photo_url:
+            profileData.avatarUrl
+
+        },
+
+
+        actor:user.id
+
+      });
+
+
+
+    if(!result.success){
+
+      throw new Error(
+        result.message ||
+        "Gagal memperbarui profil"
+      );
+
+    }
+
+
+
+    const updatedUser = {
+
+      ...user,
+
+
+      fullName:
+        profileData.fullName,
+
+
+      avatarUrl:
+        profileData.avatarUrl,
+
+
+      memberProfile:{
+
+        ...user.memberProfile,
+
+
+        full_name:
+          profileData.fullName,
+
+
+        phone:
+          profileData.phone,
+
+
+        province:
+          profileData.province,
+
+
+        city:
+          profileData.cityName,
+
+
+        district:
+          profileData.districtName,
+
+
+        krida:
+          profileData.kridaName,
+
+
+        photo_url:
+          profileData.avatarUrl
+
+      }
+
+    };
+
+
+
+    localStorage.setItem(
+
+      "spwn_session_user",
+
+      JSON.stringify(updatedUser)
+
+    );
+
+
+
+    set({
+
+      currentUser:updatedUser
+
+    });
+
+
+
+    return result;
+
+  },
+
+
+
+  setImpersonatedUser:(user)=>{
+
     set({
       impersonatedUser:user
     });
+
   },
 
+
   clearImpersonation:()=>{
+
     set({
       impersonatedUser:null
     });
+
   },
+
 
   getEffectiveUser:()=>{
-    const state=get();
-    return state.impersonatedUser || state.currentUser;
+
+    const state = get();
+
+    return (
+      state.impersonatedUser ||
+      state.currentUser
+    );
+
   },
 
-  switchSimulationRole:(role:string)=>{
 
-    const current=get().currentUser;
+  switchRole:(role:string)=>{
 
-    if(!current){
+    const user =
+      get().currentUser;
+
+
+    if(!user){
       return;
     }
 
-    const config =
-      SIMULATION_ROLES[
-        role as keyof typeof SIMULATION_ROLES
-      ];
 
-    const simulatedUser={
+    // SuperAdmin simulation mode:
+    // Saat mengakses fitur anggota, gunakan identitas dummy
+    // agar fitur MEMBER dapat diuji tanpa mengubah data anggota asli.
+    if(role === ROLES.MEMBER){
 
-      ...current,
+      const simulatedMember = {
 
-      id:
-        current.id ||
-        DEMO_MEMBER.id,
+        ...user,
 
-      memberId:
-        current.memberId ||
-        DEMO_MEMBER.memberId,
+        id:"DEMO-MEMBER-FAJAR",
 
-      memberProfile:{
-        ...(current.memberProfile || {}),
+        role:ROLES.MEMBER,
 
-        id:DEMO_MEMBER.memberId,
+        memberId:
+          user.memberId ||
+          "SPWN.32.01.2024.089",
 
-        member_id:DEMO_MEMBER.memberId,
+        nama:"Fajar",
 
-        full_name:DEMO_MEMBER.fullName
-      },
+        fullName:"Fajar",
 
-      nama:DEMO_MEMBER.nama,
+        simulationMode:true,
 
-      fullName:DEMO_MEMBER.fullName,
+        simulationRole:"MEMBER",
 
-      role,
+        memberProfile:{
 
-      permissions:
-        config?.permissions || [],
+          ...(user.memberProfile || {}),
 
-      simulationMode:true,
+          id:
+            user.memberProfile?.id ||
+            "SPWN.32.01.2024.089",
 
-      simulationMember:DEMO_MEMBER
+          member_id:
+            user.memberProfile?.member_id ||
+            "SPWN.32.01.2024.089",
+
+          full_name:"Fajar"
+
+        }
+
+      };
+
+
+      set({
+
+        currentUser:simulatedMember,
+
+        impersonatedUser:simulatedMember
+
+      });
+
+
+      return;
+
+    }
+
+
+    const updatedUser = {
+
+      ...user,
+
+      role
+
     };
 
 
     set({
 
-      currentUser:simulatedUser,
-
-      impersonatedUser:simulatedUser
+      currentUser:updatedUser
 
     });
 
-  },
-
-  switchRole:(role:string)=>{
-
-    get().switchSimulationRole(role);
 
   },
+
 
   logout:()=>{
+
 
     localStorage.removeItem(
       "spwn_session_token"
     );
 
+
     localStorage.removeItem(
       "spwn_session_user"
     );
+
 
     set({
 
@@ -136,30 +564,50 @@ export const useAuthStore = create<any>((set, get) => ({
 
       token:null,
 
-      isAuthenticated:false,
-
-      impersonatedUser:null
+      isAuthenticated:false
 
     });
 
+
   },
 
-  hasPermission:(permission:string)=>{
 
-    const user=get().currentUser;
+
+  hasPermission:
+  (permission)=>{
+
+
+    const user =
+      get().currentUser;
+
+
 
     if(!user){
+
       return false;
+
     }
 
-    if(user.role===ROLES.SUPER_ADMIN){
+
+
+    if(
+      user.role === ROLES.SUPER_ADMIN
+    ){
+
       return true;
+
     }
+
+
 
     return (
       user.permissions || []
-    ).includes(permission);
+    )
+    .includes(permission);
+
 
   }
+
+
 
 }));
