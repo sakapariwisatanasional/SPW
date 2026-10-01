@@ -235,11 +235,23 @@ export const memberApi = {
    * Mendaftarkan anggota baru ke backend dan Google Spreadsheet
    */
   register: async (payload: RegisterMemberPayload): Promise<ApiResponse<SpwnUser>> => {
-    return apiClient.post<SpwnUser>('member.register', {
-      ...payload,
-      is_public: payload.is_public !== undefined ? payload.is_public : true,
-      source: payload.source || 'PUBLIC_REGISTER',
-    } as unknown as Record<string, unknown>);
+    const response =
+      await apiClient.post<any>('member.register', {
+        ...payload,
+        is_public: payload.is_public !== undefined ? payload.is_public : true,
+        source: payload.source || 'PUBLIC_REGISTER',
+      } as unknown as Record<string, unknown>);
+
+    const memberData =
+      response?.data?.member ||
+      response?.data?.data ||
+      response?.data ||
+      response;
+
+    return {
+      ...response,
+      data: normalizeMemberKtaData(memberData) as SpwnUser,
+    };
   },
 
   /**
