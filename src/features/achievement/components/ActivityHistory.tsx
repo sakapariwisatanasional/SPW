@@ -42,7 +42,7 @@ export const ActivityHistory: React.FC<ActivityHistoryProps> = ({ activities }) 
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activities.map(act => (
+          {(Array.isArray(activities) ? activities : []).map(act => (
             <div
               key={act.id}
               className="flex flex-col sm:flex-row gap-4 p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all bg-white"
