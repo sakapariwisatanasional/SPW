@@ -13,12 +13,14 @@ interface AchievementEmptyStateProps {
   memberNama?: string;
   onExploreCatalog?: () => void;
   onContactPembina?: () => void;
+  onExploreKrida?: () => void;
 }
 
 export const AchievementEmptyState: React.FC<AchievementEmptyStateProps> = ({
   memberNama = 'Anggota',
   onExploreCatalog,
-  onContactPembina
+  onContactPembina,
+  onExploreKrida
 }) => {
   return (
     <div
@@ -42,7 +44,12 @@ export const AchievementEmptyState: React.FC<AchievementEmptyStateProps> = ({
 
       {/* Step Recommendation Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8">
-        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-colors">
+        <button
+          type="button"
+          id="btn-pilih-krida"
+          onClick={onExploreKrida}
+          className="w-full text-left p-4 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-colors"
+        >
           <div className="flex items-center gap-3 mb-2 text-[#0066B3]">
             <Compass className="w-5 h-5" />
             <h4 className="font-semibold text-sm text-slate-900">Pilih Krida Peminatan</h4>
@@ -50,7 +57,7 @@ export const AchievementEmptyState: React.FC<AchievementEmptyStateProps> = ({
           <p className="text-xs text-slate-600 leading-relaxed">
             Eksplorasi 4 Krida utama: Pemandu Wisata, Penyuluh Wisata, MICE, atau Kuliner Wisata.
           </p>
-        </div>
+        </button>
 
         <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-colors">
           <div className="flex items-center gap-3 mb-2 text-emerald-600">
