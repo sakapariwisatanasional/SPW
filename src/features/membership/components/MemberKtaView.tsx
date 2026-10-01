@@ -17,8 +17,10 @@ import { memberApi } from '../../../services/api/member.api';
 
 export const MemberKtaView: React.FC = () => {
 
-  const { currentUser } = useAuthStore();
+  const { currentUser, getEffectiveUser } = useAuthStore();
   const { addToast } = useUIStore();
+
+  const effectiveUser = getEffectiveUser();
 
   const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
   const [ktaData, setKtaData] = useState<any>(null);
@@ -27,7 +29,7 @@ export const MemberKtaView: React.FC = () => {
 
   useEffect(() => {
     loadKta();
-  }, [currentUser]);
+  }, [effectiveUser]);
 
 
   async function loadKta(){
@@ -37,8 +39,10 @@ export const MemberKtaView: React.FC = () => {
       setLoading(true);
 
       const memberId =
-        currentUser?.memberId ||
-        currentUser?.id;
+        effectiveUser?.memberProfile?.id ||
+        effectiveUser?.memberProfile?.memberId ||
+        effectiveUser?.memberId ||
+        '';
 
 
       if(!memberId){
