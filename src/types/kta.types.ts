@@ -243,6 +243,11 @@ export interface KtaTemplateDbRecord {
  */
 export interface KtaMemberBindingData {
   id: string;
+  /**
+   * Identifier anggota resmi dari backend.
+   * Opsional untuk kompatibilitas dengan integrasi lama.
+   */
+  memberId?: string;
   fullName: string;
   nationalMemberNumber: string;
   membershipLevel?: SakaMembershipLevel | string;
