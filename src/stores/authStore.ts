@@ -468,46 +468,24 @@ create<AuthState>((set,get)=>({
     }
 
 
-    // SuperAdmin simulation mode:
-    // Saat mengakses fitur anggota, gunakan identitas dummy
-    // agar fitur MEMBER dapat diuji tanpa mengubah data anggota asli.
+    // SuperAdmin simulation mode
+    // Tidak membuat member dummy.
+    // Simulasi harus menggunakan data anggota asli dari backend.
     if(role === ROLES.MEMBER){
 
       const simulatedMember = {
 
         ...user,
 
-        id:"DEMO-MEMBER-FAJAR",
-
         role:ROLES.MEMBER,
-
-        memberId:
-          user.memberId ||
-          "SPWN.32.01.2024.089",
-
-        nama:"Fajar",
-
-        fullName:"Fajar",
 
         simulationMode:true,
 
         simulationRole:"MEMBER",
 
-        memberProfile:{
-
-          ...(user.memberProfile || {}),
-
-          id:
-            user.memberProfile?.id ||
-            "SPWN.32.01.2024.089",
-
-          member_id:
-            user.memberProfile?.member_id ||
-            "SPWN.32.01.2024.089",
-
-          full_name:"Fajar"
-
-        }
+        // Pertahankan memberProfile asli dari backend
+        // agar seluruh modul memakai member.id yang valid.
+        memberProfile:user.memberProfile || null
 
       };
 
