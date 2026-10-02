@@ -55,6 +55,13 @@ import { OrganizationLevelType } from '../../../types/membership';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
 
+const getBackendMemberId = (member: AdminMemberRecord) =>
+  member.id ||
+  (member as any).member_id ||
+  (member as any).memberId ||
+  member.nomor_kta ||
+  '';
+
 export const MemberAdministration: React.FC = () => {
   const { addToast } = useUIStore();
   const {
@@ -106,7 +113,7 @@ export const MemberAdministration: React.FC = () => {
   const openMemberDrawer = async (m: AdminMemberRecord, tab: MemberDrawerTab = 'overview') => {
     try {
       // Ambil data detail terbaru dari GAS sebelum membuka drawer
-      const detail = await memberApi.detail(m.id);
+      const detail = await memberApi.detail(getBackendMemberId(m));
 
       const rawDetail =
         detail?.data?.member ||
@@ -768,7 +775,7 @@ export const MemberAdministration: React.FC = () => {
                           type="button"
                           onClick={async () => {
                             await memberApi.reviewMember(
-                                 m.id,
+                                 getBackendMemberId(m),
                                  'Berkas diverifikasi absah oleh Admin Wilayah'
                                );
                                await refreshMembersFromApi();
@@ -804,7 +811,7 @@ export const MemberAdministration: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              reviewMember(m.id, 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
+                              reviewMember(getBackendMemberId(m), 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
                               addToast({
                                 type: 'success',
                                 title: 'Verifikasi Ulang Lolos',
@@ -881,8 +888,8 @@ export const MemberAdministration: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                approveMember(m.id, 'Disetujui Admin Pusat', 'Admin Pusat', simulatedScope);
-                                const res = activateMember(m.id, 'Penerbitan KTA & QR Identity', 'Admin Pusat');
+                                approveMember(getBackendMemberId(m), 'Disetujui Admin Pusat', 'Admin Pusat', simulatedScope);
+                                const res = activateMember(getBackendMemberId(m), 'Penerbitan KTA & QR Identity', 'Admin Pusat');
                                 addToast({
                                   type: 'success',
                                   title: 'Anggota Disetujui & KTA Terbit',
