@@ -187,6 +187,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   const [formData, setFormData] = useState<Partial<AdminMemberRecord>>({});
   const [auditReason, setAuditReason] = useState('');
   const [auditError, setAuditError] = useState('');
+  const [showGenerateKtaPrompt, setShowGenerateKtaPrompt] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Modals inside drawer
@@ -293,7 +294,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         if (krida) updates.krida_nama = krida.name;
       }
 
-      updateMemberAdmin(
+      const updateResult:any = await updateMemberAdmin(
         getBackendMemberId(currentMember),
         updates,
         auditReason,
@@ -304,6 +305,10 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           : 'Admin Wilayah',
         simulatedScope
       );
+
+      if(updateResult?.require_generate_kta){
+        setShowGenerateKtaPrompt(true);
+      }
 
       addToast({
         type: 'success',
