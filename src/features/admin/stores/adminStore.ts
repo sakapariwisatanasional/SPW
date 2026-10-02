@@ -1127,11 +1127,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     // Sinkronisasi ke backend GAS agar perubahan masuk Spreadsheet
-    await apiClient.post('member.update_profile', {
+    const profileResponse:any = await apiClient.post('member.update_profile', {
       member_id: memberId,
       data: updates,
       actor: sessionUserName,
     });
+
+    const requireGenerateKta =
+      profileResponse?.data?.require_generate_kta === true;
+
+
 
     const nowIso = new Date().toISOString();
     const changeRecords: MemberChangeHistoryEntry[] = [];
@@ -1187,6 +1192,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       }),
       changeHistory: [...changeRecords, ...curr.changeHistory],
     }));
+
+    return {
+      require_generate_kta: requireGenerateKta,
+      profile_change: profileResponse?.data?.profile_change || null,
+    };
   },
 
   resetMemberPassword: (memberId, temporaryPassword, reason = 'Reset kata sandi akun oleh administrator', sessionUserName = 'Super Administrator', sessionUserRole = 'SUPER_ADMIN') => {
