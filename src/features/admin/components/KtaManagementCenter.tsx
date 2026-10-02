@@ -36,6 +36,13 @@ import { KtaMemberBindingData } from '../../../types/kta.types';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
 
+const getBackendMemberId = (member: AdminMemberRecord) =>
+  member.id ||
+  (member as any).member_id ||
+  (member as any).memberId ||
+  member.nomor_kta ||
+  '';
+
 export const KtaManagementCenter: React.FC = () => {
   const { addToast } = useUIStore();
   const {
@@ -105,7 +112,7 @@ export const KtaManagementCenter: React.FC = () => {
 
     try {
       const res = await memberApi.regenerateKta(
-        regenMember.id,
+        getBackendMemberId(regenMember),
         `${regenReason} (Otoritas: ${regenAuthority})`
       );
 
@@ -139,7 +146,7 @@ export const KtaManagementCenter: React.FC = () => {
       '';
 
     return {
-      id: m.id,
+      id: getBackendMemberId(m),
       fullName: m.nama_lengkap,
       nationalMemberNumber: m.nomor_kta || '00.000000',
       membershipLevel: m.tingkat_keanggotaan,
@@ -271,7 +278,7 @@ export const KtaManagementCenter: React.FC = () => {
                 type="button"
                 onClick={async () => {
                   await memberApi.batchGenerateKta(
-                    autoIssueQueue.map((m) => m.id),
+                    autoIssueQueue.map((m) => getBackendMemberId(m)),
                     'Penerbitan Batch Otomatis'
                   );
 
@@ -297,7 +304,7 @@ export const KtaManagementCenter: React.FC = () => {
             ) : (
               autoIssueQueue.map((m) => (
                 <div
-                  key={m.id}
+                  key={getBackendMemberId(m)}
                   className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3"
                 >
                   <div className="flex items-start justify-between">
@@ -327,7 +334,7 @@ export const KtaManagementCenter: React.FC = () => {
                       type="button"
                       onClick={async () => {
                         const res = await memberApi.generateKta(
-                          m.id,
+                          getBackendMemberId(m),
                           'Penerbitan KTA Resmi'
                         );
 
@@ -364,7 +371,7 @@ export const KtaManagementCenter: React.FC = () => {
                   checked={selectedIds.length === activeKtaMembers.length && activeKtaMembers.length > 0}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds(activeKtaMembers.map((m) => m.id));
+                      setSelectedIds(activeKtaMembers.map((m) => getBackendMemberId(m)));
                     } else {
                       setSelectedIds([]);
                     }
@@ -410,9 +417,9 @@ export const KtaManagementCenter: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeKtaMembers.map((m) => (
               <div
-                key={m.id}
+                key={getBackendMemberId(m)}
                 className={`bg-white rounded-2xl p-4 border transition-all shadow-xs flex flex-col justify-between ${
-                  selectedIds.includes(m.id)
+                  selectedIds.includes(getBackendMemberId(m))
                     ? 'border-[#0066B3] ring-2 ring-blue-100 bg-blue-50/20'
                     : 'border-slate-200/80 hover:border-slate-300'
                 }`}
@@ -420,12 +427,12 @@ export const KtaManagementCenter: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(m.id)}
+                    checked={selectedIds.includes(getBackendMemberId(m))}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedIds([...selectedIds, m.id]);
+                        setSelectedIds([...selectedIds, getBackendMemberId(m)]);
                       } else {
-                        setSelectedIds(selectedIds.filter((id) => id !== m.id));
+                        setSelectedIds(selectedIds.filter((id) => id !== getBackendMemberId(m)));
                       }
                     }}
                     className="mt-1 rounded-sm text-[#0066B3]"
@@ -672,9 +679,9 @@ export const KtaManagementCenter: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2">
               {activeKtaMembers
-                .filter((m) => selectedIds.includes(m.id))
+                .filter((m) => selectedIds.includes(getBackendMemberId(m)))
                 .map((m) => (
-                  <div key={m.id} className="flex justify-center bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
+                  <div key={getBackendMemberId(m)} className="flex justify-center bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
                     <DigitalMemberCard
                       member={toBindingFormat(m)}
                       previewSettings={storage.getKtaSettings()}
