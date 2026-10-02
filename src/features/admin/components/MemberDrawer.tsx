@@ -73,6 +73,13 @@ interface MemberDrawerProps {
   initialTab?: MemberDrawerTab;
 }
 
+const getBackendMemberId = (member: AdminMemberRecord) =>
+  member.id ||
+  (member as any).member_id ||
+  (member as any).memberId ||
+  member.nomor_kta ||
+  '';
+
 export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   member,
   isOpen,
@@ -114,7 +121,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
     if (!member) return null;
 
     const rawMember: any =
-      members.find((m) => m.id === member.id) || member;
+      members.find((m) => getBackendMemberId(m) === getBackendMemberId(member)) || member;
 
     /**
      * Compatibility layer:
@@ -223,12 +230,12 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
 
   // Specific member change history
   const memberAuditLogs = changeHistory
-    .filter((h) => h.member_id === currentMember.id)
+    .filter((h) => h.member_id === getBackendMemberId(currentMember))
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   // Specific member approval history
   const memberApprovals = approvals
-    .filter((a) => a.member_id === currentMember.id)
+    .filter((a) => a.member_id === getBackendMemberId(currentMember))
     .sort((a, b) => new Date(b.reviewed_at).getTime() - new Date(a.reviewed_at).getTime());
 
   // 6-Status State Machine Status Calculation
@@ -287,7 +294,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
       }
 
       updateMemberAdmin(
-        currentMember.id,
+        getBackendMemberId(currentMember),
         updates,
         auditReason,
         simulatedScope === 'SUPER_ADMIN'
@@ -335,7 +342,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
 
       if (workflowActionModal.type === 'REVIEW_WILAYAH') {
         reviewMember(
-          currentMember.id,
+          getBackendMemberId(currentMember),
           workflowActionModal.notes || 'Verifikasi berkas & kelayakan wilayah selesai.',
           actorName,
           simulatedScope
@@ -347,7 +354,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         });
       } else if (workflowActionModal.type === 'FINAL_APPROVE') {
         approveMember(
-          currentMember.id,
+          getBackendMemberId(currentMember),
           workflowActionModal.notes || 'Persetujuan keanggotaan penuh tingkat nasional disahkan.',
           actorName,
           simulatedScope
@@ -362,7 +369,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           throw new Error('Catatan arahan perbaikan berkas wajib diisi!');
         }
         requestRevisionMember(
-          currentMember.id,
+          getBackendMemberId(currentMember),
           workflowActionModal.notes,
           actorName,
           simulatedScope
@@ -377,7 +384,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           throw new Error('Alasan penolakan pendaftaran wajib diisi!');
         }
         rejectMember(
-          currentMember.id,
+          getBackendMemberId(currentMember),
           workflowActionModal.notes,
           actorName,
           simulatedScope
@@ -389,7 +396,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         });
       } else if (workflowActionModal.type === 'GENERATE_KTA') {
         const res = generateKta(
-          currentMember.id,
+          getBackendMemberId(currentMember),
           workflowActionModal.notes || 'Penerbitan KTA Digital Resmi SPWN 2.0',
           actorName
         );
@@ -427,7 +434,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
     try {
       await new Promise((r) => setTimeout(r, 450));
       const res = resetMemberPassword(
-        currentMember.id,
+        getBackendMemberId(currentMember),
         undefined,
         resetReason,
         simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Kwarnas',
@@ -468,7 +475,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   const handleRegenerateKta = async () => {
     try {
       const res = regenerateKta(
-        currentMember.id,
+        getBackendMemberId(currentMember),
         regenerateReason,
         simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Kwarnas'
       );
