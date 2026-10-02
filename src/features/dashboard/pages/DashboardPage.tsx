@@ -47,44 +47,35 @@ export const DashboardPage: React.FC = () => {
       try{
 
         const response = await apiClient.post<any>(
-          'admin.achievement.directory',
+          'admin.achievement.dashboard',
           {}
         );
 
-        const rawData = response.data || [];
-
-        const members = Array.isArray(rawData)
-          ? rawData
-          : (
-              rawData.members ||
-              rawData.data ||
-              []
-            );
+        const rawData = response.data || {};
 
         const data = {
-          total_member: members.length,
-          active_member: members.filter(
-            (item:any) =>
-              String(item.status || '').toUpperCase() === 'ACTIVE'
-          ).length,
-          total_product: members.reduce(
-            (sum:number, item:any) =>
-              sum + Number(item.total_product || 0),
-            0
-          ),
-          total_content: members.reduce(
-            (sum:number, item:any) =>
-              sum + Number(item.total_content || 0),
-            0
-          ),
+          total_member:
+            Number(rawData.totalMember || 0),
+
+          active_member:
+            Number(rawData.validatedMember || rawData.achievementMember || 0),
+
+          total_product:
+            Number(rawData.totalProduct || 0),
+
+          total_content:
+            Number(rawData.totalContent || 0),
+
           pangkalan_terbanyak:
-            members[0]?.pangkalan ||
-            members[0]?.position ||
-            null,
+            rawData.levelDistribution
+              ? Object.keys(rawData.levelDistribution).join(', ')
+              : null,
+
           destinasi_terverifikasi:
-            `${members.filter((item:any)=>item.status === 'ACTIVE').length} anggota aktif`,
+            `${rawData.validatedMember || 0} anggota tervalidasi`,
+
           pasar_umkm:
-            `${members.length} data anggota`
+            `${rawData.totalMember || 0} data anggota`
         };
 
         setNationalIntegration({
@@ -143,7 +134,7 @@ export const DashboardPage: React.FC = () => {
     try {
 
       const response = await apiClient.post<any>(
-        'admin.dashboard.summary',
+        'admin.achievement.dashboard',
         {}
       );
 
