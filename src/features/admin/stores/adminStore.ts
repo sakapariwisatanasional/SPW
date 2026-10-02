@@ -621,7 +621,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   setSelectedMemberId: (id) => set({ selectedMemberId: id }),
 
   addMember: (memberData) => {
-    const id = 'MEM-' + String(get().members.length + 1).padStart(3, '0');
+    const id =
+      (memberData as any).id ||
+      (memberData as any).member_id ||
+      ('MEM-' + String(get().members.length + 1).padStart(3, '0'));
+
     const nowIso = new Date().toISOString();
     const newRecord: AdminMemberRecord = {
       ...memberData,
@@ -1248,10 +1252,31 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         [];
 
       if (Array.isArray(fetched) && fetched.length > 0) {
+
+        const normalizedMembers = fetched.map((member:any) => ({
+          ...member,
+
+          // gunakan ID resmi backend sebagai identitas utama
+          id: member.id || member.member_id || member.memberId || '',
+
+          // mapping GAS MEMBER -> Admin Dashboard format
+          nomor_kta: member.no_kta || member.nomor_kta || '',
+          nama_lengkap: member.full_name || member.nama_lengkap || member.nama || '',
+          nomor_telepon: member.phone || member.nomor_telepon || '',
+          provinsi_nama: member.province || member.provinsi_nama || '',
+          kabupaten_nama: member.city || member.kabupaten_nama || '',
+          wilayah_kecamatan_nama: member.district || member.wilayah_kecamatan_nama || '',
+          krida_nama: member.krida || member.krida_nama || '',
+          tingkat_keanggotaan: member.position || member.tingkat_keanggotaan || '',
+          status_anggota: member.status || member.status_anggota || '',
+          foto_url: member.photo_url || member.foto_url || '',
+        }));
+
         set({
-          members: fetched
+          members: normalizedMembers
         });
-        return fetched;
+
+        return normalizedMembers;
       }
 
       return get().members;
