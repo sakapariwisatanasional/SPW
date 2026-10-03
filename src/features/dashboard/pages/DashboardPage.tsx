@@ -40,233 +40,118 @@ export const DashboardPage: React.FC = () => {
     umkm: 'Memuat data...'
   });
 
+  const readDirectoryMetrics = (response: any) => {
+    const raw = response?.data ?? response;
+    const container =
+      raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data)
+        ? raw.data
+        : raw;
+
+    const members = Array.isArray(container)
+      ? container
+      : Array.isArray(container?.members)
+        ? container.members
+        : Array.isArray(container?.data)
+          ? container.data
+          : Array.isArray(container?.data?.members)
+            ? container.data.members
+            : [];
+
+    const normalized = members.map((item: any) => ({
+      ...item,
+      status: String(item.status || item.status_anggota || '').toUpperCase(),
+    }));
+
+    return {
+      totalMember: normalized.length,
+      activeMember: normalized.filter((m: any) => m.status === 'ACTIVE').length,
+      pendingMember: normalized.filter((m: any) => m.status === 'PENDING').length,
+      rejectedMember: normalized.filter((m: any) => m.status === 'REJECTED').length,
+      totalProvince: new Set(
+        normalized
+          .map((m: any) => m.provinsi_id || m.province || m.provinsi_nama)
+          .filter(Boolean)
+      ).size,
+    };
+  };
+
+  const applyDashboardMetrics = (summary: {
+    totalMember: number;
+    activeMember: number;
+    pendingMember: number;
+    rejectedMember: number;
+    totalProvince: number;
+  }) => {
+    const { totalMember, activeMember, pendingMember, rejectedMember } = summary;
+
+    setNationalIntegration({
+      pangkalan: `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
+      destinasi: `${activeMember} anggota aktif`,
+      umkm: `${pendingMember} menunggu verifikasi`,
+    });
+
+    setMetrics(prev => prev.map((item, index) => ({
+      ...item,
+      value: String([
+        totalMember,
+        activeMember,
+        pendingMember,
+        rejectedMember,
+      ][index] ?? 0),
+    })));
+  };
+
   useEffect(() => {
-
-    async function loadDashboardMetrics(){
-
-      try{
-
+    async function loadDashboardMetrics() {
+      try {
+        // Route ini memang terdaftar pada Router backend production.
         const response = await apiClient.post<any>(
-          'admin.dashboard.summary',
+          'admin.achievement.directory',
           {}
         );
 
-        const raw = response?.data ?? response;
+        const summary = readDirectoryMetrics(response);
+        applyDashboardMetrics(summary);
 
-        const data =
-          raw?.data &&
-          typeof raw.data === 'object' &&
-          !Array.isArray(raw.data)
-            ? raw.data
-            : raw;
-
-        const totalMember =
-          Number(
-            data?.totalMember ??
-            data?.total_member ??
-            0
-          );
-
-        const activeMember =
-          Number(
-            data?.activeMember ??
-            data?.active_member ??
-            0
-          );
-
-        const pendingMember =
-          Number(
-            data?.pendingMember ??
-            data?.pending_member ??
-            0
-          );
-
-        const rejectedMember =
-          Number(
-            data?.rejectedMember ??
-            data?.rejected_member ??
-            0
-          );
-
-        const totalProvince =
-          Number(
-            data?.totalProvince ??
-            data?.total_province ??
-            0
-          );
-
-        setNationalIntegration({
-          pangkalan:
-            `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
-
-          destinasi:
-            `${activeMember} anggota aktif`,
-
-          umkm:
-            `${pendingMember} menunggu verifikasi`
-        });
-
-        setMetrics(prev => prev.map((item,index)=>{
-
-          const values = [
-            totalMember,
-            activeMember,
-            pendingMember,
-            rejectedMember
-          ];
-
-          return {
-            ...item,
-            value:String(values[index])
-          };
-
-        }));
-
-        console.info(
-          'Dashboard summary berhasil dimuat',
-          {
-            totalMember,
-            activeMember,
-            pendingMember,
-            rejectedMember,
-            totalProvince
-          }
-        );
-
-      }catch(error){
-
-        console.error(
-          'Dashboard metrics gagal dimuat',
-          error
-        );
-
+        console.info('Dashboard directory berhasil dimuat', summary);
+      } catch (error) {
+        console.error('Dashboard metrics gagal dimuat', error);
       }
-
     }
 
     loadDashboardMetrics();
-
   }, [currentUser?.province]);
 
-  // Trigger simulated skeleton loading to demonstrate interaction
   const triggerSkeletonRefresh = async () => {
-
     setIsLoadingSkeleton(true);
 
     try {
-
+      // Gunakan endpoint yang benar-benar terdaftar; jangan memanggil
+      // admin.dashboard.summary karena route tersebut belum ada di Router.
       const response = await apiClient.post<any>(
-        'admin.dashboard.summary',
+        'admin.achievement.directory',
         {}
       );
 
-      const raw = response?.data ?? response;
-
-      const data =
-        raw?.data &&
-        typeof raw.data === 'object' &&
-        !Array.isArray(raw.data)
-          ? raw.data
-          : raw;
-
-      const totalMember =
-        Number(
-          data?.totalMember ??
-          data?.total_member ??
-          0
-        );
-
-      const activeMember =
-        Number(
-          data?.activeMember ??
-          data?.active_member ??
-          0
-        );
-
-      const pendingMember =
-        Number(
-          data?.pendingMember ??
-          data?.pending_member ??
-          0
-        );
-
-      const rejectedMember =
-        Number(
-          data?.rejectedMember ??
-          data?.rejected_member ??
-          0
-        );
-
-      const totalProvince =
-        Number(
-          data?.totalProvince ??
-          data?.total_province ??
-          0
-        );
-
-      setNationalIntegration({
-        pangkalan:
-          `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
-
-        destinasi:
-          `${activeMember} anggota aktif`,
-
-        umkm:
-          `${pendingMember} menunggu verifikasi`
-      });
-
-      setMetrics(prev => prev.map((item,index)=>{
-
-        const values = [
-          totalMember,
-          activeMember,
-          0,
-          0
-        ];
-
-        return {
-          ...item,
-          value:String(values[index])
-        };
-
-      }));
-
-      console.info(
-        'Dashboard summary berhasil dimuat',
-        {
-          totalMember,
-          activeMember,
-          pendingMember,
-          rejectedMember,
-          totalProvince
-        }
-      );
+      const summary = readDirectoryMetrics(response);
+      applyDashboardMetrics(summary);
 
       addToast({
         type: 'success',
         title: 'Data Terkini Diperbarui',
-        message: 'Ringkasan dashboard berhasil disinkronkan dengan database.',
+        message: 'Ringkasan anggota berhasil disinkronkan dari database.',
       });
-
-    } catch(error) {
-
-      console.error(
-        'Refresh dashboard gagal',
-        error
-      );
+    } catch (error) {
+      console.error('Refresh dashboard gagal', error);
 
       addToast({
         type: 'error',
         title: 'Gagal Memperbarui Data',
         message: 'Tidak dapat mengambil data dashboard dari server.',
       });
-
     } finally {
-
       setIsLoadingSkeleton(false);
-
     }
-
   };
 
   const [metrics, setMetrics] = useState([
