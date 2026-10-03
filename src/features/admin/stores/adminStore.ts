@@ -505,10 +505,8 @@ interface AdminState {
   activeTab: AdminActiveTab;
   setActiveTab: (tab: AdminActiveTab) => void;
 
-  // Scoping / acting context. The authenticated account remains SUPER_ADMIN.
-  actingLevel: 'NASIONAL' | 'WILAYAH' | 'PAMONG_SAKA';
-  actingRole: 'ADMIN_NASIONAL' | 'ADMIN_WILAYAH' | 'MEMBER';
-  simulatedScope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH' | 'MEMBER';
+  // Scoping
+  simulatedScope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH';
   scopeProvinceId: string; // 'ALL' or '32'
   scopeProvinceName: string;
   scopeRegencyId: string; // 'ALL' or '3201'
@@ -517,15 +515,8 @@ interface AdminState {
   scopeDistrictName?: string;
   scopePangkalanId?: string;
   scopePangkalanName?: string;
-  setActingLevel: (
-    level: 'NASIONAL' | 'WILAYAH' | 'PAMONG_SAKA',
-    provId?: string,
-    provName?: string,
-    regId?: string,
-    regName?: string
-  ) => void;
   setSimulatedScope: (
-    scope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH' | 'MEMBER',
+    scope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH',
     provId?: string,
     provName?: string,
     regId?: string,
@@ -556,8 +547,8 @@ interface AdminState {
   // Actions - Phase 3 Lifecycle Management & Privacy Refactor
   addMember: (memberData: Omit<AdminMemberRecord, 'id' | 'created_at' | 'updated_at'>) => AdminMemberRecord;
   reviewMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
-  reviewMemberWilayah: (memberId: string, notes: string, reviewerName: string) => Promise<void>;
-  requestRevisionMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
+  reviewMemberWilayah: (memberId: string, notes: string, reviewerName: string) => void;
+  requestRevisionMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => void;
   approveMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
   approveMemberPusat: (memberId: string, notes: string, sessionUserName: string) => void;
   rejectMember: (memberId: string, notes: string, reviewerName: string, reviewerRole?: string) => Promise<void>;
@@ -581,8 +572,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   activeTab: 'overview',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  actingLevel: 'NASIONAL',
-  actingRole: 'ADMIN_NASIONAL',
   simulatedScope: 'SUPER_ADMIN',
   scopeProvinceId: 'ALL',
   scopeProvinceName: 'Seluruh Indonesia (Nasional)',
@@ -593,40 +582,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   scopePangkalanId: 'ALL',
   scopePangkalanName: 'Seluruh Pangkalan',
 
-  setActingLevel: (level, provId = 'ALL', provName = 'Seluruh Indonesia (Nasional)', regId = 'ALL', regName = 'Seluruh Kabupaten/Kota') => {
-    const isWilayah = level === 'WILAYAH';
-    const actingRole =
-      level === 'NASIONAL'
-        ? 'ADMIN_NASIONAL'
-        : level === 'WILAYAH'
-        ? 'ADMIN_WILAYAH'
-        : 'MEMBER';
-
-    set({
-      actingLevel: level,
-      actingRole,
-      // Compatibility for existing components until all consumers migrate.
-      simulatedScope:
-        level === 'NASIONAL'
-          ? 'ADMIN_PUSAT'
-          : level === 'WILAYAH'
-          ? 'ADMIN_WILAYAH'
-          : 'MEMBER',
-      scopeProvinceId: isWilayah ? (provId === 'ALL' ? '32' : provId) : 'ALL',
-      scopeProvinceName: isWilayah ? (provName || 'Jawa Barat') : 'Seluruh Indonesia (Nasional)',
-      scopeRegencyId: isWilayah ? (regId === 'ALL' ? 'ALL' : regId) : 'ALL',
-      scopeRegencyName: isWilayah ? (regName || 'Seluruh Kabupaten/Kota') : 'Seluruh Kabupaten/Kota',
-    });
-  },
-
   setSimulatedScope: (scope, provId = 'ALL', provName = 'Seluruh Indonesia (Nasional)', regId = 'ALL', regName = 'Seluruh Kabupaten/Kota', distId = 'ALL', distName = 'Seluruh Kecamatan', pangkalanId = 'ALL', pangkalanName = 'Seluruh Pangkalan') => {
-    const level =
-      scope === 'ADMIN_WILAYAH' ? 'WILAYAH' :
-      scope === 'MEMBER' ? 'PAMONG_SAKA' :
-      'NASIONAL';
-
-    get().setActingLevel(level, provId, provName, regId, regName);
     set({
+      simulatedScope: scope,
+      scopeProvinceId: scope === 'ADMIN_WILAYAH' ? (provId === 'ALL' ? '32' : provId) : 'ALL',
+      scopeProvinceName: scope === 'ADMIN_WILAYAH' ? (provName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : provName) : 'Seluruh Indonesia (Nasional)',
+      scopeRegencyId: scope === 'ADMIN_WILAYAH' ? (regId === 'ALL' ? '3201' : regId) : 'ALL',
+      scopeRegencyName: scope === 'ADMIN_WILAYAH' ? (regName === 'Seluruh Kabupaten/Kota' ? 'Kabupaten Bogor' : regName) : 'Seluruh Kabupaten/Kota',
       scopeDistrictId: distId,
       scopeDistrictName: distName,
       scopePangkalanId: pangkalanId,
@@ -693,18 +655,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     return newRecord;
   },
 
-  reviewMember: async (memberId, notes, reviewerName, reviewerRole) => {
+  reviewMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
     const nowIso = new Date().toISOString();
-    const effectiveRole = reviewerRole || get().actingRole;
-    void apiClient.post('member.reject', {
-      member_id: memberId,
-      notes,
-      reviewer_name: reviewerName,
-      reviewer_role: effectiveRole,
-      acting_level: get().actingLevel,
-      authenticated_role: 'SUPER_ADMIN',
-    });
-    await apiClient.post('admin.member.activate', { member_id: memberId, notes, acting_level: get().actingLevel, authenticated_role: 'SUPER_ADMIN', reviewer_role: effectiveRole, reviewer_name: reviewerName });
+    const effectiveRole = reviewerRole || get().simulatedScope;
+    await apiClient.post('admin.member.review', { member_id: memberId, decision: 'REVIEWED_VERIFIED', notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     set((state) => {
       const updatedMembers = state.members.map((m) => {
         if (m.id === memberId) {
@@ -749,24 +703,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  reviewMemberWilayah: async (memberId, notes, reviewerName) => {
-    await get().reviewMember(memberId, notes, reviewerName, 'ADMIN_WILAYAH');
+  reviewMemberWilayah: (memberId, notes, reviewerName) => {
+    get().reviewMember(memberId, notes, reviewerName, 'ADMIN_WILAYAH');
   },
 
-  requestRevisionMember: async (memberId, notes, reviewerName, reviewerRole) => {
+  requestRevisionMember: (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
     const nowIso = new Date().toISOString();
-    const effectiveRole = reviewerRole || get().actingRole;
+    const effectiveRole = reviewerRole || get().simulatedScope;
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'PENDING';
-    await apiClient.post('member.approval', {
-      member_id: memberId,
-      decision: 'REVISION_REQUIRED',
-      notes,
-      reviewer_name: reviewerName,
-      reviewer_role: effectiveRole,
-      acting_level: get().actingLevel,
-      authenticated_role: 'SUPER_ADMIN',
-    });
 
     set((state) => {
       const updatedMembers = state.members.map((m) => {
@@ -812,17 +757,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     });
   },
 
-  approveMember: async (memberId, notes, reviewerName, reviewerRole) => {
-    const effectiveRole = reviewerRole || get().actingRole;
-    if (get().actingLevel !== 'NASIONAL') {
-      throw new Error('Final Approval hanya tersedia pada mode Admin Nasional.');
-    }
+  approveMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_PUSAT') => {
+    const effectiveRole = reviewerRole || get().simulatedScope;
     if (effectiveRole === 'ADMIN_WILAYAH') {
       throw new Error('Admin Wilayah tidak memiliki wewenang Final Approval. Wewenang ini khusus Admin Pusat atau Super Admin.');
     }
 
     const nowIso = new Date().toISOString();
-    await apiClient.post('member.approval', { member_id: memberId, decision: 'REVIEWED_VERIFIED', notes, reviewer_name: reviewerName, reviewer_role: effectiveRole, acting_level: get().actingLevel, authenticated_role: 'SUPER_ADMIN' });
+    await apiClient.post('admin.member.approve', { member_id: memberId, decision: 'APPROVED', notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'REVIEWED_VERIFIED';
 
@@ -877,19 +819,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
   },
 
-  rejectMember: async (memberId, notes, reviewerName, reviewerRole) => {
+  rejectMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN') => {
     const nowIso = new Date().toISOString();
-    const effectiveRole = reviewerRole || get().actingRole;
+    const effectiveRole = reviewerRole || get().simulatedScope;
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'PENDING';
 
-    await apiClient.post('member.reject', {
+    await apiClient.post('admin.member.reject', {
       member_id: memberId,
       notes,
       reviewer_name: reviewerName,
       reviewer_role: effectiveRole,
-      acting_level: get().actingLevel,
-      authenticated_role: 'SUPER_ADMIN',
     });
 
     set((state) => {
@@ -938,10 +878,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   generateKta: async (memberId, reason, sessionUserName) => {
     const state = get();
-    const effectiveRole = state.actingRole;
-    if (state.actingLevel !== 'NASIONAL') {
-      throw new Error('Penerbitan KTA hanya tersedia pada mode Admin Nasional.');
-    }
+    const effectiveRole = state.simulatedScope;
     if (effectiveRole === 'ADMIN_WILAYAH') {
       throw new Error('Penerbitan KTA adalah wewenang khusus Kwartir Nasional / Admin Pusat.');
     }
@@ -956,7 +893,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     const nowIso = new Date().toISOString();
-    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason, acting_level: state.actingLevel, authenticated_role: 'SUPER_ADMIN' });
+    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
     const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
     const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
     const qrUrl = gasResult.data?.qr_url || '';
@@ -1011,8 +948,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   revokeKta: (memberId, reason, sessionUserName) => {
     const state = get();
-    const effectiveRole = state.actingRole;
-    if (state.actingLevel !== 'NASIONAL') {
+    const effectiveRole = state.simulatedScope;
+    if (effectiveRole === 'ADMIN_WILAYAH') {
       throw new Error('Pencabutan KTA adalah wewenang khusus Kwartir Nasional / Admin Pusat.');
     }
 
@@ -1053,15 +990,43 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   activateMember: async (memberId, notes, sessionUserName) => {
-    // Approve member Pusat if not active
-    await get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
-    return await get().generateKta(memberId, notes, sessionUserName);
+    const nowIso = new Date().toISOString();
+    const effectiveRole = get().simulatedScope || 'ADMIN_PUSAT';
+
+    if (effectiveRole === 'ADMIN_WILAYAH') {
+      throw new Error('Admin Wilayah tidak memiliki wewenang aktivasi anggota.');
+    }
+
+    await apiClient.post('admin.member.activate', {
+      member_id: memberId,
+      notes,
+      reviewer_name: sessionUserName,
+      reviewer_role: effectiveRole,
+    });
+
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              status_anggota: 'ACTIVE' as MemberAdminStatus,
+              status: 'ACTIVE',
+              tanggal_aktivasi: nowIso.substring(0, 10),
+              activated_by: sessionUserName,
+              activated_at: nowIso,
+              updated_at: nowIso,
+            }
+          : m
+      ),
+    }));
+
+    return { success: true, memberId, status: 'ACTIVE' };
   },
 
   regenerateKta: async (memberId, reason, sessionUserName) => {
     const state = get();
-    const effectiveRole = state.actingRole;
-    if (state.actingLevel !== 'NASIONAL') {
+    const effectiveRole = state.simulatedScope;
+    if (effectiveRole === 'ADMIN_WILAYAH') {
       throw new Error('Regenerasi KTA adalah wewenang khusus Kwartir Nasional / Admin Pusat.');
     }
 
@@ -1079,7 +1044,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       ? parseInt(member.nomor_kta.split('.').pop() || '1', 10)
       : state.members.filter((m) => m.nomor_kta).length + 1;
 
-    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason, acting_level: state.actingLevel, authenticated_role: 'SUPER_ADMIN' });
+    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
     const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
     const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
     const qrUrl = gasResult.data?.qr_url || '';
@@ -1196,20 +1161,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       throw new Error('Alasan perubahan data administrasi wajib diisi!');
     }
 
-    // Sinkronisasi ke backend GAS agar perubahan masuk Spreadsheet.
-    // Gunakan route admin.member.update agar jalur koreksi administratif
-    // konsisten dengan tombol 'Simpan ... & Rekam Audit'.
-    const apiResult: any = await apiClient.post('admin.member.update', {
+    // Sinkronisasi ke backend GAS agar perubahan masuk Spreadsheet
+    await apiClient.post('member.update_profile', {
       member_id: memberId,
-      updates,
-      reason,
+      data: updates,
       actor: sessionUserName,
-      session_user_role: sessionUserRole,
     });
-
-    if (apiResult && apiResult.success === false) {
-      throw new Error(apiResult.message || 'Backend menolak perubahan data wilayah.');
-    }
 
     const nowIso = new Date().toISOString();
     const changeRecords: MemberChangeHistoryEntry[] = [];
@@ -1323,13 +1280,38 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         {}
       );
 
+      /*
+       * Backend SPWN member.list mengembalikan struktur:
+       *
+       * response = {
+       *   success: true,
+       *   data: {
+       *     data: [ ...anggota ],
+       *     ...
+       *   },
+       *   pagination: null
+       * }
+       *
+       * Karena itu array anggota berada pada response.data.data.
+       * Tetap dukung beberapa bentuk legacy agar perubahan ini
+       * tidak merusak endpoint/versi response lama.
+       */
       const fetched =
-        response.data ||
-        (response as any).members ||
-        (response as any).data?.members ||
+        (Array.isArray(response?.data?.data)
+          ? response.data.data
+          : null) ||
+        (Array.isArray(response?.data?.members)
+          ? response.data.members
+          : null) ||
+        (Array.isArray(response?.data)
+          ? response.data
+          : null) ||
+        (Array.isArray((response as any)?.members)
+          ? (response as any).members
+          : null) ||
         [];
 
-      if (Array.isArray(fetched) && fetched.length > 0) {
+      if (Array.isArray(fetched)) {
 
         const normalizedMembers = fetched.map((member:any) => ({
           ...member,
@@ -1341,13 +1323,31 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           nomor_kta: member.no_kta || member.nomor_kta || '',
           nama_lengkap: member.full_name || member.nama_lengkap || member.nama || '',
           nomor_telepon: member.phone || member.nomor_telepon || '',
+          phone: member.phone || member.nomor_telepon || '',
           provinsi_nama: member.province || member.provinsi_nama || '',
-          kabupaten_nama: member.city || member.kabupaten_nama || '',
-          wilayah_kecamatan_nama: member.district || member.wilayah_kecamatan_nama || '',
+          kabupaten_nama:
+            member.kabupaten_kota_nama ||
+            member.kabupaten_nama ||
+            member.city ||
+            '',
+          wilayah_kecamatan_nama:
+            member.kecamatan_nama ||
+            member.wilayah_kecamatan_nama ||
+            member.district ||
+            '',
           krida_nama: member.krida || member.krida_nama || '',
-          tingkat_keanggotaan: member.position || member.tingkat_keanggotaan || '',
-          status_anggota: member.status || member.status_anggota || '',
-          foto_url: member.photo_url || member.foto_url || '',
+          tingkat_keanggotaan:
+            member.position ||
+            member.tingkat_keanggotaan ||
+            '',
+          status_anggota:
+            member.status ||
+            member.status_anggota ||
+            '',
+          foto_url:
+            member.photo_url ||
+            member.foto_url ||
+            '',
         }));
 
         set({
