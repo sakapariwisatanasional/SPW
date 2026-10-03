@@ -505,7 +505,13 @@ interface AdminState {
   activeTab: AdminActiveTab;
   setActiveTab: (tab: AdminActiveTab) => void;
 
-  // Scoping
+  // Scoping - restored Dashboard contract (do not change unrelated services)
+  actingLevel: 'NASIONAL' | 'WILAYAH' | 'PAMONG_SAKA';
+  actingRole: 'ADMIN_NASIONAL' | 'ADMIN_WILAYAH' | 'MEMBER';
+  setActingLevel: (
+    level: 'NASIONAL' | 'WILAYAH' | 'PAMONG_SAKA',
+    provId?: string, provName?: string, regId?: string, regName?: string
+  ) => void;
   simulatedScope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH';
   scopeProvinceId: string; // 'ALL' or '32'
   scopeProvinceName: string;
@@ -572,6 +578,20 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   activeTab: 'overview',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
+  actingLevel: 'NASIONAL',
+  actingRole: 'ADMIN_NASIONAL',
+  setActingLevel: (level, provId = 'ALL', provName = 'Seluruh Indonesia (Nasional)', regId = 'ALL', regName = 'Seluruh Kabupaten/Kota') => {
+    const wilayah = level !== 'NASIONAL';
+    set({
+      actingLevel: level,
+      actingRole: level === 'NASIONAL' ? 'ADMIN_NASIONAL' : level === 'WILAYAH' ? 'ADMIN_WILAYAH' : 'MEMBER',
+      simulatedScope: level === 'WILAYAH' ? 'ADMIN_WILAYAH' : 'SUPER_ADMIN',
+      scopeProvinceId: wilayah ? (provId === 'ALL' ? '32' : provId) : 'ALL',
+      scopeProvinceName: wilayah ? (provName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : provName) : 'Seluruh Indonesia (Nasional)',
+      scopeRegencyId: wilayah ? regId : 'ALL',
+      scopeRegencyName: wilayah ? regName : 'Seluruh Kabupaten/Kota',
+    });
+  },
   simulatedScope: 'SUPER_ADMIN',
   scopeProvinceId: 'ALL',
   scopeProvinceName: 'Seluruh Indonesia (Nasional)',
@@ -584,6 +604,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   setSimulatedScope: (scope, provId = 'ALL', provName = 'Seluruh Indonesia (Nasional)', regId = 'ALL', regName = 'Seluruh Kabupaten/Kota', distId = 'ALL', distName = 'Seluruh Kecamatan', pangkalanId = 'ALL', pangkalanName = 'Seluruh Pangkalan') => {
     set({
+      actingLevel: scope === 'ADMIN_WILAYAH' ? 'WILAYAH' : 'NASIONAL',
+      actingRole: scope === 'ADMIN_WILAYAH' ? 'ADMIN_WILAYAH' : 'ADMIN_NASIONAL',
       simulatedScope: scope,
       scopeProvinceId: scope === 'ADMIN_WILAYAH' ? (provId === 'ALL' ? '32' : provId) : 'ALL',
       scopeProvinceName: scope === 'ADMIN_WILAYAH' ? (provName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : provName) : 'Seluruh Indonesia (Nasional)',
