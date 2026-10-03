@@ -658,7 +658,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   reviewMember: async (memberId, notes, reviewerName, reviewerRole = 'ADMIN_WILAYAH') => {
     const nowIso = new Date().toISOString();
     const effectiveRole = reviewerRole || get().simulatedScope;
-    await apiClient.post('member.approval', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
+    await apiClient.post('admin.member.review', { member_id: memberId, decision: 'REVIEWED_VERIFIED', notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     set((state) => {
       const updatedMembers = state.members.map((m) => {
         if (m.id === memberId) {
@@ -764,7 +764,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     const nowIso = new Date().toISOString();
-    await apiClient.post('member.approval', { member_id: memberId, notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
+    await apiClient.post('admin.member.approve', { member_id: memberId, decision: 'APPROVED', notes, reviewer_name: reviewerName, reviewer_role: effectiveRole });
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'REVIEWED_VERIFIED';
 
@@ -824,6 +824,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     const effectiveRole = reviewerRole || get().simulatedScope;
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'PENDING';
+
+    await apiClient.post('admin.member.reject', {
+      member_id: memberId,
+      notes,
+      reviewer_name: reviewerName,
+      reviewer_role: effectiveRole,
+    });
 
     set((state) => {
       const updatedMembers = state.members.map((m) => {
@@ -983,9 +990,37 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   activateMember: async (memberId, notes, sessionUserName) => {
-    // Approve member Pusat if not active
-    await get().approveMember(memberId, notes, sessionUserName, 'ADMIN_PUSAT');
-    return await get().generateKta(memberId, notes, sessionUserName);
+    const nowIso = new Date().toISOString();
+    const effectiveRole = get().simulatedScope || 'ADMIN_PUSAT';
+
+    if (effectiveRole === 'ADMIN_WILAYAH') {
+      throw new Error('Admin Wilayah tidak memiliki wewenang aktivasi anggota.');
+    }
+
+    await apiClient.post('admin.member.activate', {
+      member_id: memberId,
+      notes,
+      reviewer_name: sessionUserName,
+      reviewer_role: effectiveRole,
+    });
+
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              status_anggota: 'ACTIVE' as MemberAdminStatus,
+              status: 'ACTIVE',
+              tanggal_aktivasi: nowIso.substring(0, 10),
+              activated_by: sessionUserName,
+              activated_at: nowIso,
+              updated_at: nowIso,
+            }
+          : m
+      ),
+    }));
+
+    return { success: true, memberId, status: 'ACTIVE' };
   },
 
   regenerateKta: async (memberId, reason, sessionUserName) => {
