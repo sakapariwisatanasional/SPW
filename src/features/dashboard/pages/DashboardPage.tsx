@@ -47,61 +47,72 @@ export const DashboardPage: React.FC = () => {
       try{
 
         const response = await apiClient.post<any>(
-          'admin.achievement.dashboard',
+          'admin.dashboard.summary',
           {}
         );
 
-        const rawData = response.data || {};
+        const raw = response?.data ?? response;
 
-        const data = {
-          total_member:
-            Number(rawData.totalMember || 0),
+        const data =
+          raw?.data &&
+          typeof raw.data === 'object' &&
+          !Array.isArray(raw.data)
+            ? raw.data
+            : raw;
 
-          active_member:
-            Number(rawData.validatedMember || rawData.achievementMember || 0),
+        const totalMember =
+          Number(
+            data?.totalMember ??
+            data?.total_member ??
+            0
+          );
 
-          total_product:
-            Number(rawData.totalProduct || 0),
+        const activeMember =
+          Number(
+            data?.activeMember ??
+            data?.active_member ??
+            0
+          );
 
-          total_content:
-            Number(rawData.totalContent || 0),
+        const pendingMember =
+          Number(
+            data?.pendingMember ??
+            data?.pending_member ??
+            0
+          );
 
-          pangkalan_terbanyak:
-            rawData.levelDistribution
-              ? Object.keys(rawData.levelDistribution).join(', ')
-              : null,
+        const rejectedMember =
+          Number(
+            data?.rejectedMember ??
+            data?.rejected_member ??
+            0
+          );
 
-          destinasi_terverifikasi:
-            `${rawData.validatedMember || 0} anggota tervalidasi`,
-
-          pasar_umkm:
-            `${rawData.totalMember || 0} data anggota`
-        };
+        const totalProvince =
+          Number(
+            data?.totalProvince ??
+            data?.total_province ??
+            0
+          );
 
         setNationalIntegration({
           pangkalan:
-            data.pangkalan_terbanyak ||
-            data.top_pangkalan ||
-            `${currentUser?.province || 'Nasional'} (${data.total_member || 0} anggota)`,
+            `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
 
           destinasi:
-            data.destinasi_terverifikasi ||
-            data.top_destinasi ||
-            `${data.active_member || 0} anggota aktif`,
+            `${activeMember} anggota aktif`,
 
           umkm:
-            data.pasar_umkm ||
-            data.top_umkm ||
-            `${data.total_product || 0} produk / toko`
+            `${pendingMember} menunggu verifikasi`
         });
 
         setMetrics(prev => prev.map((item,index)=>{
 
           const values = [
-            data.total_member || 0,
-            data.active_member || 0,
-            data.total_product || 0,
-            data.total_content || 0
+            totalMember,
+            activeMember,
+            pendingMember,
+            rejectedMember
           ];
 
           return {
@@ -110,6 +121,17 @@ export const DashboardPage: React.FC = () => {
           };
 
         }));
+
+        console.info(
+          'Dashboard summary berhasil dimuat',
+          {
+            totalMember,
+            activeMember,
+            pendingMember,
+            rejectedMember,
+            totalProvince
+          }
+        );
 
       }catch(error){
 
@@ -124,80 +146,82 @@ export const DashboardPage: React.FC = () => {
 
     loadDashboardMetrics();
 
-  }, []);
-
+  }, [currentUser?.province]);
 
   // Trigger simulated skeleton loading to demonstrate interaction
   const triggerSkeletonRefresh = async () => {
+
     setIsLoadingSkeleton(true);
 
     try {
 
       const response = await apiClient.post<any>(
-        'admin.achievement.dashboard',
+        'admin.dashboard.summary',
         {}
       );
 
-      const rawData = response.data || [];
+      const raw = response?.data ?? response;
 
-        const members = Array.isArray(rawData)
-          ? rawData
-          : (
-              rawData.members ||
-              rawData.data ||
-              []
-            );
+      const data =
+        raw?.data &&
+        typeof raw.data === 'object' &&
+        !Array.isArray(raw.data)
+          ? raw.data
+          : raw;
 
-        const data = {
-          total_member: members.length,
-          active_member: members.filter(
-            (item:any) =>
-              String(item.status || '').toUpperCase() === 'ACTIVE'
-          ).length,
-          total_product: members.reduce(
-            (sum:number, item:any) =>
-              sum + Number(item.total_product || 0),
-            0
-          ),
-          total_content: members.reduce(
-            (sum:number, item:any) =>
-              sum + Number(item.total_content || 0),
-            0
-          ),
-          pangkalan_terbanyak:
-            members[0]?.pangkalan ||
-            members[0]?.position ||
-            null,
-          destinasi_terverifikasi:
-            `${members.filter((item:any)=>item.status === 'ACTIVE').length} anggota aktif`,
-          pasar_umkm:
-            `${members.length} data anggota`
-        };
+      const totalMember =
+        Number(
+          data?.totalMember ??
+          data?.total_member ??
+          0
+        );
+
+      const activeMember =
+        Number(
+          data?.activeMember ??
+          data?.active_member ??
+          0
+        );
+
+      const pendingMember =
+        Number(
+          data?.pendingMember ??
+          data?.pending_member ??
+          0
+        );
+
+      const rejectedMember =
+        Number(
+          data?.rejectedMember ??
+          data?.rejected_member ??
+          0
+        );
+
+      const totalProvince =
+        Number(
+          data?.totalProvince ??
+          data?.total_province ??
+          0
+        );
 
       setNationalIntegration({
         pangkalan:
-          data.pangkalan_terbanyak ||
-          data.top_pangkalan ||
-          `${currentUser?.province || 'Nasional'} (${data.total_member || 0} anggota)`,
+          `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
 
         destinasi:
-          data.destinasi_terverifikasi ||
-          data.top_destinasi ||
-          `${data.active_member || 0} anggota aktif`,
+          `${activeMember} anggota aktif`,
 
         umkm:
-          data.pasar_umkm ||
-          data.top_umkm ||
-          `${data.total_product || 0} produk / toko`
+          `${pendingMember} menunggu verifikasi`
       });
 
       setMetrics(prev => prev.map((item,index)=>{
 
         const values = [
-          data.total_member || 0,
-          data.active_member || 0,
-          data.total_product || 0,
-          data.total_content || 0
+          totalMember,
+          activeMember,
+          0,
+          0
         ];
 
         return {
@@ -207,10 +231,21 @@ export const DashboardPage: React.FC = () => {
 
       }));
 
+      console.info(
+        'Dashboard summary berhasil dimuat',
+        {
+          totalMember,
+          activeMember,
+          pendingMember,
+          rejectedMember,
+          totalProvince
+        }
+      );
+
       addToast({
         type: 'success',
         title: 'Data Terkini Diperbarui',
-        message: 'Ringkasan metrik dan aktivitas ekosistem tersinkronisasi.',
+        message: 'Ringkasan dashboard berhasil disinkronkan dengan database.',
       });
 
     } catch(error) {
@@ -246,34 +281,34 @@ export const DashboardPage: React.FC = () => {
       detail: 'Data Saka Pariwisata',
     },
     {
-      label: 'Destinasi Terverifikasi',
+      label: 'Anggota Aktif',
       value: '0',
       change: 'Sinkronisasi database',
       icon: <Compass className="w-5 h-5 text-[#009B4D]" />,
       colorClass: 'text-[#009B4D]',
       bgClass: 'bg-emerald-50',
       borderAccent: 'border-l-4 border-l-[#009B4D]',
-      detail: 'Data dari Anggota Saka',
+      detail: 'Status ACTIVE',
     },
     {
-      label: 'Katalog UMKM & Produk',
+      label: 'Menunggu Verifikasi',
       value: '0',
       change: 'Sinkronisasi database',
       icon: <ShoppingBag className="w-5 h-5 text-[#F7941D]" />,
       colorClass: 'text-[#F7941D]',
       bgClass: 'bg-amber-50',
       borderAccent: 'border-l-4 border-l-[#F7941D]',
-      detail: 'Produk Anggota Saka',
+      detail: 'Status PENDING',
     },
     {
-      label: 'Artikel & Agenda Edukasi',
+      label: 'Anggota Ditolak',
       value: '0',
       change: 'Sinkronisasi database',
       icon: <Newspaper className="w-5 h-5 text-[#6A1B9A]" />,
       colorClass: 'text-[#6A1B9A]',
       bgClass: 'bg-purple-50',
       borderAccent: 'border-l-4 border-l-[#6A1B9A]',
-      detail: 'Data dari Anggota Saka',
+      detail: 'Status REJECTED',
     },
   ]);
 
