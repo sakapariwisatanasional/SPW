@@ -55,6 +55,12 @@ import { OrganizationLevelType } from '../../../types/membership';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
 
+const safeRegionCode = (value: unknown): string =>
+  value === null || value === undefined ? '' : String(value).trim();
+
+const safeCsv = (value: unknown): string =>
+  String(value ?? '').replace(/"/g, '""');
+
 const getBackendMemberId = (member: AdminMemberRecord) =>
   member.id ||
   (member as any).member_id ||
@@ -91,6 +97,12 @@ export const MemberAdministration: React.FC = () => {
       console.error('Gagal memuat ulang data anggota:', error);
     }
   };
+
+  // Load data anggota nyata setiap kali modul Portal Admin dibuka.
+  // Dashboard utama dan menu Anggota berbagi sumber data GAS yang sama.
+  useEffect(() => {
+    refreshMembersFromApi();
+  }, []);
 
   const [subTab, setSubTab] = useState<'directory' | 'approval' | 'create'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,7 +223,7 @@ export const MemberAdministration: React.FC = () => {
 
   // Dropdown list Kecamatan dinamis berdasarkan Kabupaten/Kota
   const availableDistricts = useMemo(() => {
-    return getKecamatanByKabupaten(createKabCode);
+    return getKecamatanByKabupaten(safeRegionCode(createKabCode));
   }, [createKabCode]);
 
   // Filter members based on scope & user filters
@@ -274,9 +286,9 @@ export const MemberAdministration: React.FC = () => {
       return;
     }
 
-    const provName = resolveProvinsiName(createProvCode);
-    const regName = resolveKabupatenName(createKabCode);
-    const distName = resolveKecamatanName(createKecCode, createKabCode);
+    const provName = resolveProvinsiName(safeRegionCode(createProvCode));
+    const regName = resolveKabupatenName(safeRegionCode(createKabCode));
+    const distName = resolveKecamatanName(safeRegionCode(createKecCode), safeRegionCode(createKabCode));
     const kridaObj = KRIDA_MASTER.find((k) => k.id === createKridaId);
 
     const isNasional = createLevel === 'KWARTIR_NASIONAL';
@@ -335,10 +347,10 @@ export const MemberAdministration: React.FC = () => {
     ];
 
     const rows = filteredMembers.map((m) => {
-      const provName = resolveProvinsiName(m.provinsi_id) || m.provinsi_nama || '';
-      const kabName = resolveKabupatenName(m.kabupaten_id) || m.kabupaten_nama || '';
+      const provName = resolveProvinsiName(safeRegionCode(m.provinsi_id)) || m.provinsi_nama || '';
+      const kabName = resolveKabupatenName(safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.kabupaten_nama || '';
       const kecName =
-        resolveKecamatanName(m.kecamatan_id || m.wilayah_kecamatan_id, m.kabupaten_id) ||
+        resolveKecamatanName(safeRegionCode(m.kecamatan_id || m.wilayah_kecamatan_id), safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) ||
         m.wilayah_kecamatan_nama ||
         m.kwartir_ranting ||
         '';
@@ -349,11 +361,11 @@ export const MemberAdministration: React.FC = () => {
         `"${m.nomor_kta || ''}"`,
         `"${(m.nama_lengkap || '').replace(/"/g, '""')}"`,
         `"${m.jenis_kelamin || ''}"`,
-        `"${provName.replace(/"/g, '""')}"`,
-        `"${kabName.replace(/"/g, '""')}"`,
-        `"${kecName.replace(/"/g, '""')}"`,
+        `"${safeCsv(provName)}"`,
+        `"${safeCsv(kabName)}"`,
+        `"${safeCsv(kecName)}"`,
         `"${(m.pangkalan_gudep || '').replace(/"/g, '""')}"`,
-        `"${krida.replace(/"/g, '""')}"`,
+        `"${safeCsv(krida)}"`,
         `"${m.tingkat_keanggotaan || ''}"`,
         `"${m.status_anggota || ''}"`,
         `"${m.kta_status || ''}"`,
@@ -572,9 +584,9 @@ export const MemberAdministration: React.FC = () => {
                           {/* Wilayah & Pangkalan */}
                           <td className="py-3.5 px-4">
                             {(() => {
-                              const provName = resolveProvinsiName(m.provinsi_id) || m.provinsi_nama || 'Kwartir Nasional';
-                              const regName = resolveKabupatenName(m.kabupaten_id) || m.kabupaten_nama || '-';
-                              const distName = resolveKecamatanName(m.kecamatan_id || m.wilayah_kecamatan_id, m.kabupaten_id) || m.wilayah_kecamatan_nama || m.kwartir_ranting || '';
+                              const provName = resolveProvinsiName(safeRegionCode(m.provinsi_id)) || m.provinsi_nama || 'Kwartir Nasional';
+                              const regName = resolveKabupatenName(safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.kabupaten_nama || '-';
+                              const distName = resolveKecamatanName(safeRegionCode(m.kecamatan_id || m.wilayah_kecamatan_id), safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.wilayah_kecamatan_nama || m.kwartir_ranting || '';
                               return (
                                 <>
                                   <p className="font-semibold text-slate-800">
@@ -978,7 +990,7 @@ export const MemberAdministration: React.FC = () => {
                   onChange={(e) => {
                     const newProv = e.target.value;
                     setCreateProvCode(newProv);
-                    const list = getKabupatenByProvinsi(newProv);
+                    const list = getKabupatenByProvinsi(safeRegionCode(newProv));
                     if (list.length > 0) {
                       setCreateKabCode(list[0].kode_kabupaten);
                       const dists = getKecamatanByKabupaten(list[0].kode_kabupaten);
@@ -1004,14 +1016,14 @@ export const MemberAdministration: React.FC = () => {
                   onChange={(e) => {
                     const newKab = e.target.value;
                     setCreateKabCode(newKab);
-                    const dists = getKecamatanByKabupaten(newKab);
+                    const dists = getKecamatanByKabupaten(safeRegionCode(newKab));
                     if (dists.length > 0) {
                       setCreateKecCode(dists[0].kode_kecamatan);
                     }
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-[#0066B3]"
                 >
-                  {getKabupatenByProvinsi(createProvCode).map((r) => (
+                  {getKabupatenByProvinsi(safeRegionCode(createProvCode)).map((r) => (
                     <option key={r.kode_kabupaten} value={r.kode_kabupaten}>
                       {r.kode_kabupaten} - {r.nama_kabupaten}
                     </option>
