@@ -236,7 +236,7 @@ export const memberApi = {
    */
   register: async (payload: RegisterMemberPayload): Promise<ApiResponse<SpwnUser>> => {
     const response =
-      await apiClient.post<any>('member.register', {
+      await apiClient.post<any>('public.member.register', {
         ...payload,
         is_public: payload.is_public !== undefined ? payload.is_public : true,
         source: payload.source || 'PUBLIC_REGISTER',
