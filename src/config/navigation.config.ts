@@ -213,15 +213,4 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     ],
     category: 'system',
   },
-
-  // Developer & System Engineering (Phase 7.1 - Super Admin Exclusive)
-  {
-    id: '/superadmin/developer/code-manager',
-    label: 'Code Registry & GAS',
-    iconName: 'Code2',
-    path: '/superadmin/developer/code-manager',
-    badge: 'Super Admin',
-    roles: [ROLES.SUPER_ADMIN],
-    category: 'system',
-  },
 ];
