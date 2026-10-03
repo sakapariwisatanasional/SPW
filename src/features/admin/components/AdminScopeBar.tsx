@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Shield, ShieldAlert, ShieldCheck, MapPin, Globe, ChevronRight, Code2, Users, ArrowRightLeft } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MapPin, Globe, ChevronRight, Users, ArrowRightLeft } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { useAuthStore } from '../../../stores/authStore';
@@ -199,26 +199,6 @@ export const AdminScopeBar: React.FC = () => {
         </div>
       )}
 
-      {/* Super Admin Developer Console Banner Shortcut */}
-      {simulatedScope === 'SUPER_ADMIN' && (
-        <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs bg-purple-50/70 p-3 rounded-xl border border-purple-200/80">
-          <div className="flex items-center gap-2 text-purple-900 font-semibold">
-            <Code2 className="w-4 h-4 text-purple-700" />
-            <span>Phase 7.1: SPWN Code Registry & GAS Export Management</span>
-            <span className="bg-purple-200 text-purple-800 text-[10px] px-2 py-0.5 rounded font-mono">
-              SUPER_ADMIN ONLY
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveView('/superadmin/developer/code-manager')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-all cursor-pointer shadow-xs text-xs"
-          >
-            <span>Buka Developer Console</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 };
