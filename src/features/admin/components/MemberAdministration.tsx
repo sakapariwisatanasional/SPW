@@ -774,26 +774,16 @@ export const MemberAdministration: React.FC = () => {
                         <button
                           type="button"
                           onClick={async () => {
-                            try {
-                              await reviewMember(
-                                getBackendMemberId(m),
-                                'Berkas diverifikasi absah oleh Admin Wilayah',
-                                'Admin Wilayah',
-                                simulatedScope
-                              );
-                              await refreshMembersFromApi();
-                              addToast({
-                                type: 'success',
-                                title: 'Berkas Terverifikasi',
-                                message: `Anggota ${m.nama_lengkap} lolos verifikasi tahap Wilayah (REVIEWED_VERIFIED).`,
-                              });
-                            } catch (error: any) {
-                              addToast({
-                                type: 'error',
-                                title: 'Verifikasi Gagal',
-                                message: error?.message || 'Gagal memproses verifikasi anggota.',
-                              });
-                            }
+                            await memberApi.reviewMember(
+                                 getBackendMemberId(m),
+                                 'Berkas diverifikasi absah oleh Admin Wilayah'
+                               );
+                               await refreshMembersFromApi();
+                            addToast({
+                              type: 'success',
+                              title: 'Berkas Terverifikasi',
+                              message: `Anggota ${m.nama_lengkap} lolos verifikasi tahap Wilayah (REVIEWED_VERIFIED).`,
+                            });
                           }}
                           className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                         >
@@ -820,22 +810,13 @@ export const MemberAdministration: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={async () => {
-                              try {
-                                await reviewMember(getBackendMemberId(m), 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
-                                await refreshMembersFromApi();
-                                addToast({
-                                  type: 'success',
-                                  title: 'Verifikasi Ulang Lolos',
-                                  message: `Anggota ${m.nama_lengkap} kini berstatus REVIEWED_VERIFIED.`,
-                                });
-                              } catch (error: any) {
-                                addToast({
-                                  type: 'error',
-                                  title: 'Verifikasi Ulang Gagal',
-                                  message: error?.message || 'Gagal memproses verifikasi ulang.',
-                                });
-                              }
+                            onClick={() => {
+                              reviewMember(getBackendMemberId(m), 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
+                              addToast({
+                                type: 'success',
+                                title: 'Verifikasi Ulang Lolos',
+                                message: `Anggota ${m.nama_lengkap} kini berstatus REVIEWED_VERIFIED.`,
+                              });
                             }}
                             className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                           >
@@ -906,26 +887,14 @@ export const MemberAdministration: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={async () => {
-                                try {
-                                  const res = await activateMember(
-                                    getBackendMemberId(m),
-                                    'Penerbitan KTA & QR Identity',
-                                    'Admin Pusat'
-                                  );
-                                  await refreshMembersFromApi();
-                                  addToast({
-                                    type: 'success',
-                                    title: 'Anggota Disetujui & KTA Terbit',
-                                    message: `Nomor KTA: ${res.nomorKta} berhasil diterbitkan.`,
-                                  });
-                                } catch (error: any) {
-                                  addToast({
-                                    type: 'error',
-                                    title: 'Final Approval / KTA Gagal',
-                                    message: error?.message || 'Gagal mengaktifkan anggota dan menerbitkan KTA.',
-                                  });
-                                }
+                              onClick={() => {
+                                approveMember(getBackendMemberId(m), 'Disetujui Admin Pusat', 'Admin Pusat', simulatedScope);
+                                const res = activateMember(getBackendMemberId(m), 'Penerbitan KTA & QR Identity', 'Admin Pusat');
+                                addToast({
+                                  type: 'success',
+                                  title: 'Anggota Disetujui & KTA Terbit',
+                                  message: `Nomor KTA: ${res.nomorKta} berhasil diterbitkan dengan QR Token aktif.`,
+                                });
                               }}
                               className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                             >
