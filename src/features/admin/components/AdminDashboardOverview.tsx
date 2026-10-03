@@ -51,10 +51,17 @@ export const AdminDashboardOverview: React.FC = () => {
     approvals,
     changeHistory,
     simulatedScope,
+    actingLevel,
+    actingRole,
     scopeProvinceId,
     scopeProvinceName,
     scopeRegencyId,
     scopeRegencyName,
+    scopeDistrictId,
+    scopePangkalanId,
+    scopeDistrictName,
+    scopePangkalanName,
+    setActingLevel,
     setActiveTab,
     setSelectedMemberId,
   } = useAdminStore();
@@ -73,13 +80,18 @@ export const AdminDashboardOverview: React.FC = () => {
   // Filter members based on regional scope
   const scopedMembers = useMemo(() => {
     return safeMembers.filter((m) => {
-      if (simulatedScope === 'ADMIN_WILAYAH') {
-        if (scopeProvinceId !== 'ALL' && m.provinsi_id !== scopeProvinceId) return false;
-        if (scopeRegencyId !== 'ALL' && m.kabupaten_id !== scopeRegencyId) return false;
+      if (actingLevel === 'WILAYAH' || actingLevel === 'PAMONG_SAKA') {
+        if (scopeProvinceId !== 'ALL' && String(m.provinsi_id || '') !== String(scopeProvinceId)) return false;
+        if (scopeRegencyId !== 'ALL' && String(m.kabupaten_id || m.kabupaten_kota_id || '') !== String(scopeRegencyId)) return false;
+      }
+
+      if (actingLevel === 'PAMONG_SAKA') {
+        if (scopeDistrictId !== 'ALL' && String(m.kecamatan_id || m.wilayah_kecamatan_id || '') !== String(scopeDistrictId)) return false;
+        if (scopePangkalanId !== 'ALL' && String(m.pangkalan_id || '') !== String(scopePangkalanId)) return false;
       }
       return true;
     });
-  }, [safeMembers, simulatedScope, scopeProvinceId, scopeRegencyId]);
+  }, [safeMembers, actingLevel, simulatedScope, scopeProvinceId, scopeRegencyId, scopeDistrictId, scopePangkalanId]);
 
   // Operational Metrics
   const totalCount = scopedMembers.length;
@@ -244,16 +256,45 @@ export const AdminDashboardOverview: React.FC = () => {
               Otoritas Terpasang
             </span>
             <p className="text-sm font-bold text-white mt-0.5">
-              {simulatedScope === 'SUPER_ADMIN'
-                ? 'Super Administrator'
-                : simulatedScope === 'ADMIN_PUSAT'
+              {actingLevel === 'NASIONAL'
                 ? 'Admin Kwartir Nasional'
-                : 'Admin Kwartir Wilayah'}
+                : actingLevel === 'WILAYAH'
+                ? 'Admin Kwartir Wilayah'
+                : 'Pamong Saka'}
             </p>
             <p className="text-[11px] text-emerald-300 font-medium mt-1 truncate">
               Wilayah: {scopeProvinceName}
             </p>
           </div>
+        </div>
+
+        {/* Super Admin Acting Context */}
+        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 backdrop-blur-md">
+          <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-300">Mode Akses</span>
+          <button
+            type="button"
+            onClick={() => setActingLevel('NASIONAL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'NASIONAL' ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
+          >
+            Admin Nasional
+          </button>
+          <button
+            type="button"
+            onClick={() => setActingLevel('WILAYAH', scopeProvinceId === 'ALL' ? '32' : scopeProvinceId, scopeProvinceName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : scopeProvinceName, scopeRegencyId, scopeRegencyName)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'WILAYAH' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
+          >
+            Admin Wilayah
+          </button>
+          <button
+            type="button"
+            onClick={() => setActingLevel('PAMONG_SAKA', scopeProvinceId === 'ALL' ? '32' : scopeProvinceId, scopeProvinceName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : scopeProvinceName, scopeRegencyId, scopeRegencyName)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'PAMONG_SAKA' ? 'bg-amber-500 text-white border-amber-400' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
+          >
+            Pamong Saka
+          </button>
+          <span className="ml-auto text-[10px] text-slate-300">
+            SUPER_ADMIN → {actingRole.replace('_', ' ')} · {scopeProvinceName}{scopeRegencyName !== 'Seluruh Kabupaten/Kota' ? ` · ${scopeRegencyName}` : ''}{scopeDistrictName && scopeDistrictName !== 'Seluruh Kecamatan' ? ` · ${scopeDistrictName}` : ''}{scopePangkalanName && scopePangkalanName !== 'Seluruh Pangkalan' ? ` · ${scopePangkalanName}` : ''}
+          </span>
         </div>
 
         {/* Global Search Admin Input */}
