@@ -1127,16 +1127,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
 
     // Sinkronisasi ke backend GAS agar perubahan masuk Spreadsheet
-    const profileResponse:any = await apiClient.post('member.update_profile', {
+    await apiClient.post('member.update_profile', {
       member_id: memberId,
       data: updates,
       actor: sessionUserName,
     });
-
-    const requireGenerateKta =
-      profileResponse?.data?.require_generate_kta === true;
-
-
 
     const nowIso = new Date().toISOString();
     const changeRecords: MemberChangeHistoryEntry[] = [];
@@ -1192,11 +1187,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       }),
       changeHistory: [...changeRecords, ...curr.changeHistory],
     }));
-
-    return {
-      require_generate_kta: requireGenerateKta,
-      profile_change: profileResponse?.data?.profile_change || null,
-    };
   },
 
   resetMemberPassword: (memberId, temporaryPassword, reason = 'Reset kata sandi akun oleh administrator', sessionUserName = 'Super Administrator', sessionUserRole = 'SUPER_ADMIN') => {
@@ -1255,13 +1245,38 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         {}
       );
 
+      /*
+       * Backend SPWN member.list mengembalikan struktur:
+       *
+       * response = {
+       *   success: true,
+       *   data: {
+       *     data: [ ...anggota ],
+       *     ...
+       *   },
+       *   pagination: null
+       * }
+       *
+       * Karena itu array anggota berada pada response.data.data.
+       * Tetap dukung beberapa bentuk legacy agar perubahan ini
+       * tidak merusak endpoint/versi response lama.
+       */
       const fetched =
-        response.data ||
-        (response as any).members ||
-        (response as any).data?.members ||
+        (Array.isArray(response?.data?.data)
+          ? response.data.data
+          : null) ||
+        (Array.isArray(response?.data?.members)
+          ? response.data.members
+          : null) ||
+        (Array.isArray(response?.data)
+          ? response.data
+          : null) ||
+        (Array.isArray((response as any)?.members)
+          ? (response as any).members
+          : null) ||
         [];
 
-      if (Array.isArray(fetched) && fetched.length > 0) {
+      if (Array.isArray(fetched)) {
 
         const normalizedMembers = fetched.map((member:any) => ({
           ...member,
@@ -1273,13 +1288,31 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           nomor_kta: member.no_kta || member.nomor_kta || '',
           nama_lengkap: member.full_name || member.nama_lengkap || member.nama || '',
           nomor_telepon: member.phone || member.nomor_telepon || '',
+          phone: member.phone || member.nomor_telepon || '',
           provinsi_nama: member.province || member.provinsi_nama || '',
-          kabupaten_nama: member.city || member.kabupaten_nama || '',
-          wilayah_kecamatan_nama: member.district || member.wilayah_kecamatan_nama || '',
+          kabupaten_nama:
+            member.kabupaten_kota_nama ||
+            member.kabupaten_nama ||
+            member.city ||
+            '',
+          wilayah_kecamatan_nama:
+            member.kecamatan_nama ||
+            member.wilayah_kecamatan_nama ||
+            member.district ||
+            '',
           krida_nama: member.krida || member.krida_nama || '',
-          tingkat_keanggotaan: member.position || member.tingkat_keanggotaan || '',
-          status_anggota: member.status || member.status_anggota || '',
-          foto_url: member.photo_url || member.foto_url || '',
+          tingkat_keanggotaan:
+            member.position ||
+            member.tingkat_keanggotaan ||
+            '',
+          status_anggota:
+            member.status ||
+            member.status_anggota ||
+            '',
+          foto_url:
+            member.photo_url ||
+            member.foto_url ||
+            '',
         }));
 
         set({
