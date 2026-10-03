@@ -92,6 +92,12 @@ export const MemberAdministration: React.FC = () => {
     }
   };
 
+  // Load data anggota nyata setiap kali modul Portal Admin dibuka.
+  // Dashboard utama dan menu Anggota berbagi sumber data GAS yang sama.
+  useEffect(() => {
+    refreshMembersFromApi();
+  }, []);
+
   const [subTab, setSubTab] = useState<'directory' | 'approval' | 'create'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
