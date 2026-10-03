@@ -1302,13 +1302,20 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         {}
       );
 
+      // GAS response saat ini berbentuk:
+      // { success:true, data:{ data:[...] }, action:'member.list', ... }
+      // Jangan berhenti di response.data karena pada format tersebut
+      // response.data masih berupa object wrapper, bukan array anggota.
+      const responseData: any = (response as any)?.data;
       const fetched =
-        response.data ||
-        (response as any).members ||
-        (response as any).data?.members ||
+        (Array.isArray(responseData) && responseData) ||
+        (Array.isArray(responseData?.data) && responseData.data) ||
+        (Array.isArray(responseData?.members) && responseData.members) ||
+        (Array.isArray((response as any)?.members) && (response as any).members) ||
+        (Array.isArray((response as any)?.data?.members) && (response as any).data.members) ||
         [];
 
-      if (Array.isArray(fetched) && fetched.length > 0) {
+      if (Array.isArray(fetched)) {
 
         const normalizedMembers = fetched.map((member:any) => ({
           ...member,
