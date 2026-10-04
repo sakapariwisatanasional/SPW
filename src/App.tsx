@@ -23,7 +23,7 @@ import { AuthAccessBarrier } from './components/auth/AuthAccessBarrier';
 import { PublicHomePage } from './features/home/pages/PublicHomePage';
 import { DashboardPage } from './features/dashboard/pages/DashboardPage';
 import { MembershipPage } from './features/membership/pages/MembershipPage';
-import { VerificationPage } from './features/membership/pages/VerificationPage';
+import { VerificationPage } from './pages/public/VerificationPage';
 import { PublicRegistrationPage } from './features/membership/pages/PublicRegistrationPage';
 import { TourismPage } from './features/tourism/pages/TourismPage';
 import { ContentPage } from './features/content/pages/ContentPage';
@@ -173,6 +173,24 @@ export default function App() {
         return isPublicUser ? <PublicHomePage /> : <DashboardPage />;
     }
   };
+
+  // URL publik dari QR harus dapat dibuka langsung, termasuk tanpa login.
+  // Jangan bergantung pada activeView yang tersimpan di UI store.
+  const isDirectVerificationRoute = typeof window !== 'undefined' &&
+    window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/verifikasi';
+  if (isDirectVerificationRoute) {
+    return (
+      <>
+        <PublicLayout activeNav="verifikasi" onNavigate={(navId) => setActiveView(navId)}>
+          <VerificationPage />
+        </PublicLayout>
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+        />
+      </>
+    );
+  }
 
   // Mode Publik: Pengunjung umum mendapatkan PublicLayout (Wonderful Indonesia portal)
   if (isPublicUser) {
