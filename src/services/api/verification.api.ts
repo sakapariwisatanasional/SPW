@@ -32,12 +32,15 @@ export const verificationApi = {
   verifyQr: async (
     token: string
   ): Promise<ApiResponse<QrVerificationResult>> => {
-    return apiClient.post<QrVerificationResult>(
-      'verify.qr',
-      {
-        qr_token: token
-      }
-    );
+    const response = await apiClient.post<QrVerificationResult>('verify.qr', {
+      qr_token: token.trim(),
+    });
+    // API transport dapat mengembalikan HTTP 200 tetapi data.success=false.
+    const envelope = response as any;
+    if (envelope.success === false || envelope.data?.success === false) {
+      throw new Error(envelope.data?.message || envelope.message || 'Verifikasi QR ditolak backend');
+    }
+    return response;
   },
 
   /**
@@ -46,11 +49,13 @@ export const verificationApi = {
   verifyInternal: async (
     noKta: string
   ): Promise<ApiResponse<QrVerificationResult>> => {
-    return apiClient.post<QrVerificationResult>(
-      'verify.kta',
-      {
-        nomor_kta: noKta
-      }
-    );
+    const response = await apiClient.post<QrVerificationResult>('verify.kta', {
+      nomor_kta: noKta.trim(),
+    });
+    const envelope = response as any;
+    if (envelope.success === false || envelope.data?.success === false) {
+      throw new Error(envelope.data?.message || envelope.message || 'Verifikasi nomor KTA ditolak backend');
+    }
+    return response;
   }
 };
