@@ -899,72 +899,19 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   generateKta: async (memberId, reason, sessionUserName) => {
-    const state = get();
-    const effectiveRole = state.simulatedScope;
-    if (effectiveRole === 'ADMIN_WILAYAH') {
-      throw new Error('Penerbitan KTA adalah wewenang khusus Kwartir Nasional / Admin Pusat.');
-    }
-
-    const member = state.members.find((m) => m.id === memberId);
-    if (!member) throw new Error('Anggota tidak ditemukan');
-    if (member.status_anggota !== 'ACTIVE' && member.status_anggota !== 'KTA_GENERATED') {
-      throw new Error('Generate KTA hanya diizinkan untuk anggota dengan status ACTIVE!');
-    }
-    if (member.kta_status === 'ACTIVE' && member.nomor_kta) {
-      throw new Error('KTA sudah aktif. Gunakan menu Regenerate/Peremajaan jika ingin menerbitkan ulang.');
-    }
-
-    const nowIso = new Date().toISOString();
-    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
-    const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
-    const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
-    const qrUrl = gasResult.data?.qr_url || '';
-
-    const logEntry: KtaGenerationLogEntry = {
-      id: 'KLOG-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      member_id: member.id,
-      nomor_kta: nomorKta,
-      qr_token: qrToken,
-      action_type: 'INITIAL_ISSUE',
-      reason: reason || 'Penerbitan KTA Digital dan QR Identity',
-      generated_by: sessionUserName,
-      generated_at: nowIso,
-    };
-
-    const historyEntry: MemberChangeHistoryEntry = {
-      id: 'HIST-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      member_id: member.id,
-      field_name: 'status_anggota & kta_status',
-      old_value: `${member.status_anggota} / ${member.kta_status || 'NOT_CREATED'}`,
-      new_value: 'KTA_GENERATED / ACTIVE',
-      actor_id: sessionUserName,
-      actor_role: effectiveRole,
-      reason: reason || 'Generate KTA & QR Identity',
-      timestamp: nowIso,
-    };
-
-    set((curr) => ({
-      members: curr.members.map((m) => {
-        if (m.id === memberId) {
-          return {
-            ...m,
-            nomor_kta: nomorKta,
-            status_anggota: 'KTA_GENERATED' as MemberAdminStatus,
-            status: 'KTA_GENERATED',
-            kta_status: 'ACTIVE',
-            qr_token: qrToken,
-            qr_url: qrUrl,
-            qr_status: 'ACTIVE',
-            qr_scan_count: 0,
-            updated_at: nowIso,
-          };
-        }
-        return m;
-      }),
-      ktaLogs: [logEntry, ...curr.ktaLogs],
-      changeHistory: [historyEntry, ...curr.changeHistory],
-    }));
-
+    if (get().simulatedScope === 'ADMIN_WILAYAH')
+      throw new Error('Generate KTA khusus Admin Nasional / Super Admin');
+    const response:any = await apiClient.post('member.generate_kta', {
+      member_id:memberId, reason, mode:'REGENERATE'
+    });
+    const payload = response?.data?.data || response?.data || response;
+    if (response?.success === false || payload?.success !== true)
+      throw new Error(payload?.message || response?.message || 'Generate KTA belum berhasil');
+    const nomorKta = payload.no_kta || payload.nomor_kta || payload.new_kta;
+    const qrToken = payload.qr_token;
+    if (!nomorKta || !qrToken || !payload.verification_url)
+      throw new Error('Respons backend tidak lengkap: nomor KTA, token QR, atau URL kosong');
+    await get().loadMembers();
     return { nomorKta, qrToken };
   },
 
@@ -1046,76 +993,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   regenerateKta: async (memberId, reason, sessionUserName) => {
-    const state = get();
-    const effectiveRole = state.simulatedScope;
-    if (effectiveRole === 'ADMIN_WILAYAH') {
-      throw new Error('Regenerasi KTA adalah wewenang khusus Kwartir Nasional / Admin Pusat.');
-    }
-
-    const member = state.members.find((m) => m.id === memberId);
-    if (!member) throw new Error('Member tidak ditemukan');
-    if (!reason || reason.trim().length < 5) {
-      throw new Error('Alasan peremajaan KTA wajib diisi minimal 5 karakter!');
-    }
-
-    const nowIso = new Date().toISOString();
-    const oldKta = member.nomor_kta;
-
-    // Pertahankan sequence atau buat nomor baru
-    const seq = member.nomor_kta
-      ? parseInt(member.nomor_kta.split('.').pop() || '1', 10)
-      : state.members.filter((m) => m.nomor_kta).length + 1;
-
-    const gasResult:any = await apiClient.post('member.generate_kta', { member_id: memberId, reason });
-    const nomorKta = gasResult.data?.nomor_kta || gasResult.data?.nomorKta;
-    const qrToken = gasResult.data?.qr_token || gasResult.data?.qrToken;
-    const qrUrl = gasResult.data?.qr_url || '';
-
-    const logEntry: KtaGenerationLogEntry = {
-      id: 'KLOG-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      member_id: member.id,
-      nomor_kta: nomorKta,
-      qr_token: qrToken,
-      action_type: 'REGENERATE',
-      reason: reason,
-      generated_by: sessionUserName,
-      generated_at: nowIso,
-    };
-
-    const historyEntry: MemberChangeHistoryEntry = {
-      id: 'HIST-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      member_id: member.id,
-      field_name: 'nomor_kta (REGENERATE)',
-      old_value: oldKta,
-      new_value: nomorKta,
-      actor_id: sessionUserName,
-      actor_role: effectiveRole,
-      reason: reason,
-      timestamp: nowIso,
-    };
-
-    set((curr) => ({
-      members: curr.members.map((m) => {
-        if (m.id === memberId) {
-          return {
-            ...m,
-            nomor_kta: nomorKta,
-            status_anggota: 'KTA_GENERATED' as MemberAdminStatus,
-            status: 'KTA_GENERATED',
-            kta_status: 'ACTIVE',
-            qr_token: qrToken,
-            qr_url: qrUrl,
-            qr_scan_count: 0,
-            updated_at: nowIso,
-          };
-        }
-        return m;
-      }),
-      ktaLogs: [logEntry, ...curr.ktaLogs],
-      changeHistory: [historyEntry, ...curr.changeHistory],
-    }));
-
-    return { nomorKta, qrToken };
+    if (!reason || reason.trim().length < 5)
+      throw new Error('Alasan perubahan KTA minimal 5 karakter');
+    return await get().generateKta(memberId, reason, sessionUserName);
   },
 
   updateMemberPhoto: (memberId, newPhotoUrl, reason, sessionUserName, sessionUserRole) => {
