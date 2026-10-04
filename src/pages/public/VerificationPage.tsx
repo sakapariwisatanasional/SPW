@@ -13,7 +13,7 @@
  *   - Proteksi privasi UU PDP No. 27/2022
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   QrCode,
@@ -37,6 +37,7 @@ import { MEMBER } from '../../config/constants';
 
 export const VerificationPage: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const lastAutoToken = useRef('');
 
   const {
     qrToken,
@@ -48,6 +49,16 @@ export const VerificationPage: React.FC = () => {
     verifyToken,
     resetVerification,
   } = useVerificationStore();
+
+  // QR dari kamera HP membuka /verifikasi?token=SPWN-QR-... langsung.
+  // verifyId diterima untuk kompatibilitas URL lama, tetapi hanya diverifikasi backend.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = (params.get('token') || params.get('verifyId') || '').trim();
+    if (!fromUrl || lastAutoToken.current === fromUrl) return;
+    lastAutoToken.current = fromUrl;
+    void verifyToken(fromUrl);
+  }, [verifyToken]);
 
   const handleVerify = async (token: string) => {
     await verifyToken(token);
