@@ -52,8 +52,8 @@ import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { AdminMemberRecord, MemberAdminStatus } from '../types/admin.types';
 import { OrganizationLevelType } from '../../../types/membership';
-import { PROVINCES } from '../../../data/wilayahData';
-import { getKabupatenByProvinsi, getKecamatanByKabupaten } from '../../../services/wilayahService';
+import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
+import { getKecamatanByKabupaten } from '../../../services/wilayahService';
 import { KRIDA_MASTER } from '../../../config/constants';
 
 export type MemberDrawerTab =
@@ -109,11 +109,50 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
     }
   }, [isOpen, initialTab]);
 
-  // Current working member from store
+  // Gabungkan data store dengan detail API; detail yang benar tidak boleh
+  // tertimpa nilai kosong atau alias lama dari store.
   const currentMember = useMemo(() => {
     if (!member) return null;
-    return members.find((m) => m.id === member.id) || member;
+    const stored = members.find((m) => m.id === member.id);
+    const raw = { ...(stored || {}), ...member } as AdminMemberRecord & Record<string, any>;
+    const first = (...values: unknown[]) =>
+      values.find((v) => v !== undefined && v !== null && String(v).trim() !== '') || '';
+    const nomor = first(member.nomor_kta, (member as any).no_kta, stored?.nomor_kta, (stored as any)?.no_kta);
+    const token = first((member as any).qr_token, (stored as any)?.qr_token);
+    const status = first((member as any).status, (member as any).status_anggota,
+      (stored as any)?.status, stored?.status_anggota);
+    return {
+      ...raw,
+      nomor_kta: String(nomor),
+      no_kta: String(nomor),
+      qr_token: String(token),
+      status_anggota: String(status || 'PENDING'),
+      kta_status: String(first((member as any).kta_status, (stored as any)?.kta_status,
+        status === 'KTA_GENERATED' && nomor ? 'ACTIVE' : 'NOT_CREATED')),
+      nama_lengkap: String(first((member as any).nama_lengkap, (member as any).full_name,
+        stored?.nama_lengkap, (stored as any)?.full_name)),
+      provinsi_nama: String(first((member as any).provinsi_nama, (member as any).province, stored?.provinsi_nama)),
+      kabupaten_nama: String(first((member as any).kabupaten_kota_nama, (member as any).kabupaten_nama,
+        (member as any).city, stored?.kabupaten_nama)),
+      krida_nama: String(first((member as any).krida_nama, (member as any).krida, stored?.krida_nama)),
+      tingkat_keanggotaan: String(first((member as any).tingkat_keanggotaan,
+        (member as any).position, stored?.tingkat_keanggotaan)),
+    } as AdminMemberRecord;
   }, [members, member]);
+
+  // Hanya tampilkan URL verifikasi yang disediakan backend.
+  // Token saja bukan bukti tautan QR sudah dapat membuka profil.
+  const ktaVerificationUrl = useMemo(() => {
+    const raw = (currentMember as any)?.verification_url ||
+      (currentMember as any)?.qr_url || '';
+    if (typeof raw !== 'string') return '';
+    try {
+      const url = new URL(raw);
+      return url.protocol === 'https:' ? url.href : '';
+    } catch {
+      return '';
+    }
+  }, [currentMember]);
 
   // Normalize API canonical wilayah fields while preserving legacy UI aliases.
   const normalizedMember = useMemo(() => {
@@ -187,35 +226,16 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   if (!isOpen || !currentMember || !normalizedMember) return null;
 
   // Dropdowns for Wilayah editing
-  // Canonical source: wilayahService. The old data helper used a strict
-  // provinceCode comparison and could return an empty list when the API/Sheet
-  // value arrived with a different primitive type. Normalize everything to
-  // string here so 32 === '32' and 3276 === '3276' behave identically.
-  const selectedProv = String(
-    formData.provinsi_id ||
-    (normalizedMember as any).provinsi_id ||
-    (normalizedMember as any).province_id ||
-    ''
-  ).trim();
-
-  const regenciesForProv = selectedProv
-    ? getKabupatenByProvinsi(selectedProv).map((r: any) => ({
-        code: String(r.kode_kabupaten ?? r.code ?? '').trim(),
-        name: String(r.nama_kabupaten ?? r.name ?? '').trim(),
-      })).filter((r: any) => r.code && r.name)
-    : [];
-
+  const selectedProv = String(formData.provinsi_id || currentMember.provinsi_id || '');
+  const regenciesForProv = selectedProv ? getRegenciesByProvince(selectedProv) : [];
   const selectedKab = String(
     formData.kabupaten_kota_id ||
     formData.kabupaten_id ||
-    (normalizedMember as any).kabupaten_kota_id ||
-    (normalizedMember as any).kabupaten_id ||
+    currentMember.kabupaten_kota_id ||
+    currentMember.kabupaten_id ||
     ''
-  ).trim();
-
-  const districtsForKab = selectedKab
-    ? getKecamatanByKabupaten(selectedKab)
-    : [];
+  );
+  const districtsForKab = selectedKab ? getKecamatanByKabupaten(selectedKab) : [];
 
   // Specific member change history
   const memberAuditLogs = changeHistory
@@ -390,11 +410,13 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           message: `Status anggota diubah menjadi REJECTED. Catatan audit tersimpan.`,
         });
       } else if (workflowActionModal.type === 'GENERATE_KTA') {
-        const res = generateKta(
+        const res = await generateKta(
           currentMember.id,
           workflowActionModal.notes || 'Penerbitan KTA Digital Resmi SPWN 2.0',
           actorName
         );
+        if (!res?.nomorKta) throw new Error('Backend tidak mengembalikan nomor KTA. Periksa respons member.generate_kta dan Sheet ANGGOTA.');
+        await useAdminStore.getState().loadMembers();
         addToast({
           type: 'success',
           title: 'KTA Digital Resmi Diterbitkan',
@@ -469,11 +491,13 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   // Handle Regenerate KTA
   const handleRegenerateKta = async () => {
     try {
-      const res = regenerateKta(
+      const res = await regenerateKta(
         currentMember.id,
         regenerateReason,
         simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Kwarnas'
       );
+      if (!res?.nomorKta) throw new Error('Backend tidak mengembalikan nomor KTA hasil regenerasi. Tidak ada keberhasilan yang dapat dikonfirmasi.');
+      await useAdminStore.getState().loadMembers();
       addToast({
         type: 'success',
         title: 'KTA Berhasil Diperbarui',
@@ -1304,26 +1328,26 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       disabled={!isEditingWilayah}
                       value={selectedProv}
                       onChange={(e) => {
-                        const provId = String(e.target.value || '').trim();
-                        const provObj = PROVINCES.find((p) => String(p.code) === provId);
+                        const provId = e.target.value;
+                        const provObj = PROVINCES.find((p) => p.code === provId);
+                        const newRegs = getRegenciesByProvince(provId);
+                        const firstReg = newRegs[0];
+                        const newDists = firstReg ? getKecamatanByKabupaten(firstReg.code) : [];
+                        const firstDist = newDists[0];
 
-                        // Changing the parent province MUST clear child selections.
-                        // Do not silently select the first Kabupaten/Kota.
-                        setFormData((prev) => ({
-                          ...prev,
+                        setFormData({
+                          ...formData,
                           provinsi_id: provId,
                           provinsi_nama: provObj?.name || '',
-                          kabupaten_kota_id: '',
-                          kabupaten_kota_nama: '',
-                          kabupaten_id: '',
-                          kabupaten_nama: '',
-                          kecamatan_id: '',
-                          kecamatan_nama: '',
-                          wilayah_kecamatan_id: '',
-                          wilayah_kecamatan_nama: '',
-                          kwartir_ranting: '',
-                          kwartir_cabang: '',
-                        }));
+                          kabupaten_kota_id: firstReg?.code || '',
+                          kabupaten_kota_nama: firstReg?.name || '',
+                          kabupaten_id: firstReg?.code || '',
+                          kabupaten_nama: firstReg?.name || '',
+                          kecamatan_id: firstDist?.kode_kecamatan || '',
+                          kecamatan_nama: firstDist?.nama_kecamatan || '',
+                          wilayah_kecamatan_id: firstDist?.kode_kecamatan || '',
+                          wilayah_kecamatan_nama: firstDist?.nama_kecamatan || '',
+                        });
                       }}
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
@@ -1341,27 +1365,25 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       disabled={!isEditingWilayah}
                       value={selectedKab}
                       onChange={(e) => {
-                        const kabId = String(e.target.value || '').trim();
-                        const kabObj = regenciesForProv.find((r) => String(r.code) === kabId);
+                        const kabId = e.target.value;
+                        const kabObj = regenciesForProv.find((r) => r.code === kabId);
+                        const newDists = getKecamatanByKabupaten(kabId);
+                        const firstDist = newDists[0];
 
-                        // Changing the parent Kabupaten/Kota MUST clear the
-                        // Kecamatan selection; user chooses the child explicitly.
-                        setFormData((prev) => ({
-                          ...prev,
+                        setFormData({
+                          ...formData,
                           kabupaten_kota_id: kabId,
                           kabupaten_kota_nama: kabObj?.name || '',
                           kabupaten_id: kabId,
                           kabupaten_nama: kabObj?.name || '',
-                          kecamatan_id: '',
-                          kecamatan_nama: '',
-                          wilayah_kecamatan_id: '',
-                          wilayah_kecamatan_nama: '',
-                          kwartir_ranting: '',
-                        }));
+                          kecamatan_id: firstDist?.kode_kecamatan || '',
+                          kecamatan_nama: firstDist?.nama_kecamatan || '',
+                          wilayah_kecamatan_id: firstDist?.kode_kecamatan || '',
+                          wilayah_kecamatan_nama: firstDist?.nama_kecamatan || '',
+                        });
                       }}
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
-                      <option value="">Pilih Kabupaten / Kota</option>
                       {regenciesForProv.map((r) => (
                         <option key={r.code} value={r.code}>
                           {r.name}
@@ -1374,10 +1396,10 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                     <label className="block font-semibold text-slate-700 mb-1">Kecamatan (Kwarran)</label>
                     <select
                       disabled={!isEditingWilayah}
-                      value={String(formData.kecamatan_id || '').trim()}
+                      value={formData.kecamatan_id || currentMember.kecamatan_id || ''}
                       onChange={(e) => {
-                        const distId = String(e.target.value || '').trim();
-                        const distObj = districtsForKab.find((d: any) => String(d.kode_kecamatan) === distId);
+                        const distId = e.target.value;
+                        const distObj = districtsForKab.find((d) => d.kode_kecamatan === distId);
                         setFormData({
                           ...formData,
                           kecamatan_id: distId,
@@ -1388,7 +1410,6 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       }}
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
-                      <option value="">Pilih Kecamatan</option>
                       {districtsForKab.map((d) => (
                         <option key={d.kode_kecamatan} value={d.kode_kecamatan}>
                           [{d.kode_kecamatan}] {d.nama_kecamatan}
@@ -1528,13 +1549,21 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                   <div className="mt-5 pt-3 border-t border-white/20 flex items-center justify-between text-[10px] text-white/80">
                     <div className="flex items-center gap-1 font-mono">
                       <QrCode className="w-3.5 h-3.5" />
-                      <span>TOKEN: {currentMember.qr_token || 'TOKEN-ACTIVE-2026'}</span>
+                      <span>TOKEN: {currentMember.qr_token || 'BELUM TERBIT'}</span>
                     </div>
                     <span className="font-semibold text-emerald-300">
                       Status: {currentMember.kta_status || 'NOT_CREATED'}
                     </span>
                   </div>
                 </div>
+
+                {ktaVerificationUrl && currentMember.qr_token && (
+                  <a href={ktaVerificationUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700 underline">
+                    <ExternalLink className="w-4 h-4" />
+                    Buka halaman verifikasi KTA (uji tautan)
+                  </a>
+                )}
 
                 {/* KTA Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -1549,7 +1578,9 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                     <span className="text-[10px] font-bold uppercase text-slate-500">Status Validasi QR</span>
                     <p className="font-bold text-emerald-700 mt-1 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      100% Signature Aktif & Terverifikasi
+                      {currentMember.qr_token && ktaVerificationUrl
+                        ? 'Token dan tautan tersedia (belum diverifikasi)'
+                        : 'QR belum siap diverifikasi'}
                     </p>
                   </div>
                 </div>
