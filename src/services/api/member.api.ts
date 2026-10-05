@@ -397,8 +397,24 @@ export const memberApi = {
     memberId: string,
     reason: string = 'Penerbitan KTA Digital Resmi'
   ): Promise<ApiResponse<any>> => {
-    return apiClient.post<any>('member.generate_kta', {
+    return apiClient.post<any>('admin.kta.generate', {
       member_id: memberId,
+      reason,
+    });
+  },
+
+
+
+  /**
+   * Batch penerbitan KTA melalui Admin KTA Controller.
+   * Digunakan KtaManagementCenter untuk menerbitkan seluruh antrean sekaligus.
+   */
+  batchGenerateKta: async (
+    memberIds: string[],
+    reason: string = 'Penerbitan Batch Otomatis'
+  ): Promise<ApiResponse<any[]>> => {
+    return apiClient.post<any[]>('admin.kta.batch', {
+      member_ids: memberIds,
       reason,
     });
   },
