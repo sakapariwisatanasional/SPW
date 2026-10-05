@@ -176,8 +176,10 @@ export default function App() {
 
   // URL publik dari QR harus dapat dibuka langsung, termasuk tanpa login.
   // Jangan bergantung pada activeView yang tersimpan di UI store.
-  const isDirectVerificationRoute = typeof window !== 'undefined' &&
-    window.location.pathname.replace(/\/+$/, '').toLowerCase() === '/verifikasi';
+  const isDirectVerificationRoute = typeof window !== 'undefined' && (() => {
+    const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+    return path === '/verifikasi' || path.startsWith('/verifikasi/');
+  })();
   if (isDirectVerificationRoute) {
     return (
       <>
