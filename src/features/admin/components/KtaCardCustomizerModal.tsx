@@ -49,10 +49,16 @@ import {
   KtaIdentityDensity,
   SakaMembershipLevel,
 } from '../../../types/kta.types';
-import { storage, DEFAULT_KTA_SETTINGS, DEFAULT_KTA_DATA_FIELDS } from '../../../services/storage';
+import { storage, DEFAULT_KTA_SETTINGS } from '../../../services/storage';
 import { spreadsheetService } from '../../../services/spreadsheetService';
 import { DigitalMemberCard, calculateLayoutGuard } from './DigitalMemberCard';
 import { useAdminStore } from '../stores/adminStore';
+import {
+  KTA_FIELD_REGISTRY,
+  canonicalKtaFieldKey,
+  getKtaFieldDefinition,
+} from './ktaDesigner/ktaFieldRegistry';
+import { canRenderKtaField } from './ktaDesigner/ktaFieldVisibility';
 
 interface KtaCardCustomizerModalProps {
   isOpen: boolean;
@@ -80,6 +86,8 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
   const [activeTab, setActiveTab] = useState<'size' | 'front' | 'back' | 'data' | 'signer'>('data');
   const [membersList, setMembersList] = useState<KtaMemberBindingData[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [isFieldPickerOpen, setIsFieldPickerOpen] = useState(false);
+  const [fieldSearch, setFieldSearch] = useState('');
 
   // Status & Feedback
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +101,124 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
     }
   }, [isOpen]);
 
+  const normalizeDynamicFields = (source: KtaCardSettings): KtaCardSettings => {
+    const normalized = (source.dataFields || []).map((field, index) => {
+      const canonical = canonicalKtaFieldKey(field.field);
+      const def = getKtaFieldDefinition(canonical);
+
+      return {
+        ...field,
+        field: canonical,
+        label: def?.label || field.label,
+        order: field.order || index + 1,
+      } as KtaDataFieldConfig;
+    });
+
+    // Photo is a structural field/toggle in the new designer.
+    // Existing templates get it once so old cards keep showing member photos.
+    if (!normalized.some((field) => canonicalKtaFieldKey(field.field) === 'photo_url')) {
+      normalized.push({
+        id: 'fld-photo',
+        field: 'photo_url',
+        label: 'Foto',
+        side: 'FRONT',
+        visible: true,
+        showLabel: false,
+        order: normalized.length + 1,
+        x: 0,
+        y: 0,
+        width: 100,
+        fontSize: 8,
+        fontWeight: 'normal',
+        color: '#FFFFFF',
+        textTransform: 'none',
+        align: 'left',
+      });
+    }
+
+    return {
+      ...source,
+      dataFields: normalized,
+    };
+  };
+
+  const createDynamicField = (
+    key: KtaMemberFieldKey,
+    label?: string
+  ): KtaDataFieldConfig => {
+    const def = getKtaFieldDefinition(key);
+    const canonical = canonicalKtaFieldKey(key);
+
+    return {
+      id: `fld-${canonical}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      field: canonical,
+      label: label || def?.label || canonical,
+      side: 'FRONT',
+      visible: true,
+      showLabel: false,
+      order: (settings.dataFields?.length || 0) + 1,
+      x: 0,
+      y: 0,
+      width: 100,
+      fontSize:
+        canonical === 'full_name'
+          ? 12.5
+          : canonical === 'no_kta'
+          ? 10
+          : 8.5,
+      fontWeight:
+        canonical === 'full_name' || canonical === 'no_kta'
+          ? 'bold'
+          : 'medium',
+      color:
+        canonical === 'no_kta'
+          ? '#F7941D'
+          : canonical === 'krida'
+          ? '#009B4D'
+          : '#FFFFFF',
+      textTransform: canonical === 'full_name' ? 'uppercase' : 'none',
+      align: 'left',
+      customValue: canonical === 'custom_text' ? 'Teks Custom' : undefined,
+    };
+  };
+
+  const addDynamicField = (key: KtaMemberFieldKey) => {
+    if (!isSuperAdmin) return;
+
+    const canonical = canonicalKtaFieldKey(key);
+    const def = getKtaFieldDefinition(canonical);
+    const exists = settings.dataFields.some(
+      (field) => canonicalKtaFieldKey(field.field) === canonical
+    );
+
+    if (exists && !def?.allowMultiple) {
+      setNotification({
+        type: 'info',
+        message: `${def?.label || canonical} sudah ada pada template.`,
+      });
+      return;
+    }
+
+    setSettings((prev) => ({
+      ...prev,
+      dataFields: [...prev.dataFields, createDynamicField(canonical)],
+    }));
+
+    setIsFieldPickerOpen(false);
+    setFieldSearch('');
+  };
+
+  const removeDynamicField = (id: string) => {
+    if (!isSuperAdmin) return;
+
+    setSettings((prev) => ({
+      ...prev,
+      dataFields: prev.dataFields
+        .filter((field) => field.id !== id)
+        .map((field, index) => ({ ...field, order: index + 1 })),
+    }));
+  };
+
   const loadInitialData = async () => {
     // 1. Ambil data anggota untuk Dynamic Data Binding
     const members = storage.getMembers();
@@ -105,12 +231,12 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
     try {
       const current = await spreadsheetService.refreshKtaSettings();
       if (current) {
-        setSettings(current);
+        setSettings(normalizeDynamicFields(current));
       } else {
-        setSettings(storage.getKtaSettings());
+        setSettings(normalizeDynamicFields(storage.getKtaSettings()));
       }
     } catch {
-      setSettings(storage.getKtaSettings());
+      setSettings(normalizeDynamicFields(storage.getKtaSettings()));
     }
   };
 
@@ -125,8 +251,14 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
 
   // Collision Guard real-time calculations
   const activeFrontFields = useMemo(() => {
-    return (settings.dataFields || []).filter((f) => f.side === 'FRONT' && f.visible);
-  }, [settings.dataFields]);
+    return (settings.dataFields || []).filter(
+      (field) =>
+        field.side === 'FRONT' &&
+        field.visible &&
+        canonicalKtaFieldKey(field.field) !== 'photo_url' &&
+        canRenderKtaField(field.field, previewMember)
+    );
+  }, [settings.dataFields, previewMember]);
 
   const layoutGuard = useMemo(() => {
     return calculateLayoutGuard(
@@ -185,8 +317,8 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
             f.side === 'FRONT' &&
             f.visible &&
             f.showLabel &&
-            f.field !== 'fullName' &&
-            f.field !== 'nationalMemberNumber'
+            canonicalKtaFieldKey(f.field) !== 'full_name' &&
+            canonicalKtaFieldKey(f.field) !== 'no_kta'
         );
 
       if (needsScaleAdj || needsDensityAdj || hasLabelsShown) {
@@ -196,7 +328,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
           identityDensity: layoutGuard.recommendedDensity || 'compact',
           showFieldLabels: false,
           dataFields: prev.dataFields.map((f) =>
-            f.side === 'FRONT' && f.field !== 'fullName' && f.field !== 'nationalMemberNumber'
+            f.side === 'FRONT' && canonicalKtaFieldKey(f.field) !== 'full_name' && canonicalKtaFieldKey(f.field) !== 'no_kta'
               ? { ...f, showLabel: false }
               : f
           ),
@@ -222,7 +354,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
       identityFontScale: layoutGuard.recommendedFontScale,
       showFieldLabels: false,
       dataFields: prev.dataFields.map((f) =>
-        f.side === 'FRONT' && f.field !== 'fullName' && f.field !== 'nationalMemberNumber'
+        f.side === 'FRONT' && canonicalKtaFieldKey(f.field) !== 'full_name' && canonicalKtaFieldKey(f.field) !== 'no_kta'
           ? { ...f, showLabel: false }
           : f
       ),
@@ -522,8 +654,8 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
   const handleResetDefault = () => {
     if (!isSuperAdmin) return;
     if (window.confirm('Kembalikan seluruh tata letak KTA ke pengaturan standar resmi SPWN?')) {
-      setSettings(DEFAULT_KTA_SETTINGS);
-      storage.saveKtaSettings(DEFAULT_KTA_SETTINGS);
+      setSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
+      storage.saveKtaSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
       setNotification({
         type: 'info',
         message: 'Pengaturan KTA telah dikembalikan ke standar baku resmi SPWN Apps 2.0.',
@@ -1075,16 +1207,89 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Field List (Urutan Default 7 Field Utama) */}
+                  {/* Dynamic Field Builder */}
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">
-                        Urutan & Konfigurasi Field ({activeFrontFields.length} Aktif)
-                      </span>
-                      <span className="text-[11px] text-slate-400">
-                        Urutan: Nama → KTA → Level → Jabatan → Krida → Kwartir → Gudep
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">
+                          Field KTA Dinamis ({activeFrontFields.length} Aktif)
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          SuperAdmin bebas memilih field. Visibility Guard wilayah tetap berlaku otomatis.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!isSuperAdmin}
+                        onClick={() => setIsFieldPickerOpen((value) => !value)}
+                        className="px-3 py-1.5 rounded-xl bg-[#0066B3] hover:bg-[#005599] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Tambahkan Field
+                      </button>
                     </div>
+
+                    {isFieldPickerOpen && (
+                      <div className="p-3 rounded-2xl border border-blue-200 bg-blue-50/50 space-y-3">
+                        <input
+                          type="text"
+                          value={fieldSearch}
+                          onChange={(e) => setFieldSearch(e.target.value)}
+                          placeholder="Cari field..."
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs"
+                        />
+
+                        {(['IDENTITAS', 'KEANGGOTAAN', 'WILAYAH', 'LAINNYA'] as const).map((category) => {
+                          const fields = KTA_FIELD_REGISTRY.filter(
+                            (field) =>
+                              field.category === category &&
+                              field.label.toLowerCase().includes(fieldSearch.toLowerCase().trim())
+                          );
+
+                          if (fields.length === 0) return null;
+
+                          return (
+                            <div key={category} className="space-y-1.5">
+                              <div className="text-[10px] font-black tracking-wide text-slate-500">
+                                {category}
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {fields.map((fieldDef) => {
+                                  const alreadyUsed = settings.dataFields.some(
+                                    (field) =>
+                                      canonicalKtaFieldKey(field.field) === fieldDef.key
+                                  );
+
+                                  return (
+                                    <button
+                                      key={fieldDef.key}
+                                      type="button"
+                                      disabled={
+                                        !isSuperAdmin ||
+                                        (alreadyUsed && !fieldDef.allowMultiple)
+                                      }
+                                      onClick={() => addDynamicField(fieldDef.key)}
+                                      className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-slate-200 text-left hover:border-[#0066B3] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      <span>
+                                        <span className="block text-xs font-bold text-slate-800">
+                                          {fieldDef.label}
+                                        </span>
+                                        <span className="block text-[9px] font-mono text-slate-400">
+                                          {fieldDef.key}
+                                        </span>
+                                      </span>
+                                      <Plus className="w-3.5 h-3.5 text-[#0066B3]" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       {settings.dataFields.map((field, idx) => (
@@ -1113,8 +1318,13 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                                   {idx + 1}. {field.label}
                                 </span>
                                 <span className="text-[10px] font-mono text-slate-400 block truncate">
-                                  key: {field.field}
+                                  key: {canonicalKtaFieldKey(field.field)}
                                 </span>
+                                {!canRenderKtaField(field.field, previewMember) && (
+                                  <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">
+                                    Disembunyikan otomatis oleh Visibility Guard untuk tingkat anggota ini.
+                                  </span>
+                                )}
                               </div>
                             </div>
 
@@ -1186,7 +1396,48 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                                   <ArrowDown className="w-3 h-3" />
                                 </button>
                               </div>
+
+                              <button
+                                type="button"
+                                disabled={!isSuperAdmin}
+                                onClick={() => removeDynamicField(field.id)}
+                                className="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 disabled:opacity-30 flex items-center justify-center cursor-pointer"
+                                title="Hapus Field dari Template"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                                Label Field
+                              </label>
+                              <input
+                                type="text"
+                                disabled={!isSuperAdmin}
+                                value={field.label}
+                                onChange={(e) => updateDataField(field.id, { label: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+                              />
+                            </div>
+
+                            {canonicalKtaFieldKey(field.field) === 'custom_text' && (
+                              <div>
+                                <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                                  Isi Teks Custom
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!isSuperAdmin}
+                                  value={field.customValue || ''}
+                                  onChange={(e) => updateDataField(field.id, { customValue: e.target.value })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+                                  placeholder="Teks yang ingin ditampilkan..."
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

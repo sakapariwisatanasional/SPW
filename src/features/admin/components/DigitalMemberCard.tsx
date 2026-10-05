@@ -31,6 +31,12 @@ import { DynamicQrCode } from '../../../components/display/DynamicQrCode';
 import { resolveDistrictName, getProvinceByCode, getRegencyByCode } from '../../../data/wilayahData';
 import { ktaService } from '../../../services/ktaService';
 import { storage } from '../../../services/storage';
+import { canonicalKtaFieldKey } from './ktaDesigner/ktaFieldRegistry';
+import {
+  canRenderKtaField,
+  normalizeOrganizationLevel,
+  resolveKwartirDisplay,
+} from './ktaDesigner/ktaFieldVisibility';
 
 export interface DigitalMemberCardProps {
   member: KtaMemberBindingData | any;
@@ -167,78 +173,127 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     onSideChange?.(next);
   };
 
-  // Helper untuk mengambil nilai dynamic data field dengan resolusi wilayah resmi
-  const getFieldValue = (fieldKey: KtaMemberFieldKey): string => {
+  // Helper dynamic field resolver (canonical + legacy aliases)
+  const getFieldValue = (fieldKey: KtaMemberFieldKey, customValue?: string): string => {
     if (!member) return '-';
-    switch (fieldKey) {
-      case 'fullName':
-        return member.fullName || member.nama_lengkap || 'Nama Anggota';
+
+    const key = canonicalKtaFieldKey(fieldKey);
+
+    if (!canRenderKtaField(key, member)) {
+      return '';
+    }
+
+    switch (key) {
+      case 'full_name':
+        return member.full_name || member.fullName || member.nama_lengkap || 'Nama Anggota';
+
       case 'id':
-        return member.id || 'SPW-000000';
-      case 'nationalMemberNumber':
-        return member.nationalMemberNumber || member.nomor_kta || '00.000000';
-      case 'membershipLevel':
+        return member.id || member.member_id || 'SPW-000000';
+
+      case 'no_kta':
+        return member.no_kta || member.nationalMemberNumber || member.nomor_kta || '';
+
+      case 'position':
         return (
-          member.membershipLevel ||
+          member.position ||
+          member.currentPosition ||
+          member.jabatan_khusus ||
           member.tingkat_keanggotaan ||
           'Anggota'
         );
-      case 'currentPosition':
-        return member.currentPosition || member.jabatan_khusus || member.tingkat_keanggotaan || 'Anggota';
-      case 'provinceName': {
+
+      case 'tingkat': {
+        const level = normalizeOrganizationLevel(member);
+        if (level === 'KWARNAS') return 'Kwartir Nasional';
+        if (level === 'KWARDA') return 'Kwartir Daerah';
+        return 'Kwartir Cabang';
+      }
+
+      case 'provinsi_nama': {
         const provCode = member.provinsi_id || member.provinceId || member.kodeProvinsi;
-        if (provCode) {
+        if (provCode && String(provCode) !== '00') {
           const provObj = getProvinceByCode(provCode);
           if (provObj) return provObj.name;
         }
-        return member.provinceName || member.provinsi_nama || member.province || 'Jawa Barat';
+        return member.provinsi_nama || member.provinceName || member.province || '';
       }
-      case 'regencyName': {
-        const regCode = member.kabupaten_id || member.regencyId || member.kodeKabupaten;
+
+      case 'kabupaten_kota_nama': {
+        const regCode =
+          member.kabupaten_kota_id ||
+          member.kabupaten_id ||
+          member.regencyId ||
+          member.kodeKabupaten;
         if (regCode) {
           const regObj = getRegencyByCode(regCode);
           if (regObj) return regObj.name;
         }
-        return member.regencyName || member.kabupaten_nama || member.city || 'Kabupaten Bogor';
+        return (
+          member.kabupaten_kota_nama ||
+          member.kabupaten_nama ||
+          member.regencyName ||
+          member.city ||
+          ''
+        );
       }
-      case 'districtName': {
-        const regCode = (member as any).kabupaten_id || (member as any).regencyId || (member as any).kodeKabupaten;
-        const distCode3 = (member as any).wilayah_kecamatan_id || (member as any).districtCode3 || (member as any).kodeKecamatan;
-        if (regCode && distCode3) {
-          const resolved = resolveDistrictName(regCode, distCode3);
+
+      case 'kecamatan_nama': {
+        const regCode =
+          member.kabupaten_kota_id ||
+          member.kabupaten_id ||
+          member.regencyId ||
+          member.kodeKabupaten;
+        const distCode =
+          member.kecamatan_id ||
+          member.wilayah_kecamatan_id ||
+          member.districtCode3 ||
+          member.kodeKecamatan;
+
+        if (regCode && distCode) {
+          const resolved = resolveDistrictName(regCode, distCode);
           if (resolved) return resolved;
         }
-        if (member.districtName) return member.districtName;
-        if ((member as any).wilayah_kecamatan_nama) return (member as any).wilayah_kecamatan_nama;
-        if ((member as any).kecamatan) return (member as any).kecamatan;
-        if (distCode3) {
-          return resolveDistrictName(undefined, distCode3) || `Kecamatan ${distCode3}`;
-        }
-        return '';
-      }
-      case 'kwartirName':
-        return member.kwartirName || (member.provinsi_nama ? `Kwarda ${member.provinsi_nama}` : 'Kwartir Nasional');
-      case 'kwartirHierarchy':
+
         return (
-          member.kwartirHierarchy ||
-          (member.provinsi_nama
-            ? `Kwarda ${member.provinsi_nama} • Kwarcab ${member.kabupaten_nama || 'Kab. Bogor'}`
-            : 'Kwartir Nasional Gerakan Pramuka')
+          member.kecamatan_nama ||
+          member.districtName ||
+          member.wilayah_kecamatan_nama ||
+          member.kecamatan ||
+          ''
         );
-      case 'branchName':
-        return member.branchName || (member as any).pangkalan_gudep || 'Pangkalan Saka Pariwisata';
-      case 'gugusDepan':
-        return member.gugusDepan || (member as any).pangkalan_gudep || 'Pangkalan Saka Pariwisata';
+      }
+
+      case 'kwartir':
+        return resolveKwartirDisplay(member);
+
+      case 'pangkalan_gudep':
+        return member.pangkalan_gudep || member.gugusDepan || member.branchName || '';
+
       case 'krida':
-        return member.krida || member.krida_nama || 'KRIDA PEMANDU';
+        return member.krida || member.krida_nama || '';
+
+      case 'status':
+        return member.status || member.status_anggota || '';
+
+      case 'photo_url':
+        return member.photo_url || member.photoUrl || member.foto_url || '';
+
+      case 'valid_until':
+        return member.valid_until || member.kta_valid_until || '';
+
+      case 'custom_text':
+        return customValue || '';
+
+      // Legacy standalone values that are still valid
       case 'phone':
         return member.phone || member.nomor_telepon || '-';
+
       case 'email':
         return member.email || '-';
+
       case 'joinYear':
-        return member.joinYear || (member.tanggal_bergabung ? String(member.tanggal_bergabung).substring(0, 4) : '2024');
-      case 'status':
-        return member.status || member.status_anggota || 'ACTIVE';
+        return member.joinYear || (member.tanggal_bergabung ? String(member.tanggal_bergabung).substring(0, 4) : '');
+
       default:
         return '';
     }
@@ -270,34 +325,25 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     ? previewSettings.frontBackgroundUrl
     : previewSettings.backBackgroundUrl;
 
-  // Filter Active Front Data Fields (Urutan baku: Nama -> KTA -> Level -> Jabatan -> Krida -> Kwartir -> Gudep)
-  const fieldOrderMap: Record<KtaMemberFieldKey, number> = {
-    fullName: 1,
-    nationalMemberNumber: 2,
-    membershipLevel: 3,
-    currentPosition: 4,
-    krida: 5,
-    kwartirHierarchy: 6,
-    kwartirName: 6,
-    gugusDepan: 7,
-    branchName: 7,
-    provinceName: 8,
-    regencyName: 9,
-    districtName: 10,
-    id: 11,
-    status: 12,
-    phone: 13,
-    email: 14,
-    joinYear: 15,
-  };
-
+  // Dynamic field order: SuperAdmin controls order through template.
   const activeFrontFields = (previewSettings.dataFields || [])
-    .filter((f) => f.side === 'FRONT' && f.visible)
-    .sort((a, b) => {
-      const orderA = a.order || fieldOrderMap[a.field] || 99;
-      const orderB = b.order || fieldOrderMap[b.field] || 99;
-      return orderA - orderB;
-    });
+    .filter(
+      (field) =>
+        field.side === 'FRONT' &&
+        field.visible &&
+        canonicalKtaFieldKey(field.field) !== 'photo_url' &&
+        canRenderKtaField(field.field, member)
+    )
+    .sort((a, b) => (a.order || 999) - (b.order || 999));
+
+  const photoField = (previewSettings.dataFields || []).find(
+    (field) =>
+      field.side === 'FRONT' &&
+      canonicalKtaFieldKey(field.field) === 'photo_url'
+  );
+
+  // Existing legacy templates without photo_url keep showing photo.
+  const showMemberPhoto = photoField ? photoField.visible : true;
 
   // Collision Protection (KTA Layout Guard)
   const layoutGuard = calculateLayoutGuard(
@@ -476,6 +522,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                 {/* ------------------------------------------------------ */}
                 {/* ZONE 1: PHOTO AREA (0% - 26%)                         */}
                 {/* ------------------------------------------------------ */}
+                {showMemberPhoto && (
                 <div
                   className="w-[24%] sm:w-[25%] aspect-[3/4] rounded-lg overflow-hidden border-2 border-white/40 bg-slate-900 shadow-md shrink-0 flex items-center justify-center relative"
                   title="Zone 1: Foto Anggota"
@@ -498,6 +545,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* ------------------------------------------------------ */}
                 {/* ZONE 2: IDENTITY AREA                                 */}
@@ -512,10 +560,10 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   title="Zone 2: Structured Auto-Flow Identity Stack"
                 >
                   {activeFrontFields.map((field) => {
-                    const val = getFieldValue(field.field);
-                    const isName = field.field === 'fullName';
-                    const isKta = field.field === 'nationalMemberNumber';
-                    const isLevel = field.field === 'membershipLevel';
+                    const val = getFieldValue(field.field, field.customValue);
+                    const isName = canonicalKtaFieldKey(field.field) === 'full_name';
+                    const isKta = canonicalKtaFieldKey(field.field) === 'no_kta';
+                    const isLevel = canonicalKtaFieldKey(field.field) === 'tingkat';
 
                     // Kontrol visibilitas label tambahan: disembunyikan jika layout padat atau showFieldLabels nonaktif
                     const shouldDisplayLabel =
@@ -655,7 +703,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   ) : <span />}
                   {(previewSettings.showFrontMemberId ?? true) && (
                     <span className="font-mono text-slate-400 shrink-0 pl-2">
-                      {member?.nationalMemberNumber || member?.id || 'SPWN-MEMBER'}
+                      {member?.id || 'SPWN-MEMBER'}
                     </span>
                   )}
                 </div>
