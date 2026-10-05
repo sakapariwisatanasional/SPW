@@ -369,12 +369,16 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
   const logoPlacement = previewSettings.logoSafePlacement || 'HEADER_LEFT';
 
   /**
-   * Dedicated KTA print pipeline.
+   * Dedicated WYSIWYG KTA print pipeline.
    *
-   * Jangan mencetak halaman aplikasi secara langsung. Kita render ulang FRONT dan BACK
-   * memakai DigitalMemberCard yang sama + previewSettings yang sama, lalu saat @media print
-   * hanya root khusus cetak yang ditampilkan. Dengan begitu hasil cetak mengikuti single
-   * source of truth dari template Designer.
+   * Prinsip penting:
+   * - Jangan render ulang layout pada ukuran halaman fisik secara langsung karena Tailwind
+   *   responsive (`sm:*`) dan nilai px akan melakukan reflow ketika print viewport lebih kecil.
+   * - Render FRONT/BACK pada lebar desain layar yang sama dengan preview.
+   * - "Bekukan" seluruh computed style menjadi inline style sebelum print.
+   * - Setelah itu baru skala keseluruhan kartu secara seragam ke ukuran fisik KTA.
+   *
+   * Dengan cara ini, hasil print mempertahankan proporsi preview Designer (WYSIWYG).
    */
   const handlePrintCard = async () => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
@@ -382,35 +386,226 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     const existingRoot = document.getElementById('kta-print-root-runtime');
     if (existingRoot) existingRoot.remove();
 
+    const existingSource = document.getElementById('kta-print-source-runtime');
+    if (existingSource) existingSource.remove();
+
     const existingStyle = document.getElementById('kta-print-runtime-style');
     if (existingStyle) existingStyle.remove();
 
+    // Ambil ukuran kanvas preview aktual. Fallback 448px = Tailwind max-w-md.
+    const liveFrame = document.querySelector(
+      '#digital-member-card-wrapper > div:first-child'
+    ) as HTMLElement | null;
+
+    const measuredWidth = liveFrame?.getBoundingClientRect().width || 448;
+    const measuredHeight = liveFrame?.getBoundingClientRect().height || measuredWidth / aspectRatio;
+
+    // Jika parent preview sedang memakai transform scale, gunakan ukuran desain sebelum transform.
+    const designWidthPx = Math.max(320, liveFrame?.offsetWidth || measuredWidth || 448);
+    const designHeightPx = Math.max(
+      1,
+      liveFrame?.offsetHeight || measuredHeight || designWidthPx / aspectRatio
+    );
+
+    const widthMm = previewSettings.widthMm || 85.6;
+    const heightMm = previewSettings.heightMm || 53.98;
+    const cssPxPerMm = 96 / 25.4;
+    const physicalWidthPx = widthMm * cssPxPerMm;
+    const physicalHeightPx = heightMm * cssPxPerMm;
+
+    // Uniform scale: jangan pernah meregangkan X/Y berbeda karena akan mengubah desain.
+    const printScale = Math.min(
+      physicalWidthPx / designWidthPx,
+      physicalHeightPx / designHeightPx
+    );
+
+    // -------------------------------------------------------------------
+    // STEP 1: render sumber FRONT/BACK secara off-screen pada ukuran preview.
+    // Source tetap berada dalam screen viewport sehingga responsive styles sama
+    // seperti tampilan aplikasi sebelum print dialog dibuka.
+    // -------------------------------------------------------------------
+    const sourceRoot = document.createElement('div');
+    sourceRoot.id = 'kta-print-source-runtime';
+    sourceRoot.setAttribute('aria-hidden', 'true');
+    Object.assign(sourceRoot.style, {
+      position: 'fixed',
+      left: '-100000px',
+      top: '0',
+      width: `${designWidthPx}px`,
+      height: 'auto',
+      pointerEvents: 'none',
+      visibility: 'visible',
+      zIndex: '-99999',
+    });
+    document.body.appendChild(sourceRoot);
+
+    const runtimeRoot = createRoot(sourceRoot);
+    runtimeRoot.render(
+      <div style={{ width: `${designWidthPx}px` }}>
+        <div data-kta-source-side="FRONT" style={{ width: `${designWidthPx}px` }}>
+          <DigitalMemberCard
+            member={member}
+            previewSettings={previewSettings}
+            side="FRONT"
+            showControls={false}
+            scale={1}
+          />
+        </div>
+        <div data-kta-source-side="BACK" style={{ width: `${designWidthPx}px` }}>
+          <DigitalMemberCard
+            member={member}
+            previewSettings={previewSettings}
+            side="BACK"
+            showControls={false}
+            scale={1}
+          />
+        </div>
+      </div>
+    );
+
+    // Tunggu React commit + font + image + QR.
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch {
+      // Browser lama mungkin tidak mendukung document.fonts.
+    }
+
+    const sourceImages = Array.from(sourceRoot.querySelectorAll('img'));
+    await Promise.all(
+      sourceImages.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if ((img as HTMLImageElement).complete) {
+              resolve();
+              return;
+            }
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          })
+      )
+    );
+
+    // Beri QR/SVG satu frame tambahan setelah aset gambar siap.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    /**
+     * Salin node sekaligus computed style-nya.
+     * Ini yang membuat hasil print kebal terhadap perubahan responsive breakpoint
+     * ketika browser masuk ke @media print.
+     */
+    const cloneWithFrozenStyles = (source: HTMLElement): HTMLElement => {
+      const clone = source.cloneNode(true) as HTMLElement;
+
+      const sourceNodes: Element[] = [source, ...Array.from(source.querySelectorAll('*'))];
+      const cloneNodes: Element[] = [clone, ...Array.from(clone.querySelectorAll('*'))];
+
+      sourceNodes.forEach((sourceNode, index) => {
+        const cloneNode = cloneNodes[index] as HTMLElement | SVGElement | undefined;
+        if (!cloneNode) return;
+
+        const computed = window.getComputedStyle(sourceNode);
+        for (let i = 0; i < computed.length; i += 1) {
+          const property = computed[i];
+          const value = computed.getPropertyValue(property);
+          const priority = computed.getPropertyPriority(property);
+          try {
+            (cloneNode as HTMLElement).style.setProperty(property, value, priority);
+          } catch {
+            // Properti read-only/unsupported tidak perlu menggagalkan proses print.
+          }
+        }
+      });
+
+      // cloneNode(true) tidak menyalin bitmap canvas. Copy jika DynamicQrCode
+      // atau komponen lain suatu saat menggunakan <canvas>.
+      const sourceCanvases = Array.from(source.querySelectorAll('canvas'));
+      const cloneCanvases = Array.from(clone.querySelectorAll('canvas'));
+      sourceCanvases.forEach((sourceCanvas, index) => {
+        const targetCanvas = cloneCanvases[index] as HTMLCanvasElement | undefined;
+        if (!targetCanvas) return;
+        try {
+          targetCanvas.width = sourceCanvas.width;
+          targetCanvas.height = sourceCanvas.height;
+          const ctx = targetCanvas.getContext('2d');
+          ctx?.drawImage(sourceCanvas, 0, 0);
+        } catch {
+          // QR SVG tidak membutuhkan cabang ini; fallback aman.
+        }
+      });
+
+      return clone;
+    };
+
+    const frontSource = sourceRoot.querySelector(
+      '[data-kta-source-side="FRONT"] #digital-member-card-wrapper'
+    ) as HTMLElement | null;
+    const backSource = sourceRoot.querySelector(
+      '[data-kta-source-side="BACK"] #digital-member-card-wrapper'
+    ) as HTMLElement | null;
+
+    if (!frontSource || !backSource) {
+      runtimeRoot.unmount();
+      sourceRoot.remove();
+      return;
+    }
+
+    const frozenFront = cloneWithFrozenStyles(frontSource);
+    const frozenBack = cloneWithFrozenStyles(backSource);
+
+    // -------------------------------------------------------------------
+    // STEP 2: buat root khusus print berisi snapshot DOM yang sudah dibekukan.
+    // -------------------------------------------------------------------
     const printRoot = document.createElement('div');
     printRoot.id = 'kta-print-root-runtime';
     printRoot.setAttribute('aria-hidden', 'true');
-    // Tetap dirender oleh browser agar gambar/font dapat dimuat, tetapi tidak terlihat di layar.
-    printRoot.style.position = 'fixed';
-    printRoot.style.left = '-100000px';
-    printRoot.style.top = '0';
-    printRoot.style.width = `${previewSettings.widthMm || 85.6}mm`;
-    printRoot.style.pointerEvents = 'none';
     document.body.appendChild(printRoot);
+
+    const makePrintSheet = (sideName: 'FRONT' | 'BACK', frozenCard: HTMLElement) => {
+      const sheet = document.createElement('section');
+      sheet.className = 'kta-print-sheet';
+      sheet.setAttribute('data-kta-print-side', sideName);
+
+      const canvas = document.createElement('div');
+      canvas.className = 'kta-print-frozen-canvas';
+      canvas.style.width = `${designWidthPx}px`;
+      canvas.style.height = `${designHeightPx}px`;
+      canvas.style.transform = `scale(${printScale})`;
+      canvas.style.transformOrigin = 'top left';
+
+      // Hilangkan ID yang berulang dari clone agar tidak mengganggu selector aplikasi.
+      frozenCard.removeAttribute('id');
+      frozenCard.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+
+      canvas.appendChild(frozenCard);
+      sheet.appendChild(canvas);
+      printRoot.appendChild(sheet);
+    };
+
+    makePrintSheet('FRONT', frozenFront);
+    makePrintSheet('BACK', frozenBack);
 
     const style = document.createElement('style');
     style.id = 'kta-print-runtime-style';
     style.textContent = `
       @page {
-        size: ${previewSettings.widthMm || 85.6}mm ${previewSettings.heightMm || 53.98}mm;
+        size: ${widthMm}mm ${heightMm}mm;
         margin: 0;
+      }
+
+      #kta-print-root-runtime {
+        display: none;
       }
 
       @media print {
         html, body {
           margin: 0 !important;
           padding: 0 !important;
-          width: auto !important;
-          height: auto !important;
           overflow: visible !important;
+          background: #FFFFFF !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
@@ -422,16 +617,15 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
         #kta-print-root-runtime {
           display: block !important;
           position: static !important;
-          left: auto !important;
-          top: auto !important;
-          width: auto !important;
-          height: auto !important;
-          pointer-events: auto !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: ${widthMm}mm !important;
         }
 
         #kta-print-root-runtime .kta-print-sheet {
-          width: ${previewSettings.widthMm || 85.6}mm !important;
-          height: ${previewSettings.heightMm || 53.98}mm !important;
+          position: relative !important;
+          width: ${widthMm}mm !important;
+          height: ${heightMm}mm !important;
           margin: 0 !important;
           padding: 0 !important;
           overflow: hidden !important;
@@ -446,93 +640,30 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           page-break-after: auto;
         }
 
-        #kta-print-root-runtime #digital-member-card-wrapper {
-          width: ${previewSettings.widthMm || 85.6}mm !important;
-          height: ${previewSettings.heightMm || 53.98}mm !important;
-          max-width: none !important;
+        #kta-print-root-runtime .kta-print-frozen-canvas {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
           margin: 0 !important;
           padding: 0 !important;
-          gap: 0 !important;
-        }
-
-        #kta-print-root-runtime #digital-member-card-wrapper > div:first-child {
-          width: ${previewSettings.widthMm || 85.6}mm !important;
-          height: ${previewSettings.heightMm || 53.98}mm !important;
-          max-width: none !important;
-          aspect-ratio: auto !important;
-          transform: none !important;
-          transform-origin: top left !important;
-          margin: 0 !important;
-        }
-
-        #kta-print-root-runtime #digital-kta-card-body {
-          width: 100% !important;
-          height: 100% !important;
-          box-shadow: none !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          overflow: visible !important;
         }
       }
     `;
     document.head.appendChild(style);
 
-    const runtimeRoot = createRoot(printRoot);
-    runtimeRoot.render(
-      <div>
-        <section className="kta-print-sheet" data-kta-print-side="FRONT">
-          <DigitalMemberCard
-            member={member}
-            previewSettings={previewSettings}
-            side="FRONT"
-            showControls={false}
-            scale={1}
-          />
-        </section>
-        <section className="kta-print-sheet" data-kta-print-side="BACK">
-          <DigitalMemberCard
-            member={member}
-            previewSettings={previewSettings}
-            side="BACK"
-            showControls={false}
-            scale={1}
-          />
-        </section>
-      </div>
-    );
-
-    // Tunggu React commit, webfont, background/image assets, dan QR selesai dirender.
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-
+    // Source React sudah tidak dibutuhkan; frozen clone berdiri sendiri.
     try {
-      if (document.fonts?.ready) await document.fonts.ready;
+      runtimeRoot.unmount();
     } catch {
-      // Browser lama bisa tidak mendukung document.fonts; printing tetap dilanjutkan.
+      // no-op
     }
-
-    const images = Array.from(printRoot.querySelectorAll('img'));
-    await Promise.all(
-      images.map(
-        (img) =>
-          new Promise<void>((resolve) => {
-            if ((img as HTMLImageElement).complete) {
-              resolve();
-              return;
-            }
-            img.addEventListener('load', () => resolve(), { once: true });
-            img.addEventListener('error', () => resolve(), { once: true });
-          })
-      )
-    );
+    sourceRoot.remove();
 
     let cleaned = false;
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
-      try {
-        runtimeRoot.unmount();
-      } catch {
-        // no-op
-      }
       printRoot.remove();
       style.remove();
       window.removeEventListener('afterprint', cleanup);
@@ -540,12 +671,14 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
 
     window.addEventListener('afterprint', cleanup, { once: true });
 
-    // Sedikit jeda memberi DynamicQrCode kesempatan menyelesaikan SVG/canvas internalnya.
+    // Pastikan DOM frozen ter-layout sebelum print dialog dibuka.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
     window.setTimeout(() => {
       window.print();
-      // Fallback untuk browser yang tidak menembakkan event afterprint.
+      // Fallback browser yang tidak mengirim afterprint.
       window.setTimeout(cleanup, 60000);
-    }, 150);
+    }, 100);
   };
 
   return (
