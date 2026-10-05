@@ -52,66 +52,62 @@ export const PublicHomePage: React.FC = () => {
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Button
-              variant="primary"
-              size="lg"
+            <button
+              type="button"
               onClick={() => setActiveView('kta-verification')}
-              leftIcon={<QrCode className="w-5 h-5 text-[#009B4D]" />}
-              className="font-bold rounded-2xl shadow-lg cursor-pointer"
-              style={{
-                backgroundColor: '#FFFFFF',
-                color: '#000000',
-                borderColor: '#FFFFFF',
-              }}
-            >
-              Verifikasi KTA Publik
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setActiveView('registration')}
-              leftIcon={<UserPlus className="w-5 h-5 text-white" />}
-              className="font-bold rounded-2xl cursor-pointer"
+              className="inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-2.5 text-base font-bold shadow-lg cursor-pointer"
               style={{
                 backgroundColor: '#FFFFFF',
                 color: '#000000',
                 borderColor: '#CBD5E1',
               }}
             >
-              Daftar Anggota Baru
-            </Button>
+              <QrCode className="w-5 h-5 shrink-0" style={{ color: '#009B4D' }} />
+              <span style={{ color: '#000000' }}>Verifikasi KTA Publik</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('registration')}
+              className="inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-2.5 text-base font-bold cursor-pointer"
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                borderColor: '#CBD5E1',
+              }}
+            >
+              <UserPlus className="w-5 h-5 shrink-0" style={{ color: '#0066B3' }} />
+              <span style={{ color: '#000000' }}>Daftar Anggota Baru</span>
+            </button>
 
             {!isAuthenticated ? (
-              <Button
-                variant="outline"
-                size="lg"
+              <button
+                type="button"
                 onClick={() => setLoginModalOpen(true)}
-                leftIcon={<LogIn className="w-5 h-5 text-amber-300" />}
-                className="font-bold rounded-2xl cursor-pointer"
+                className="inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-2.5 text-base font-bold cursor-pointer"
                 style={{
                   backgroundColor: '#FFFFFF',
                   color: '#000000',
                   borderColor: '#CBD5E1',
                 }}
               >
-                Masuk Pengurus & Anggota
-              </Button>
+                <LogIn className="w-5 h-5 shrink-0" style={{ color: '#D97706' }} />
+                <span style={{ color: '#000000' }}>Masuk Pengurus & Anggota</span>
+              </button>
             ) : (
-              <Button
-                variant="outline"
-                size="lg"
+              <button
+                type="button"
                 onClick={() => setActiveView(currentUser.role.includes('ADMIN') ? 'admin-portal' : 'membership')}
-                leftIcon={<ShieldCheck className="w-5 h-5 text-emerald-600" />}
-                className="font-bold rounded-2xl cursor-pointer"
+                className="inline-flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-2.5 text-base font-bold cursor-pointer"
                 style={{
                   backgroundColor: '#FFFFFF',
                   color: '#000000',
                   borderColor: '#CBD5E1',
                 }}
               >
-                Buka Dashboard Saya
-              </Button>
+                <ShieldCheck className="w-5 h-5 shrink-0" style={{ color: '#059669' }} />
+                <span style={{ color: '#000000' }}>Buka Dashboard Saya</span>
+              </button>
             )}
           </div>
         </div>
