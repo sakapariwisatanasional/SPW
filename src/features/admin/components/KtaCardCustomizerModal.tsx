@@ -1341,7 +1341,9 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                                   }
                                   className="rounded text-[#0066B3]"
                                 />
-                                <span>Label</span>
+                                <span>
+                                  {canonicalKtaFieldKey(field.field) === 'kwartir' ? 'Prefix' : 'Label'}
+                                </span>
                               </label>
 
                               {/* Font Size Input */}

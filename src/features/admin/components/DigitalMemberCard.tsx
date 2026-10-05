@@ -560,17 +560,27 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   title="Zone 2: Structured Auto-Flow Identity Stack"
                 >
                   {activeFrontFields.map((field) => {
-                    const val = getFieldValue(field.field, field.customValue);
-                    const isName = canonicalKtaFieldKey(field.field) === 'full_name';
-                    const isKta = canonicalKtaFieldKey(field.field) === 'no_kta';
-                    const isLevel = canonicalKtaFieldKey(field.field) === 'tingkat';
+                    const canonicalField = canonicalKtaFieldKey(field.field);
+                    const isName = canonicalField === 'full_name';
+                    const isKta = canonicalField === 'no_kta';
+                    const isLevel = canonicalField === 'tingkat';
+                    const isKwartir = canonicalField === 'kwartir';
 
-                    // Kontrol visibilitas label tambahan: disembunyikan jika layout padat atau showFieldLabels nonaktif
+                    // Khusus field Kwartir, toggle "Label" berfungsi sebagai kontrol
+                    // prefix hierarki: KWARDA/KWARCAB dapat menyembunyikan prefix,
+                    // sedangkan KWARNAS tetap selalu "Kwartir Nasional".
+                    const val = isKwartir
+                      ? resolveKwartirDisplay(member, field.showLabel ?? false)
+                      : getFieldValue(field.field, field.customValue);
+
+                    // Untuk field biasa, showLabel menampilkan caption tambahan.
+                    // Kwartir dikecualikan karena showLabel dipakai sebagai kontrol prefix hierarki.
                     const shouldDisplayLabel =
                       field.showLabel &&
                       previewSettings.showFieldLabels !== false &&
                       !isName &&
                       !isKta &&
+                      !isKwartir &&
                       !layoutGuard.isOvercrowded;
 
                     return (
