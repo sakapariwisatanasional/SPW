@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/verifikasi", "destination": "/index.html" },
-    { "source": "/verifikasi/", "destination": "/index.html" }
+    { "source": "/verifikasi/", "destination": "/index.html" },
+    { "source": "/verifikasi/:token", "destination": "/index.html" },
+    { "source": "/verify/:token", "destination": "/index.html" }
   ]
 }
