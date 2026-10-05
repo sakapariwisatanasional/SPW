@@ -1068,6 +1068,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       member_id: memberId,
       data: updates,
       actor: sessionUserName,
+      reason,
+      audit_reason: reason,
     });
 
     const nowIso = new Date().toISOString();
