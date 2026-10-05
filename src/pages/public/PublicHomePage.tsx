@@ -57,10 +57,10 @@ export const PublicHomePage: React.FC = () => {
               size="lg"
               onClick={() => setActiveView('kta-verification')}
               leftIcon={<QrCode className="w-5 h-5 text-[#009B4D]" />}
-              className="font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
+              className="font-bold rounded-2xl shadow-lg cursor-pointer"
               style={{
                 backgroundColor: '#FFFFFF',
-                color: '#0F172A',
+                color: '#000000',
                 borderColor: '#FFFFFF',
               }}
             >
@@ -72,11 +72,11 @@ export const PublicHomePage: React.FC = () => {
               size="lg"
               onClick={() => setActiveView('registration')}
               leftIcon={<UserPlus className="w-5 h-5 text-white" />}
-              className="font-bold rounded-2xl cursor-pointer hover:bg-white/20"
+              className="font-bold rounded-2xl cursor-pointer"
               style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.10)',
-                color: '#FFFFFF',
-                borderColor: 'rgba(255, 255, 255, 0.30)',
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                borderColor: '#CBD5E1',
               }}
             >
               Daftar Anggota Baru
@@ -90,9 +90,9 @@ export const PublicHomePage: React.FC = () => {
                 leftIcon={<LogIn className="w-5 h-5 text-amber-300" />}
                 className="font-bold rounded-2xl cursor-pointer"
                 style={{
-                  backgroundColor: 'rgba(251, 191, 36, 0.12)',
-                  color: '#FDE68A',
-                  borderColor: 'rgba(251, 191, 36, 0.45)',
+                  backgroundColor: '#FFFFFF',
+                  color: '#000000',
+                  borderColor: '#CBD5E1',
                 }}
               >
                 Masuk Pengurus & Anggota
@@ -106,7 +106,7 @@ export const PublicHomePage: React.FC = () => {
                 className="font-bold rounded-2xl cursor-pointer"
                 style={{
                   backgroundColor: '#FFFFFF',
-                  color: '#0F172A',
+                  color: '#000000',
                   borderColor: '#CBD5E1',
                 }}
               >
