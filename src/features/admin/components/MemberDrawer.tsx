@@ -51,7 +51,6 @@ import {
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { AdminMemberRecord, MemberAdminStatus } from '../types/admin.types';
-import { OrganizationLevelType } from '../../../types/membership';
 import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
 import { getKecamatanByKabupaten } from '../../../services/wilayahService';
 import { KRIDA_MASTER } from '../../../config/constants';
@@ -237,6 +236,28 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   );
   const districtsForKab = selectedKab ? getKecamatanByKabupaten(selectedKab) : [];
 
+  // Tingkat organisasi resmi untuk penugasan/mutasi.
+  // Legacy "WILAYAH" dibaca sebagai KWARCAB agar data lama tetap kompatibel.
+  const organizationLevel = String(
+    (formData as any).level_organisasi ||
+    (formData as any).tingkat ||
+    ((currentMember as any).provinsi_id === '00'
+      ? 'KWARNAS'
+      : (currentMember as any).kabupaten_kota_id
+      ? 'KWARCAB'
+      : 'KWARDA')
+  ).toUpperCase() === 'WILAYAH'
+    ? 'KWARCAB'
+    : String(
+        (formData as any).level_organisasi ||
+        (formData as any).tingkat ||
+        'KWARCAB'
+      ).toUpperCase();
+
+  const isKwarnasAssignment = organizationLevel === 'KWARNAS';
+  const isKwardaAssignment = organizationLevel === 'KWARDA';
+  const isKwarcabAssignment = organizationLevel === 'KWARCAB';
+
   // Specific member change history
   const memberAuditLogs = changeHistory
     .filter((h) => h.member_id === currentMember.id)
@@ -286,23 +307,42 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         updates.email = formData.email;
         if (formData.foto_url) updates.foto_url = formData.foto_url;
       } else if (type === 'wilayah') {
-        updates.level_organisasi = formData.level_organisasi;
-        updates.provinsi_id = formData.provinsi_id;
-        updates.provinsi_nama = formData.provinsi_nama;
+        const level = organizationLevel as any;
+        const jabatan = String(formData.tingkat_keanggotaan || 'Anggota');
+
+        (updates as any).level_organisasi = level;
+        (updates as any).tingkat = level;
+        (updates as any).tingkat_organisasi = level;
+        (updates as any).position = jabatan;
+        updates.tingkat_keanggotaan = jabatan;
+
+        updates.provinsi_id = isKwarnasAssignment ? '00' : formData.provinsi_id;
+        updates.provinsi_nama = isKwarnasAssignment ? 'KWARTIR NASIONAL' : formData.provinsi_nama;
+        (updates as any).province = updates.provinsi_nama;
         updates.kabupaten_kota_id =
-          formData.kabupaten_kota_id || formData.kabupaten_id || '';
+          (isKwarnasAssignment || isKwardaAssignment)
+            ? ''
+            : (formData.kabupaten_kota_id || formData.kabupaten_id || '');
         updates.kabupaten_kota_nama =
-          formData.kabupaten_kota_nama || formData.kabupaten_nama || '';
+          (isKwarnasAssignment || isKwardaAssignment)
+            ? ''
+            : (formData.kabupaten_kota_nama || formData.kabupaten_nama || '');
+        (updates as any).kabupaten_kota = updates.kabupaten_kota_nama;
         updates.kabupaten_id = updates.kabupaten_kota_id;
         updates.kabupaten_nama = updates.kabupaten_kota_nama;
-        updates.kecamatan_id = formData.kecamatan_id || '';
+        updates.kecamatan_id =
+          (isKwarnasAssignment || isKwardaAssignment)
+            ? ''
+            : (formData.kecamatan_id || '');
         updates.kecamatan_nama =
-          formData.kecamatan_nama || formData.wilayah_kecamatan_nama || '';
+          (isKwarnasAssignment || isKwardaAssignment)
+            ? ''
+            : (formData.kecamatan_nama || formData.wilayah_kecamatan_nama || '');
+        (updates as any).kecamatan = updates.kecamatan_nama;
         updates.wilayah_kecamatan_id = updates.kecamatan_id;
         updates.wilayah_kecamatan_nama = updates.kecamatan_nama;
         updates.kwartir_ranting = updates.kecamatan_nama;
         updates.pangkalan_gudep = formData.pangkalan_gudep;
-        updates.tingkat_keanggotaan = formData.tingkat_keanggotaan;
         updates.krida_id = formData.krida_id;
         const krida = KRIDA_MASTER.find((k) => k.id === formData.krida_id);
         if (krida) updates.krida_nama = krida.name;
@@ -1297,12 +1337,58 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                     <label className="block font-semibold text-slate-700 mb-1">Tingkat Organisasi</label>
                     <select
                       disabled={!isEditingWilayah}
-                      value={formData.level_organisasi || 'WILAYAH'}
-                      onChange={(e) => setFormData({ ...formData, level_organisasi: e.target.value as OrganizationLevelType })}
+                      value={organizationLevel}
+                      onChange={(e) => {
+                        const level = e.target.value as 'KWARNAS' | 'KWARDA' | 'KWARCAB';
+
+                        if (level === 'KWARNAS') {
+                          setFormData({
+                            ...formData,
+                            level_organisasi: level as any,
+                            provinsi_id: '00',
+                            provinsi_nama: 'KWARTIR NASIONAL',
+                            kabupaten_kota_id: '',
+                            kabupaten_kota_nama: '',
+                            kabupaten_id: '',
+                            kabupaten_nama: '',
+                            kecamatan_id: '',
+                            kecamatan_nama: '',
+                            wilayah_kecamatan_id: '',
+                            wilayah_kecamatan_nama: '',
+                          });
+                          return;
+                        }
+
+                        const safeProvince =
+                          String(formData.provinsi_id || '') === '00'
+                            ? (PROVINCES[0]?.code || '')
+                            : String(formData.provinsi_id || PROVINCES[0]?.code || '');
+                        const provObj = PROVINCES.find((p) => p.code === safeProvince);
+                        const regs = getRegenciesByProvince(safeProvince);
+                        const firstReg = regs[0];
+                        const dists = firstReg ? getKecamatanByKabupaten(firstReg.code) : [];
+                        const firstDist = dists[0];
+
+                        setFormData({
+                          ...formData,
+                          level_organisasi: level as any,
+                          provinsi_id: safeProvince,
+                          provinsi_nama: provObj?.name || '',
+                          kabupaten_kota_id: level === 'KWARCAB' ? (formData.kabupaten_kota_id || firstReg?.code || '') : '',
+                          kabupaten_kota_nama: level === 'KWARCAB' ? (formData.kabupaten_kota_nama || firstReg?.name || '') : '',
+                          kabupaten_id: level === 'KWARCAB' ? (formData.kabupaten_id || firstReg?.code || '') : '',
+                          kabupaten_nama: level === 'KWARCAB' ? (formData.kabupaten_nama || firstReg?.name || '') : '',
+                          kecamatan_id: level === 'KWARCAB' ? (formData.kecamatan_id || firstDist?.kode_kecamatan || '') : '',
+                          kecamatan_nama: level === 'KWARCAB' ? (formData.kecamatan_nama || firstDist?.nama_kecamatan || '') : '',
+                          wilayah_kecamatan_id: level === 'KWARCAB' ? (formData.wilayah_kecamatan_id || firstDist?.kode_kecamatan || '') : '',
+                          wilayah_kecamatan_nama: level === 'KWARCAB' ? (formData.wilayah_kecamatan_nama || firstDist?.nama_kecamatan || '') : '',
+                        });
+                      }}
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
-                      <option value="KWARTIR_NASIONAL">Kwartir Nasional (Pusat)</option>
-                      <option value="WILAYAH">Kwartir Wilayah (Kwarda / Kwarcab)</option>
+                      <option value="KWARNAS">Kwartir Nasional (Kwarnas)</option>
+                      <option value="KWARDA">Kwartir Daerah (Kwarda)</option>
+                      <option value="KWARCAB">Kwartir Cabang (Kwarcab)</option>
                     </select>
                   </div>
 
@@ -1325,8 +1411,8 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Provinsi (Kwarda)</label>
                     <select
-                      disabled={!isEditingWilayah}
-                      value={selectedProv}
+                      disabled={!isEditingWilayah || isKwarnasAssignment}
+                      value={isKwarnasAssignment ? '' : selectedProv}
                       onChange={(e) => {
                         const provId = e.target.value;
                         const provObj = PROVINCES.find((p) => p.code === provId);
@@ -1362,8 +1448,8 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Kabupaten / Kota (Kwarcab)</label>
                     <select
-                      disabled={!isEditingWilayah}
-                      value={selectedKab}
+                      disabled={!isEditingWilayah || !isKwarcabAssignment}
+                      value={isKwarcabAssignment ? selectedKab : ''}
                       onChange={(e) => {
                         const kabId = e.target.value;
                         const kabObj = regenciesForProv.find((r) => r.code === kabId);
@@ -1395,8 +1481,8 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Kecamatan (Kwarran)</label>
                     <select
-                      disabled={!isEditingWilayah}
-                      value={formData.kecamatan_id || currentMember.kecamatan_id || ''}
+                      disabled={!isEditingWilayah || !isKwarcabAssignment}
+                      value={isKwarcabAssignment ? (formData.kecamatan_id || currentMember.kecamatan_id || '') : ''}
                       onChange={(e) => {
                         const distId = e.target.value;
                         const distObj = districtsForKab.find((d) => d.kode_kecamatan === distId);
@@ -1419,7 +1505,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Tingkat Keanggotaan</label>
+                    <label className="block font-semibold text-slate-700 mb-1">Jabatan / Kedudukan Saka</label>
                     <select
                       disabled={!isEditingWilayah}
                       value={formData.tingkat_keanggotaan || 'Anggota'}
@@ -1427,11 +1513,13 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
                       <option value="Anggota">Anggota</option>
-                      <option value="Dewan Saka">Dewan Saka</option>
                       <option value="Pamong Saka">Pamong Saka</option>
                       <option value="Pimpinan Saka">Pimpinan Saka</option>
                       <option value="Mabisaka">Mabisaka</option>
                     </select>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      Perubahan tingkat/jabatan akan menjadi konteks resmi saat KTA diterbitkan ulang.
+                    </p>
                   </div>
 
                   <div className="sm:col-span-2">
