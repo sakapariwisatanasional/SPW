@@ -52,3 +52,36 @@ button, a, input, select, textarea {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+
+/* --------------------------------------------------------------------------
+   Accessibility: form contrast safety
+   Prevent light/white form controls from inheriting white text from a dark
+   parent container. Explicit Tailwind text utilities (for intentionally dark
+   fields) have higher specificity and therefore still override these defaults.
+   -------------------------------------------------------------------------- */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+  color: #0F172A; /* slate-900: high contrast on white/light backgrounds */
+  caret-color: #0F172A;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748B; /* slate-500 */
+  opacity: 1;
+}
+
+/* Native select menus can ignore the control's utility classes on some browsers. */
+select option {
+  background-color: #FFFFFF;
+  color: #0F172A;
+}
+
+/* Keep disabled light controls readable while clearly disabled. */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: #64748B;
+}
