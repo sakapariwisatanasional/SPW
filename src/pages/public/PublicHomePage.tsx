@@ -57,7 +57,12 @@ export const PublicHomePage: React.FC = () => {
               size="lg"
               onClick={() => setActiveView('kta-verification')}
               leftIcon={<QrCode className="w-5 h-5 text-[#009B4D]" />}
-              className="bg-white text-slate-900 border-white hover:bg-slate-100 hover:text-slate-900 font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
+              className="font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#0F172A',
+                borderColor: '#FFFFFF',
+              }}
             >
               Verifikasi KTA Publik
             </Button>
@@ -67,7 +72,12 @@ export const PublicHomePage: React.FC = () => {
               size="lg"
               onClick={() => setActiveView('registration')}
               leftIcon={<UserPlus className="w-5 h-5 text-white" />}
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white font-bold rounded-2xl cursor-pointer"
+              className="font-bold rounded-2xl cursor-pointer hover:bg-white/20"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.10)',
+                color: '#FFFFFF',
+                borderColor: 'rgba(255, 255, 255, 0.30)',
+              }}
             >
               Daftar Anggota Baru
             </Button>
@@ -78,7 +88,12 @@ export const PublicHomePage: React.FC = () => {
                 size="lg"
                 onClick={() => setLoginModalOpen(true)}
                 leftIcon={<LogIn className="w-5 h-5 text-amber-300" />}
-                className="bg-amber-400/10 border-amber-400/40 text-amber-200 hover:bg-amber-400/20 hover:text-amber-100 font-bold rounded-2xl cursor-pointer"
+                className="font-bold rounded-2xl cursor-pointer"
+                style={{
+                  backgroundColor: 'rgba(251, 191, 36, 0.12)',
+                  color: '#FDE68A',
+                  borderColor: 'rgba(251, 191, 36, 0.45)',
+                }}
               >
                 Masuk Pengurus & Anggota
               </Button>
@@ -87,8 +102,13 @@ export const PublicHomePage: React.FC = () => {
                 variant="outline"
                 size="lg"
                 onClick={() => setActiveView(currentUser.role.includes('ADMIN') ? 'admin-portal' : 'membership')}
-                leftIcon={<ShieldCheck className="w-5 h-5 text-emerald-300" />}
-                className="bg-emerald-400/10 border-emerald-400/40 text-emerald-200 hover:bg-emerald-400/20 hover:text-emerald-100 font-bold rounded-2xl cursor-pointer"
+                leftIcon={<ShieldCheck className="w-5 h-5 text-emerald-600" />}
+                className="font-bold rounded-2xl cursor-pointer"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  borderColor: '#CBD5E1',
+                }}
               >
                 Buka Dashboard Saya
               </Button>
