@@ -66,19 +66,29 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
   } = useAdminAchievementStore();
 
   const members = useMemo(() => {
-    if (Array.isArray(achievementMembers)) {
-      return achievementMembers;
-    }
+    const rawMembers = Array.isArray(achievementMembers)
+      ? achievementMembers
+      : Array.isArray(achievementMembers?.members)
+      ? achievementMembers.members
+      : Array.isArray(achievementMembers?.data)
+      ? achievementMembers.data
+      : [];
 
-    if (Array.isArray(achievementMembers?.members)) {
-      return achievementMembers.members;
-    }
-
-    if (Array.isArray(achievementMembers?.data)) {
-      return achievementMembers.data;
-    }
-
-    return [];
+    // Backend may return members before achievement.summary is hydrated.
+    // Keep the dashboard render-safe while detail/statistics requests complete.
+    return rawMembers.map((member: any) => ({
+      ...member,
+      summary: {
+        completedSkk: 0,
+        progressPercent: 0,
+        inProgressSkk: 0,
+        notStartedSkk: 23,
+        averageScore: 0,
+        ...(member?.summary || {}),
+      },
+      activities: Array.isArray(member?.activities) ? member.activities : [],
+      badges: Array.isArray(member?.badges) ? member.badges : [],
+    }));
   }, [achievementMembers]);
 
   useEffect(() => {
