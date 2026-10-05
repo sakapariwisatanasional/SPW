@@ -300,15 +300,13 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     }
   };
 
-  // Dynamic QR Identity: Sumber murni dari member.qr_url atau generator token (Tanpa simpan gambar di Drive)
-  const qrVerificationUrl =
-    member?.qrUrl ||
-    member?.qr_url ||
-    (member?.qrToken || member?.qr_token
-      ? ktaService.generateMemberQrUrl(member.qrToken || member.qr_token)
-      : member?.id
-      ? ktaService.generateMemberQrUrl(member.id)
-      : 'https://spwn.id/verifikasi');
+  // Dynamic QR Identity: token adalah source of truth.
+  // URL dibangun ulang pada origin aplikasi aktif agar qr_url/domain lama tidak menghasilkan halaman kosong.
+  const qrToken = member?.qrToken || member?.qr_token;
+  const qrVerificationUrl = qrToken
+    ? ktaService.generateMemberQrUrl(qrToken)
+    : member?.qrUrl || member?.qr_url ||
+      (member?.id ? ktaService.generateMemberQrUrl(member.id) : `${window.location.origin}/verifikasi`);
 
   const signerQrVerificationUrl =
     previewSettings.signerMemberId
