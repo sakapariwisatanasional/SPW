@@ -57,13 +57,23 @@ export const canRenderKtaField = (
   return true;
 };
 
-export const resolveKwartirDisplay = (member: any): string => {
+export const resolveKwartirDisplay = (
+  member: any,
+  showHierarchyPrefix: boolean = true
+): string => {
   const level = normalizeOrganizationLevel(member);
 
+  // KWARNAS adalah nama organisasi final, bukan prefix opsional.
+  // Karena itu selalu tampil sebagai "Kwartir Nasional".
   if (level === 'KWARNAS') return 'Kwartir Nasional';
 
   if (level === 'KWARDA') {
     const province = member?.provinsi_nama || member?.provinceName || member?.province || '';
+
+    if (!showHierarchyPrefix) {
+      return province || '';
+    }
+
     return province ? `Kwartir Daerah ${province}` : 'Kwartir Daerah';
   }
 
@@ -73,6 +83,10 @@ export const resolveKwartirDisplay = (member: any): string => {
     member?.regencyName ||
     member?.city ||
     '';
+
+  if (!showHierarchyPrefix) {
+    return regency || '';
+  }
 
   return regency ? `Kwartir Cabang ${regency}` : 'Kwartir Cabang';
 };
