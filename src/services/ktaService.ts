@@ -247,7 +247,7 @@ export const ktaService = {
    */
   generateMemberQrUrl: (qrToken: string): string => {
     const baseUrl = SPWN_SYSTEM.PUBLIC_URL.replace(/\/+$/, '');
-    return `${baseUrl}/verifikasi/${encodeURIComponent(qrToken)}`;
+    return `${baseUrl}/verifikasi?token=${encodeURIComponent(qrToken)}`;
   },
 
   /**
