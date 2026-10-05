@@ -1,256 +1,244 @@
-/**
- * SPWN Apps 2.0 - Public Home Page
- * Location: src/pages/public/PublicHomePage.tsx
- */
-
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  ShieldCheck,
-  UserPlus,
-  LogIn,
   Compass,
-  MapPin,
+  QrCode,
+  UserPlus,
+  ShieldCheck,
+  ShoppingBag,
+  Newspaper,
+  GraduationCap,
   Sparkles,
   ArrowRight,
-  Award,
   CheckCircle2,
-  Users,
-  Building,
-  TreePine,
-  Utensils,
-  BookOpen,
-  ShoppingBag,
+  Lock,
+  LogIn,
+  Globe2,
+  MapPin,
   ExternalLink,
 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { useUIStore } from '../../stores/uiStore';
-import { LoginModal } from '../../components/auth/LoginModal';
+import { useUIStore } from '../../../stores/uiStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { KRIDA_LIST } from '../../krida/data/kridaData';
 
 export const PublicHomePage: React.FC = () => {
-  const { setActiveView } = useUIStore();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-  const kridaList = [
-    {
-      id: 'pemandu',
-      title: 'Krida Pemandu Wisata',
-      code: 'KRD-01',
-      desc: 'Pengembangan kompetensi pemanduan wisata budaya, alam, interpretasi destinasi, dan etika sapta pesona.',
-      icon: Compass,
-      color: 'from-blue-600 to-cyan-500',
-    },
-    {
-      id: 'penyuluh',
-      title: 'Krida Penyuluh Pariwisata',
-      code: 'KRD-02',
-      desc: 'Sosialisasi sadar wisata, kampanye ramah wisatawan, pelestarian lingkungan hidup, dan edukasi publik.',
-      icon: Users,
-      color: 'from-emerald-600 to-teal-500',
-    },
-    {
-      id: 'mice',
-      title: 'Krida Mice & Event',
-      code: 'KRD-03',
-      desc: 'Keahlian perencanaan event pariwisata nusantara, festival budaya daerah, pameran, dan konferensi pemuda.',
-      icon: Building,
-      color: 'from-amber-600 to-orange-500',
-    },
-    {
-      id: 'kuliner',
-      title: 'Krida Kuliner & Cinderamata',
-      code: 'KRD-04',
-      desc: 'Pemberdayaan kearifan kuliner tradisional, produk kerajinan tangan lokal, dan kewirausahaan kreatif pemuda.',
-      icon: Utensils,
-      color: 'from-rose-600 to-pink-500',
-    },
-  ];
+  const { setActiveView, setLoginModalOpen } = useUIStore();
+  const { isAuthenticated, currentUser } = useAuthStore();
 
   return (
-    <div className="space-y-12">
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
+    <div className="space-y-10 pb-16">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B1F33] via-[#004C85] to-[#0066B3] text-white p-8 sm:p-12 shadow-xl border border-blue-900/30">
+        <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-1/3 -top-20 w-72 h-72 bg-blue-400/10 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Hero Banner Section */}
-      <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#0B1F33] via-[#004b87] to-[#009B4D] text-white p-8 sm:p-12 lg:p-16 shadow-xl">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
-        
         <div className="relative z-10 max-w-3xl space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold tracking-wide">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Ekosistem Digital Gerakan Pramuka • SPWN 2.0</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-white">
+            <span className="w-2 h-2 rounded-full bg-[#009B4D] animate-pulse" />
+            <span>SAKA Pariwisata Network Indonesia • SPWN 2.0</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Harmoni Kepariwisataan Nusantara bersama <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-white">SAKA Pariwisata</span>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight sm:leading-none text-white">
+            Ekosistem Terpadu <br />
+            <span className="bg-gradient-to-r from-amber-300 to-emerald-300 bg-clip-text text-transparent">
+              SAKA Pariwisata Indonesia
+            </span>
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-2xl font-normal">
-            Platform terpadu registrasi anggota, penerbitan KTA Digital terstandarisasi, verifikasi keaslian identitas secara seketika, dan eksplorasi destinasi unggulan Indonesia.
+          <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal max-w-2xl">
+            Selamat datang di SAKA Pariwisata Indonesia, sebuah platform digital yang dirancang untuk mendukung anggota dalam mengembangkan keterampilan pariwisata, memperoleh identitas digital, dan berkontribusi dalam memperkenalkan keindahan wisata Indonesia.
           </p>
 
-          {/* Action CTAs */}
-          <div className="pt-2 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button
-              size="lg"
               variant="primary"
-              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30 text-sm"
-              leftIcon={<ShieldCheck className="w-5 h-5" />}
-              onClick={() => setActiveView('verification')}
+              size="lg"
+              onClick={() => setActiveView('kta-verification')}
+              leftIcon={<QrCode className="w-5 h-5 text-[#009B4D]" />}
+              className="bg-white text-slate-900 border-white hover:bg-slate-100 hover:text-slate-900 font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all cursor-pointer"
             >
-              Cek Keaslian KTA
+              Verifikasi KTA Publik
             </Button>
 
             <Button
-              size="lg"
               variant="outline"
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-md text-sm"
-              leftIcon={<UserPlus className="w-5 h-5" />}
+              size="lg"
               onClick={() => setActiveView('registration')}
+              leftIcon={<UserPlus className="w-5 h-5 text-white" />}
+              className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white font-bold rounded-2xl cursor-pointer"
             >
               Daftar Anggota Baru
             </Button>
 
-            <Button
-              size="lg"
-              variant="secondary"
-              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-md text-sm"
-              leftIcon={<LogIn className="w-5 h-5 text-[#0066B3]" />}
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              Masuk ke Portal
-            </Button>
-          </div>
-
-          <div className="pt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-300 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Standar KTA Nasional</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Zero-PII Dynamic QR</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Google Apps Script Cloud</span>
-            </div>
+            {!isAuthenticated ? (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setLoginModalOpen(true)}
+                leftIcon={<LogIn className="w-5 h-5 text-amber-300" />}
+                className="bg-amber-400/10 border-amber-400/40 text-amber-200 hover:bg-amber-400/20 hover:text-amber-100 font-bold rounded-2xl cursor-pointer"
+              >
+                Masuk Pengurus & Anggota
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setActiveView(currentUser.role.includes('ADMIN') ? 'admin-portal' : 'membership')}
+                leftIcon={<ShieldCheck className="w-5 h-5 text-emerald-300" />}
+                className="bg-emerald-400/10 border-emerald-400/40 text-emerald-200 hover:bg-emerald-400/20 hover:text-emerald-100 font-bold rounded-2xl cursor-pointer"
+              >
+                Buka Dashboard Saya
+              </Button>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Security & Access Restriction Notice */}
-      <section className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
+      {/* Akses Khusus & Aturan Pengguna Callout */}
+      {!isAuthenticated && (
+        <section className="p-4 sm:p-5 rounded-2xl bg-amber-50/80 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-900 shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                Aturan Hak Akses Pengguna (RBAC Enforcement)
+              </h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Pengunjung publik hanya dapat mengakses fitur publik (Verifikasi KTA, Pendaftaran, Direktori Wisata, dan SKK Learning). 
+                Dashboard administrasi dan data keanggotaan dilindungi autentikasi login.
+              </p>
+            </div>
           </div>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setLoginModalOpen(true)}
+            leftIcon={<LogIn className="w-4 h-4" />}
+            className="text-xs font-semibold rounded-xl shrink-0 cursor-pointer"
+          >
+            Masuk ke Akun
+          </Button>
+        </section>
+      )}
+
+      {/* 4 Pilar Krida SAKA Pariwisata */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
-            <h4 className="text-sm font-bold text-amber-900">Peraturan Akses Dashboard SPWN</h4>
-            <p className="text-xs text-amber-700 mt-0.5">
-              Area Dashboard Anggota dan Panel Administrasi dilindungi otentikasi resmi. Pengunjung publik dapat melakukan verifikasi KTA, pendaftaran, melihat warta, dan eksplorasi destinasi tanpa batas.
+            <h2 className="text-lg font-bold text-slate-900">4 Krida SAKA Pariwisata</h2>
+            <p className="text-xs text-slate-500">
+              Spesialisasi pembinaan keterampilan kepramukaan di sektor pariwisata nasional
             </p>
           </div>
-        </div>
-        <Button
-          size="sm"
-          variant="primary"
-          className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs"
-          onClick={() => setIsLoginModalOpen(true)}
-        >
-          Masuk Akun Anda
-        </Button>
-      </section>
-
-      {/* 4 Krida Unggulan Section */}
-      <section className="space-y-6">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold text-[#0066B3] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-            Peminatan Spesialisasi
-          </span>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-            4 Krida Saka Pariwisata Indonesia
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Pendidikan dan pelatihan keterampilan khusus kepariwisataan untuk membekali Pramuka Penegak dan Pandega.
-          </p>
+          <button
+            onClick={() => setActiveView('skk-learning')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0066B3] hover:underline cursor-pointer"
+          >
+            <span>Lihat Semua 23 SKK</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {kridaList.map((k) => {
-            const Icon = k.icon;
-            return (
-              <div
-                key={k.id}
-                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5 group"
-              >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${k.color} flex items-center justify-center text-white font-bold mb-4 shadow-sm`}>
-                  <Icon className="w-6 h-6" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {KRIDA_LIST.map((krida) => (
+            <Card
+              key={krida.id}
+              className="p-4 hover:shadow-md transition-shadow border-slate-200/80 cursor-pointer group"
+              onClick={() => setActiveView(`krida-${krida.slug}`)}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-xs shadow-xs"
+                  style={{ backgroundColor: krida.warna }}
+                >
+                  {krida.kode}
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {k.code}
-                </span>
-                <h3 className="text-sm font-bold text-slate-900 mt-1 mb-2 group-hover:text-[#0066B3] transition-colors">
-                  {k.title}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {k.desc}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs font-bold text-slate-900 group-hover:text-[#0066B3] transition-colors truncate">
+                    {krida.nama}
+                  </h3>
+                  <p className="text-[10px] text-slate-500">{krida.totalSkk} SKK Terdaftar</p>
+                </div>
               </div>
-            );
-          })}
+              <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                {krida.deskripsi}
+              </p>
+            </Card>
+          ))}
         </div>
       </section>
 
-      {/* Quick Service Links */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div
-          onClick={() => setActiveView('tourism')}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-[#0066B3] transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0066B3] flex items-center justify-center mb-3">
-            <Compass className="w-5 h-5" />
-          </div>
-          <h4 className="font-bold text-sm text-slate-900 group-hover:text-[#0066B3] flex items-center justify-between">
-            Destinasi Wisata Nusantara
-            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </h4>
-          <p className="text-xs text-slate-500 mt-1">
-            Jelajahi potensi wisata daerah dan binaan obyek wisata oleh pangkalan Saka Pariwisata di seluruh Indonesia.
+      {/* Fitur Utama Ekosistem */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Layanan Ekosistem SPWN</h2>
+          <p className="text-xs text-slate-500">
+            Jelajahi layanan terbuka untuk publik dan anggota SAKA di seluruh Nusantara
           </p>
         </div>
 
-        <div
-          onClick={() => setActiveView('content')}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-[#009B4D] transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#009B4D] flex items-center justify-center mb-3">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <h4 className="font-bold text-sm text-slate-900 group-hover:text-[#009B4D] flex items-center justify-between">
-            Warta & Kabar Kegiatan
-            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </h4>
-          <p className="text-xs text-slate-500 mt-1">
-            Informasi terkini kegiatan kepramukaan pariwisata, perkemahan bakti, diklat krida, dan artikel edukasi.
-          </p>
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card
+            className="p-5 border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveView('kta-verification')}
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <QrCode className="w-5 h-5 text-[#009B4D]" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">
+              Verifikasi KTA Digital
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Validasi keaslian kartu tanda anggota SAKA Pariwisata secara instan menggunakan pemindai QR dan database resmi Google Apps Script.
+            </p>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+              <span>Buka Verifikasi</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
 
-        <div
-          onClick={() => setActiveView('commerce')}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-amber-500 transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
-            <ShoppingBag className="w-5 h-5" />
-          </div>
-          <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-600 flex items-center justify-between">
-            Kedai SAKA & UMKM Binaan
-            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </h4>
-          <p className="text-xs text-slate-500 mt-1">
-            Dukung produk lokal, atribut resmi Saka Pariwisata, dan hasil karya kewirausahaan Pramuka mandiri.
-          </p>
+          <Card
+            className="p-5 border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveView('tourism')}
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0066B3] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <Compass className="w-5 h-5 text-[#0066B3]" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#0066B3] transition-colors">
+              Pusat Pariwisata & Destinasi
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Eksplorasi destinasi unggulan binaan pangkalan SAKA Pariwisata dengan standar Sapta Pesona dan ulasan komunitas terverifikasi.
+            </p>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-[#0066B3]">
+              <span>Jelajahi Wisata</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
+
+          <Card
+            className="p-5 border-slate-200 hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+            onClick={() => setActiveView('commerce')}
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <ShoppingBag className="w-5 h-5 text-[#F7941D]" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-800 transition-colors">
+              Pasar UMKM & Kedai SAKA
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Dukung produk ekonomi kreatif, cenderamata kepramukaan, dan kuliner khas karya anggota binaan Krida Kuliner & Cinderamata.
+            </p>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+              <span>Kunjungi Kedai</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Card>
         </div>
       </section>
     </div>
