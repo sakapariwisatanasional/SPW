@@ -31,7 +31,7 @@ export const Button: React.FC<ButtonProps> = ({
   const variantStyles = {
     primary: "bg-[#0066B3] text-white border-2 border-[#0066B3] hover:bg-white hover:text-[#0066B3] hover:border-[#0066B3] focus:ring-[#0066B3]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
     secondary: "bg-[#009B4D] text-white border-2 border-[#009B4D] hover:bg-white hover:text-[#009B4D] hover:border-[#009B4D] focus:ring-[#009B4D]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
-    outline: "bg-white text-slate-800 border-2 border-slate-300 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] focus:ring-[#0066B3]/40 shadow-xs [&_svg]:transition-colors [&_svg]:stroke-current",
+    outline: "bg-transparent text-slate-800 border-2 border-slate-300 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] focus:ring-[#0066B3]/40 shadow-xs [&_svg]:transition-colors [&_svg]:stroke-current",
     ghost: "bg-transparent text-slate-700 border-2 border-transparent hover:bg-slate-900 hover:text-white hover:border-slate-900 focus:ring-slate-300 [&_svg]:transition-colors [&_svg]:stroke-current",
     danger: "bg-rose-600 text-white border-2 border-rose-600 hover:bg-white hover:text-rose-600 hover:border-rose-600 focus:ring-rose-500/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
     warning: "bg-[#F7941D] text-white border-2 border-[#F7941D] hover:bg-slate-950 hover:text-white hover:border-slate-950 focus:ring-[#F7941D]/40 shadow-sm [&_svg]:transition-colors [&_svg]:stroke-current",
