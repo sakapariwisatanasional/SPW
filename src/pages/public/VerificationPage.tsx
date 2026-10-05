@@ -50,11 +50,15 @@ export const VerificationPage: React.FC = () => {
     resetVerification,
   } = useVerificationStore();
 
-  // QR dari kamera HP membuka /verifikasi?token=SPWN-QR-... langsung.
-  // verifyId diterima untuk kompatibilitas URL lama, tetapi hanya diverifikasi backend.
+  // Canonical QR URL: /verifikasi?token=SPWN-QR-...
+  // Backward compatible dengan URL lama /verifikasi/{token} dan ?verifyId=.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromUrl = (params.get('token') || params.get('verifyId') || '').trim();
+    const fromQuery = (params.get('token') || params.get('verifyId') || '').trim();
+    const pathMatch = window.location.pathname.match(/\/(?:verifikasi|verify)\/([^/]+)\/?$/i);
+    const fromPath = pathMatch ? decodeURIComponent(pathMatch[1]).trim() : '';
+    const fromUrl = fromQuery || fromPath;
+
     if (!fromUrl || lastAutoToken.current === fromUrl) return;
     lastAutoToken.current = fromUrl;
     void verifyToken(fromUrl);
