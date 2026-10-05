@@ -11,6 +11,7 @@
  */
 
 import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import {
   RotateCcw,
   Printer,
@@ -367,6 +368,186 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
   );
   const logoPlacement = previewSettings.logoSafePlacement || 'HEADER_LEFT';
 
+  /**
+   * Dedicated KTA print pipeline.
+   *
+   * Jangan mencetak halaman aplikasi secara langsung. Kita render ulang FRONT dan BACK
+   * memakai DigitalMemberCard yang sama + previewSettings yang sama, lalu saat @media print
+   * hanya root khusus cetak yang ditampilkan. Dengan begitu hasil cetak mengikuti single
+   * source of truth dari template Designer.
+   */
+  const handlePrintCard = async () => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const existingRoot = document.getElementById('kta-print-root-runtime');
+    if (existingRoot) existingRoot.remove();
+
+    const existingStyle = document.getElementById('kta-print-runtime-style');
+    if (existingStyle) existingStyle.remove();
+
+    const printRoot = document.createElement('div');
+    printRoot.id = 'kta-print-root-runtime';
+    printRoot.setAttribute('aria-hidden', 'true');
+    // Tetap dirender oleh browser agar gambar/font dapat dimuat, tetapi tidak terlihat di layar.
+    printRoot.style.position = 'fixed';
+    printRoot.style.left = '-100000px';
+    printRoot.style.top = '0';
+    printRoot.style.width = `${previewSettings.widthMm || 85.6}mm`;
+    printRoot.style.pointerEvents = 'none';
+    document.body.appendChild(printRoot);
+
+    const style = document.createElement('style');
+    style.id = 'kta-print-runtime-style';
+    style.textContent = `
+      @page {
+        size: ${previewSettings.widthMm || 85.6}mm ${previewSettings.heightMm || 53.98}mm;
+        margin: 0;
+      }
+
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: auto !important;
+          height: auto !important;
+          overflow: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        body > *:not(#kta-print-root-runtime) {
+          display: none !important;
+        }
+
+        #kta-print-root-runtime {
+          display: block !important;
+          position: static !important;
+          left: auto !important;
+          top: auto !important;
+          width: auto !important;
+          height: auto !important;
+          pointer-events: auto !important;
+        }
+
+        #kta-print-root-runtime .kta-print-sheet {
+          width: ${previewSettings.widthMm || 85.6}mm !important;
+          height: ${previewSettings.heightMm || 53.98}mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          break-after: page;
+          page-break-after: always;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        #kta-print-root-runtime .kta-print-sheet:last-child {
+          break-after: auto;
+          page-break-after: auto;
+        }
+
+        #kta-print-root-runtime #digital-member-card-wrapper {
+          width: ${previewSettings.widthMm || 85.6}mm !important;
+          height: ${previewSettings.heightMm || 53.98}mm !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          gap: 0 !important;
+        }
+
+        #kta-print-root-runtime #digital-member-card-wrapper > div:first-child {
+          width: ${previewSettings.widthMm || 85.6}mm !important;
+          height: ${previewSettings.heightMm || 53.98}mm !important;
+          max-width: none !important;
+          aspect-ratio: auto !important;
+          transform: none !important;
+          transform-origin: top left !important;
+          margin: 0 !important;
+        }
+
+        #kta-print-root-runtime #digital-kta-card-body {
+          width: 100% !important;
+          height: 100% !important;
+          box-shadow: none !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const runtimeRoot = createRoot(printRoot);
+    runtimeRoot.render(
+      <div>
+        <section className="kta-print-sheet" data-kta-print-side="FRONT">
+          <DigitalMemberCard
+            member={member}
+            previewSettings={previewSettings}
+            side="FRONT"
+            showControls={false}
+            scale={1}
+          />
+        </section>
+        <section className="kta-print-sheet" data-kta-print-side="BACK">
+          <DigitalMemberCard
+            member={member}
+            previewSettings={previewSettings}
+            side="BACK"
+            showControls={false}
+            scale={1}
+          />
+        </section>
+      </div>
+    );
+
+    // Tunggu React commit, webfont, background/image assets, dan QR selesai dirender.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+    } catch {
+      // Browser lama bisa tidak mendukung document.fonts; printing tetap dilanjutkan.
+    }
+
+    const images = Array.from(printRoot.querySelectorAll('img'));
+    await Promise.all(
+      images.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if ((img as HTMLImageElement).complete) {
+              resolve();
+              return;
+            }
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          })
+      )
+    );
+
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      try {
+        runtimeRoot.unmount();
+      } catch {
+        // no-op
+      }
+      printRoot.remove();
+      style.remove();
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    window.addEventListener('afterprint', cleanup, { once: true });
+
+    // Sedikit jeda memberi DynamicQrCode kesempatan menyelesaikan SVG/canvas internalnya.
+    window.setTimeout(() => {
+      window.print();
+      // Fallback untuk browser yang tidak menembakkan event afterprint.
+      window.setTimeout(cleanup, 60000);
+    }, 150);
+  };
+
   return (
     <div
       className="flex flex-col items-center gap-3 w-full select-none"
@@ -389,14 +570,19 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
             borderRadius: `${(previewSettings.cornerRadiusMm || 3.18) * 3.78}px`,
           }}
         >
-          {/* Custom Background Image from Google Drive / Cloud */}
+          {/* Custom Background Image from Google Drive / Cloud
+              Dipakai sebagai <img> agar hasil cetak tetap identik dengan preview
+              tanpa bergantung pada opsi browser "Background graphics". */}
           {bgImg && (
-            <div
-              className="absolute inset-0 bg-cover bg-center pointer-events-none"
+            <img
+              src={bgImg}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
               style={{
-                backgroundImage: `url(${bgImg})`,
                 opacity: (previewSettings.bgOpacity ?? 100) / 100,
               }}
+              referrerPolicy="no-referrer"
             />
           )}
 
@@ -560,27 +746,17 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   title="Zone 2: Structured Auto-Flow Identity Stack"
                 >
                   {activeFrontFields.map((field) => {
-                    const canonicalField = canonicalKtaFieldKey(field.field);
-                    const isName = canonicalField === 'full_name';
-                    const isKta = canonicalField === 'no_kta';
-                    const isLevel = canonicalField === 'tingkat';
-                    const isKwartir = canonicalField === 'kwartir';
+                    const val = getFieldValue(field.field, field.customValue);
+                    const isName = canonicalKtaFieldKey(field.field) === 'full_name';
+                    const isKta = canonicalKtaFieldKey(field.field) === 'no_kta';
+                    const isLevel = canonicalKtaFieldKey(field.field) === 'tingkat';
 
-                    // Khusus field Kwartir, toggle "Label" berfungsi sebagai kontrol
-                    // prefix hierarki: KWARDA/KWARCAB dapat menyembunyikan prefix,
-                    // sedangkan KWARNAS tetap selalu "Kwartir Nasional".
-                    const val = isKwartir
-                      ? resolveKwartirDisplay(member, field.showLabel ?? false)
-                      : getFieldValue(field.field, field.customValue);
-
-                    // Untuk field biasa, showLabel menampilkan caption tambahan.
-                    // Kwartir dikecualikan karena showLabel dipakai sebagai kontrol prefix hierarki.
+                    // Kontrol visibilitas label tambahan: disembunyikan jika layout padat atau showFieldLabels nonaktif
                     const shouldDisplayLabel =
                       field.showLabel &&
                       previewSettings.showFieldLabels !== false &&
                       !isName &&
                       !isKta &&
-                      !isKwartir &&
                       !layoutGuard.isOvercrowded;
 
                     return (
@@ -990,7 +1166,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
 
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={handlePrintCard}
             className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
           >
             <Printer className="w-3.5 h-3.5" />
