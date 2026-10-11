@@ -50,10 +50,11 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { AdminMemberRecord, MemberAdminStatus } from '../types/admin.types';
 import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
 import { getKecamatanByKabupaten } from '../../../services/wilayahService';
-import { KRIDA_MASTER } from '../../../config/constants';
+import { KRIDA_MASTER, ROLES } from '../../../config/constants';
 
 export type MemberDrawerTab =
   | 'overview'
@@ -80,6 +81,8 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   initialTab = 'overview',
 }) => {
   const { addToast } = useUIStore();
+  const { currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
   const {
     members,
     simulatedScope,
@@ -409,7 +412,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           : 'Admin Kwartir Wilayah';
 
       if (workflowActionModal.type === 'REVIEW_WILAYAH') {
-        reviewMember(
+        await reviewMember(
           currentMember.id,
           workflowActionModal.notes || 'Verifikasi berkas & kelayakan wilayah selesai.',
           actorName,
@@ -421,11 +424,15 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
           message: `Berkas ${currentMember.nama_lengkap} telah diverifikasi (REVIEWED_VERIFIED) dan siap untuk Final Approval Kwarnas.`,
         });
       } else if (workflowActionModal.type === 'FINAL_APPROVE') {
-        approveMember(
+        await approveMember(
           currentMember.id,
-          workflowActionModal.notes || 'Persetujuan keanggotaan penuh tingkat nasional disahkan.',
-          actorName,
-          simulatedScope
+          workflowActionModal.notes || (isSuperAdmin
+            ? 'SUPER_ADMIN_DIRECT_APPROVAL: pengesahan langsung oleh Super Administrator.'
+            : 'Persetujuan keanggotaan penuh tingkat nasional disahkan.'),
+          isSuperAdmin
+            ? (currentUser?.fullName || currentUser?.username || 'Super Administrator')
+            : actorName,
+          isSuperAdmin ? 'SUPER_ADMIN' : simulatedScope
         );
         addToast({
           type: 'success',
@@ -436,7 +443,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         if (!workflowActionModal.notes.trim()) {
           throw new Error('Catatan arahan perbaikan berkas wajib diisi!');
         }
-        requestRevisionMember(
+        await requestRevisionMember(
           currentMember.id,
           workflowActionModal.notes,
           actorName,
@@ -451,7 +458,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         if (!workflowActionModal.notes.trim()) {
           throw new Error('Alasan penolakan pendaftaran wajib diisi!');
         }
-        rejectMember(
+        await rejectMember(
           currentMember.id,
           workflowActionModal.notes,
           actorName,
@@ -844,6 +851,12 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                     </div>
                   </div>
 
+                  {isSuperAdmin && (isPending || isReviewed || isRevision) && (
+                    <div className="mt-4 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                      Super Administrator dapat mengesahkan langsung ke ACTIVE. Tahap antara tetap tercatat sebagai bypass pada audit.
+                    </div>
+                  )}
+
                   {/* Workflow Action Buttons for Current Step */}
                   <div className="mt-5 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -856,15 +869,21 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                             type="button"
                             onClick={() =>
                               setWorkflowActionModal({
-                                type: 'REVIEW_WILAYAH',
-                                title: 'Verifikasi Berkas Wilayah (Kwarcab / Kwarda)',
-                                notes: 'Semua berkas dan dokumen faktual telah diperiksa dan dinyatakan lengkap.',
+                                type: isSuperAdmin ? 'FINAL_APPROVE' : 'REVIEW_WILAYAH',
+                                title: isSuperAdmin
+                                  ? 'Pengesahan Langsung Super Administrator'
+                                  : 'Verifikasi Berkas Wilayah (Kwarcab / Kwarda)',
+                                notes: isSuperAdmin
+                                  ? 'SUPER_ADMIN_DIRECT_APPROVAL: data telah diperiksa dan disahkan langsung tanpa tahapan antara.'
+                                  : 'Semua berkas dan dokumen faktual telah diperiksa dan dinyatakan lengkap.',
                               })
                             }
-                            className="px-3 py-1.5 rounded-xl bg-[#0066B3] hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                            className={`px-3 py-1.5 rounded-xl text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                              isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#0066B3] hover:bg-blue-700'
+                            }`}
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Verifikasi Berkas Wilayah &rarr;
+                            {isSuperAdmin ? <ShieldCheck className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                            {isSuperAdmin ? 'Sahkan Langsung' : 'Verifikasi Berkas Wilayah →'}
                           </button>
                           <button
                             type="button"
@@ -961,15 +980,21 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                             type="button"
                             onClick={() =>
                               setWorkflowActionModal({
-                                type: 'REVIEW_WILAYAH',
-                                title: 'Verifikasi Ulang Dokumen Hasil Perbaikan',
-                                notes: 'Berkas hasil revisi telah diperiksa dan dinyatakan memenuhi syarat.',
+                                type: isSuperAdmin ? 'FINAL_APPROVE' : 'REVIEW_WILAYAH',
+                                title: isSuperAdmin
+                                  ? 'Pengesahan Langsung Hasil Revisi'
+                                  : 'Verifikasi Ulang Dokumen Hasil Perbaikan',
+                                notes: isSuperAdmin
+                                  ? 'SUPER_ADMIN_DIRECT_APPROVAL: hasil revisi telah diperiksa dan disahkan langsung.'
+                                  : 'Berkas hasil revisi telah diperiksa dan dinyatakan memenuhi syarat.',
                               })
                             }
-                            className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                            className={`px-3 py-1.5 rounded-xl text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer ${
+                              isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'
+                            }`}
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Verifikasi Ulang Berkas &rarr;
+                            {isSuperAdmin ? <ShieldCheck className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                            {isSuperAdmin ? 'Sahkan Langsung' : 'Verifikasi Ulang Berkas →'}
                           </button>
                           <button
                             type="button"
