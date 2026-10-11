@@ -104,9 +104,9 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     async function loadDashboardMetrics() {
       try {
-        // Route ini memang terdaftar pada Router backend production.
+        // Dashboard membaca ringkasan resmi dari GAS.
         const response = await apiClient.post<any>(
-          'admin.achievement.directory',
+          'admin.dashboard.summary',
           {}
         );
 
@@ -126,10 +126,9 @@ export const DashboardPage: React.FC = () => {
     setIsLoadingSkeleton(true);
 
     try {
-      // Gunakan endpoint yang benar-benar terdaftar; jangan memanggil
-      // admin.dashboard.summary karena route tersebut belum ada di Router.
+      // Refresh ringkasan resmi dari GAS.
       const response = await apiClient.post<any>(
-        'admin.achievement.directory',
+        'admin.dashboard.summary',
         {}
       );
 
@@ -231,41 +230,9 @@ export const DashboardPage: React.FC = () => {
       badgeColor: 'orange' as const,
     },
   ];
+  // Tidak ada activity dummy. Feed aktivitas harus berasal dari audit/activity GAS.
+  const recentActivities: any[] = [];
 
-  const recentActivities = [
-    {
-      id: '1',
-      title: 'Verifikasi KTA Anggota Baru Kwarda Jabar',
-      desc: 'Admin Wilayah memvalidasi 12 anggota KRIDA PEMANDU pangkalan Bogor.',
-      time: '10 menit lalu',
-      badge: 'Membership',
-      badgeVariant: 'blue' as const,
-    },
-    {
-      id: '2',
-      title: 'Pendaftaran Desa Wisata Nglanggeran',
-      desc: 'Tourism Manager memverifikasi homestay dan jalur trekking edukasi.',
-      time: '45 menit lalu',
-      badge: 'Tourism',
-      badgeVariant: 'green' as const,
-    },
-    {
-      id: '3',
-      title: 'Publikasi Panduan Jambore 2026',
-      desc: 'Redaksi menerbitkan jadwal dan agenda resmi perkemahan nasional.',
-      time: '2 jam lalu',
-      badge: 'Content',
-      badgeVariant: 'purple' as const,
-    },
-    {
-      id: '4',
-      title: 'Pemesanan Suvenir Kriya Rotan Dayak',
-      desc: 'Pesanan #SPWN-8821 diproses mitra pengrajin binaan Kaltim.',
-      time: '4 jam lalu',
-      badge: 'Commerce',
-      badgeVariant: 'orange' as const,
-    },
-  ];
 
   const profile = (currentUser as any)?.memberProfile || {};
   const displayName =
