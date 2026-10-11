@@ -71,7 +71,7 @@ export const DEFAULT_KTA_TEMPLATE: KtaTemplateRecord = {
   front_bg_color: '#064E3B', // deep emerald
   back_bg_color: '#022C22',
   card_theme: 'emerald',
-  logo_url: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=160&auto=format&fit=crop&q=80',
+  logo_url: '',
   background_pattern: 'batik',
   signature_title: 'Pimpinan Saka Pariwisata Nasional',
   signature_name: 'Dr. H. Budi Santoso, M.Si.',
@@ -263,15 +263,7 @@ export const ktaService = {
   /**
    * Template Management: Dapatkan template aktif saat ini
    */
-  getActiveTemplate: (scope: 'NASIONAL' | 'PROVINSI' = 'NASIONAL', provinceCode?: string): KtaTemplateRecord => {
-    try {
-      const stored = localStorage.getItem(`SPWN_KTA_TEMPLATE_${scope}_${provinceCode || 'ALL'}`);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch {
-      // Fallback
-    }
+  getActiveTemplate: (_scope: 'NASIONAL' | 'PROVINSI' = 'NASIONAL', _provinceCode?: string): KtaTemplateRecord => {
     return DEFAULT_KTA_TEMPLATE;
   },
 
@@ -288,31 +280,15 @@ export const ktaService = {
       updated_by: changedBy,
       updated_at: new Date().toISOString(),
     };
-
     const historyRecord: KtaTemplateHistoryRecord = {
-      id: `TMPL-HIST-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      id: `RUNTIME-${Date.now()}`,
       template_id: updatedTemplate.id,
       snapshot_data: updatedTemplate,
       changed_by: changedBy,
       change_reason: changeReason,
       created_at: new Date().toISOString(),
     };
-
-    try {
-      const storageKey = `SPWN_KTA_TEMPLATE_${updatedTemplate.template_scope}_${updatedTemplate.provinceCode || 'ALL'}`;
-      localStorage.setItem(storageKey, JSON.stringify(updatedTemplate));
-
-      // Append to history list
-      const histKey = 'SPWN_KTA_TEMPLATE_HISTORY';
-      const existingHistStr = localStorage.getItem(histKey);
-      const existingHist: KtaTemplateHistoryRecord[] = existingHistStr ? JSON.parse(existingHistStr) : [];
-      existingHist.unshift(historyRecord);
-      // Keep last 50 revisions
-      localStorage.setItem(histKey, JSON.stringify(existingHist.slice(0, 50)));
-    } catch (e) {
-      console.error('Failed saving KTA template to storage:', e);
-    }
-
+    console.warn('Legacy runtime-only. Gunakan spreadsheetService.saveKtaTemplate untuk persistence GAS.');
     return { template: updatedTemplate, history: historyRecord };
   },
 
@@ -320,12 +296,6 @@ export const ktaService = {
    * Template Management: Dapatkan riwayat perubahan template
    */
   getTemplateHistory: (): KtaTemplateHistoryRecord[] => {
-    try {
-      const histKey = 'SPWN_KTA_TEMPLATE_HISTORY';
-      const raw = localStorage.getItem(histKey);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
+    return [];
   },
 };
