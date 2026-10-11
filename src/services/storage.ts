@@ -151,14 +151,14 @@ export const DEFAULT_KTA_DATA_FIELDS: KtaDataFieldConfig[] = [
 ];
 
 export const DEFAULT_KTA_SETTINGS: KtaCardSettings = {
-  id: 'TMPL-CR80-SPWN-DEFAULT',
+  id: 'TMPL_DEFAULT',
   name: 'Template Resmi KTA SPWN (CR80)',
   preset: 'CR80_KTA',
   widthMm: 85.6,
   heightMm: 53.98,
   cornerRadiusMm: 3.18,
-  frontBackgroundUrl: '',
-  backBackgroundUrl: '',
+  frontBackgroundUrl: '/asset/kta/kta-depan.png',
+  backBackgroundUrl: '/asset/kta/kta-belakang.png',
   customBackgroundColorFront: '#004C85',
   customBackgroundColorBack: '#0B1F33',
   bgOpacity: 100,
