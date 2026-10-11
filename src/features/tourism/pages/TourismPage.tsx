@@ -1,220 +1,95 @@
-import React, { useState } from 'react';
-import {
-  Compass,
-  Star,
-  MapPin,
-  Calendar,
-  Users,
-  Search,
-  Plus,
-  ArrowRight,
-  Sparkles,
-} from 'lucide-react';
-import { Button, Card, Badge, Input, Select, Tabs } from '../../../components/ui';
-import { useUIStore } from '../../../stores/uiStore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Compass, Star, MapPin, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button, Card, Badge, Tabs } from '../../../components/ui';
+import { tourismApi, Destination, TourPackage } from '../../../services/api/tourism.api';
 import { formatCurrencyIDR } from '../../../utils/formatters';
 
 export const TourismPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('destinations');
-  const [filterCategory, setFilterCategory] = useState('ALL');
-  const { addToast } = useUIStore();
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [packages, setPackages] = useState<TourPackage[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const destinations = [
-    {
-      id: 'DEST-01',
-      name: 'Desa Wisata Nglanggeran & Gunung Api Purba',
-      category: 'WISATA_ALAM',
-      categoryLabel: 'Wisata Alam & Edukasi',
-      province: 'DI Yogyakarta',
-      city: 'Gunungkidul',
-      entryFee: 15000,
-      ratingAvg: 4.9,
-      reviewCount: 320,
-      thumbnailUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80',
-      tag: 'Binaan Krida Bina Wisata',
-      facilities: ['Homestay', 'Pemandu SAKA', 'Kuliner Cokelat', 'Camping Ground'],
-    },
-    {
-      id: 'DEST-02',
-      name: 'Taman Wisata Alam Kawah Ijen',
-      category: 'WISATA_ALAM',
-      categoryLabel: 'Wisata Alam & Konservasi',
-      province: 'Jawa Timur',
-      city: 'Banyuwangi',
-      entryFee: 30000,
-      ratingAvg: 4.8,
-      reviewCount: 450,
-      thumbnailUrl: 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=600&auto=format&fit=crop&q=80',
-      tag: 'Blue Fire Phenomenon',
-      facilities: ['Pemandu Wisata', 'Penyewaan Masker', 'Posko Medis'],
-    },
-    {
-      id: 'DEST-03',
-      name: 'Kawasan Adat & Budaya Desa Penglipuran',
-      category: 'BUDAYA',
-      categoryLabel: 'Wisata Budaya & Adat',
-      province: 'Bali',
-      city: 'Bangli',
-      entryFee: 25000,
-      ratingAvg: 5.0,
-      reviewCount: 680,
-      thumbnailUrl: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&auto=format&fit=crop&q=80',
-      tag: 'Desa Terbersih Dunia',
-      facilities: ['Hutan Bambu', 'Homestay Adat', 'Kerajinan Tangan'],
-    },
-  ];
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [d, p] = await Promise.all([
+        tourismApi.listDestinations({ limit: 100 }),
+        tourismApi.listPackages(),
+      ]);
+      setDestinations(Array.isArray(d.data) ? d.data : []);
+      setPackages(Array.isArray(p.data) ? p.data : []);
+    } catch (e: any) {
+      setDestinations([]);
+      setPackages([]);
+      setError(e?.message || 'Gagal memuat data pariwisata dari GAS.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const tourPackages = [
-    {
-      id: 'PKG-01',
-      title: 'Eksplorasi Budaya & Alam Yogyakarta 3D2N',
-      partner: 'Mitra Desa Wisata Prambanan',
-      duration: '3 Hari 2 Malam',
-      price: 1450000,
-      quota: 'Maks 15 Peserta',
-      rating: 4.9,
-      destinations: 'Nglanggeran, Tebing Breksi, Candi Ijo',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=600&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'PKG-02',
-      title: 'Jelajah Bahari & Konservasi Terumbu Labuan Bajo 4D3N',
-      partner: 'Mitra Bahari Komodo SAKA',
-      duration: '4 Hari 3 Malam',
-      price: 3850000,
-      quota: 'Maks 12 Peserta',
-      rating: 5.0,
-      destinations: 'Pulau Padar, Komodo, Pink Beach',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1516690561799-46d8f74f9abf?w=600&auto=format&fit=crop&q=80',
-    },
-  ];
+  useEffect(() => { void load(); }, []);
+
+  const filteredDestinations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return destinations.filter((d) => !q || [d.nama_destinasi, d.kategori, d.lokasi].some((v) => String(v || '').toLowerCase().includes(q)));
+  }, [destinations, search]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Tourism Explorer & Marketplace
-          </h1>
-          <p className="text-xs text-slate-500">
-            Katalog Destinasi Wisata Unggulan, Paket Tur, dan Kemitraan SAKA Pariwisata.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Tourism Explorer</h1>
+          <p className="text-xs text-slate-500">Destinasi dan paket tur dimuat langsung dari GAS.</p>
         </div>
-
-        <Button
-          size="sm"
-          variant="secondary"
-          leftIcon={<Plus className="w-4 h-4" />}
-          onClick={() =>
-            addToast({
-              type: 'info',
-              title: 'Kurasi Destinasi',
-              message: 'Membuka formulir pendaftaran dan kurasi destinasi pariwisata binaan SAKA.',
-            })
-          }
-        >
-          Daftarkan Destinasi
-        </Button>
+        <Button size="sm" variant="outline" onClick={() => void load()} leftIcon={<RefreshCw className="w-4 h-4" />}>Muat Ulang</Button>
       </div>
 
-      {/* Tabs */}
       <Tabs
         tabs={[
           { id: 'destinations', label: 'Destinasi Wisata', icon: <Compass className="w-4 h-4" /> },
-          { id: 'packages', label: 'Paket Tur Wisata', icon: <Calendar className="w-4 h-4" /> },
+          { id: 'packages', label: 'Paket Tur', icon: <Calendar className="w-4 h-4" /> },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
-      {/* Destinations Grid */}
       {activeTab === 'destinations' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {destinations.map((d) => (
-            <Card key={d.id} padding="none" variant="interactive" className="overflow-hidden flex flex-col">
-              <div className="relative h-48 w-full bg-slate-100">
-                <img
-                  src={d.thumbnailUrl}
-                  alt={d.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute top-3 left-3">
-                  <Badge variant="blue">{d.categoryLabel}</Badge>
-                </div>
-                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-semibold">
-                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  <span>{d.ratingAvg}</span>
-                </div>
-              </div>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari destinasi..." className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-900" />
+      )}
 
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-1.5">
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-[#0066B3]" />
-                    <span>{d.city}, {d.province}</span>
-                  </p>
-                  <h3 className="text-sm font-bold text-slate-900 leading-snug">{d.name}</h3>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {d.facilities.map((f, idx) => (
-                    <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                      {f}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-slate-400">Tiket Masuk Mulai</p>
-                    <p className="text-xs font-bold text-[#0066B3]">{formatCurrencyIDR(d.entryFee)}</p>
-                  </div>
-                  <Button size="sm" variant="outline" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                    Detail
-                  </Button>
-                </div>
+      {loading ? (
+        <Card><p className="text-sm text-slate-500">Memuat data dari GAS...</p></Card>
+      ) : error ? (
+        <Card><div className="flex gap-2 text-red-700"><AlertCircle className="w-4 h-4" />{error}</div></Card>
+      ) : activeTab === 'destinations' ? (
+        filteredDestinations.length === 0 ? <Card><p className="text-sm text-slate-500">Belum ada destinasi aktif.</p></Card> :
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredDestinations.map((d) => (
+            <Card key={d.id} padding="none" className="overflow-hidden">
+              <div className="h-48 bg-slate-100">{d.foto_utama && <img src={d.foto_utama} alt={d.nama_destinasi} className="w-full h-full object-cover" />}</div>
+              <div className="p-4 space-y-2">
+                <Badge variant="blue">{d.kategori}</Badge>
+                <h3 className="font-bold text-slate-900">{d.nama_destinasi}</h3>
+                <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{d.lokasi}</p>
+                <p className="text-xs text-slate-600">{d.deskripsi}</p>
+                <div className="text-xs text-amber-600 font-bold flex items-center gap-1"><Star className="w-3.5 h-3.5" />{d.rating_rata_rata || 0} ({d.jumlah_ulasan || 0})</div>
               </div>
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Packages Grid */}
-      {activeTab === 'packages' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {tourPackages.map((pkg) => (
-            <Card key={pkg.id} padding="none" variant="interactive" className="overflow-hidden flex flex-col sm:flex-row">
-              <div className="sm:w-2/5 h-48 sm:h-auto bg-slate-100 relative">
-                <img
-                  src={pkg.thumbnailUrl}
-                  alt={pkg.title}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute top-3 left-3">
-                  <Badge variant="green">{pkg.duration}</Badge>
-                </div>
-              </div>
-
-              <div className="p-5 sm:w-3/5 flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <p className="text-[10px] text-slate-400 uppercase font-semibold">{pkg.partner}</p>
-                  <h3 className="text-sm font-bold text-slate-900">{pkg.title}</h3>
-                  <p className="text-xs text-slate-500 pt-1">Destinasi: {pkg.destinations}</p>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-slate-400">Harga Paket</p>
-                    <p className="text-sm font-bold text-[#009B4D]">{formatCurrencyIDR(pkg.price)}</p>
-                  </div>
-                  <Button size="sm" variant="primary">
-                    Pesan Paket
-                  </Button>
-                </div>
-              </div>
+      ) : (
+        packages.length === 0 ? <Card><p className="text-sm text-slate-500">Belum ada paket tur aktif.</p></Card> :
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {packages.map((p) => (
+            <Card key={p.id} className="space-y-2">
+              <h3 className="font-bold text-slate-900">{p.nama_paket}</h3>
+              <p className="text-xs text-slate-600">{p.deskripsi}</p>
+              <div className="flex justify-between text-xs"><span>{p.durasi}</span><strong className="text-[#F7941D]">{formatCurrencyIDR(Number(p.harga || 0))}</strong></div>
+              <Badge variant="green">{p.krida_fokus}</Badge>
             </Card>
           ))}
         </div>
