@@ -9,27 +9,38 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
-import { KtaCardSide, KtaMemberBindingData } from '../../../types/kta.types';
+import { KtaCardSide, KtaMemberBindingData, KtaCardSettings } from '../../../types/kta.types';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
+import { spreadsheetService } from '../../../services/spreadsheetService';
 
 
 export const MemberKtaView: React.FC = () => {
 
-  const { currentUser, getEffectiveUser } = useAuthStore();
+  const { currentUser } = useAuthStore();
   const { addToast } = useUIStore();
-
-  const effectiveUser = getEffectiveUser();
 
   const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
   const [ktaData, setKtaData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [templateSettings, setTemplateSettings] = useState<KtaCardSettings | null>(null);
 
 
   useEffect(() => {
-    loadKta();
-  }, [effectiveUser]);
+    void loadKta();
+    void loadTemplate();
+  }, [currentUser]);
+
+  async function loadTemplate() {
+    try {
+      const template = await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+      setTemplateSettings(template);
+    } catch (error) {
+      console.error('Member KTA template loading error:', error);
+      setTemplateSettings(null);
+    }
+  }
 
 
   async function loadKta(){
@@ -39,10 +50,8 @@ export const MemberKtaView: React.FC = () => {
       setLoading(true);
 
       const memberId =
-        effectiveUser?.memberProfile?.id ||
-        effectiveUser?.memberProfile?.memberId ||
-        effectiveUser?.memberId ||
-        '';
+        currentUser?.memberId ||
+        currentUser?.id;
 
 
       if(!memberId){
