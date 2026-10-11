@@ -75,7 +75,7 @@ export const PublicRegistrationPage: React.FC = () => {
     krida_id: 'KRIDA_PEMANDU',
     tingkat_keanggotaan: 'Anggota',
     level_organisasi: 'WILAYAH' as 'KWARTIR_NASIONAL' | 'WILAYAH',
-    foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    foto_url: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
