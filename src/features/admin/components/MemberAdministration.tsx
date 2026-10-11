@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { AdminMemberRecord, MemberAdminStatus } from '../types/admin.types';
-import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
+import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA, ROLES } from '../../../config/constants';
 import { MemberDrawer, MemberDrawerTab } from './MemberDrawer';
 import {
   wilayahService,
@@ -54,12 +54,7 @@ import {
 import { OrganizationLevelType } from '../../../types/membership';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
-
-const safeRegionCode = (value: unknown): string =>
-  value === null || value === undefined ? '' : String(value).trim();
-
-const safeCsv = (value: unknown): string =>
-  String(value ?? '').replace(/"/g, '""');
+import { useAuthStore } from '../../../stores/authStore';
 
 const getBackendMemberId = (member: AdminMemberRecord) =>
   member.id ||
@@ -70,6 +65,8 @@ const getBackendMemberId = (member: AdminMemberRecord) =>
 
 export const MemberAdministration: React.FC = () => {
   const { addToast } = useUIStore();
+  const { currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
   const {
     members,
     simulatedScope,
@@ -97,12 +94,6 @@ export const MemberAdministration: React.FC = () => {
       console.error('Gagal memuat ulang data anggota:', error);
     }
   };
-
-  // Load data anggota nyata setiap kali modul Portal Admin dibuka.
-  // Dashboard utama dan menu Anggota berbagi sumber data GAS yang sama.
-  useEffect(() => {
-    refreshMembersFromApi();
-  }, []);
 
   const [subTab, setSubTab] = useState<'directory' | 'approval' | 'create'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -223,7 +214,7 @@ export const MemberAdministration: React.FC = () => {
 
   // Dropdown list Kecamatan dinamis berdasarkan Kabupaten/Kota
   const availableDistricts = useMemo(() => {
-    return getKecamatanByKabupaten(safeRegionCode(createKabCode));
+    return getKecamatanByKabupaten(createKabCode);
   }, [createKabCode]);
 
   // Filter members based on scope & user filters
@@ -286,9 +277,9 @@ export const MemberAdministration: React.FC = () => {
       return;
     }
 
-    const provName = resolveProvinsiName(safeRegionCode(createProvCode));
-    const regName = resolveKabupatenName(safeRegionCode(createKabCode));
-    const distName = resolveKecamatanName(safeRegionCode(createKecCode), safeRegionCode(createKabCode));
+    const provName = resolveProvinsiName(createProvCode);
+    const regName = resolveKabupatenName(createKabCode);
+    const distName = resolveKecamatanName(createKecCode, createKabCode);
     const kridaObj = KRIDA_MASTER.find((k) => k.id === createKridaId);
 
     const isNasional = createLevel === 'KWARTIR_NASIONAL';
@@ -347,10 +338,10 @@ export const MemberAdministration: React.FC = () => {
     ];
 
     const rows = filteredMembers.map((m) => {
-      const provName = resolveProvinsiName(safeRegionCode(m.provinsi_id)) || m.provinsi_nama || '';
-      const kabName = resolveKabupatenName(safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.kabupaten_nama || '';
+      const provName = resolveProvinsiName(m.provinsi_id) || m.provinsi_nama || '';
+      const kabName = resolveKabupatenName(m.kabupaten_id) || m.kabupaten_nama || '';
       const kecName =
-        resolveKecamatanName(safeRegionCode(m.kecamatan_id || m.wilayah_kecamatan_id), safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) ||
+        resolveKecamatanName(m.kecamatan_id || m.wilayah_kecamatan_id, m.kabupaten_id) ||
         m.wilayah_kecamatan_nama ||
         m.kwartir_ranting ||
         '';
@@ -361,11 +352,11 @@ export const MemberAdministration: React.FC = () => {
         `"${m.nomor_kta || ''}"`,
         `"${(m.nama_lengkap || '').replace(/"/g, '""')}"`,
         `"${m.jenis_kelamin || ''}"`,
-        `"${safeCsv(provName)}"`,
-        `"${safeCsv(kabName)}"`,
-        `"${safeCsv(kecName)}"`,
+        `"${provName.replace(/"/g, '""')}"`,
+        `"${kabName.replace(/"/g, '""')}"`,
+        `"${kecName.replace(/"/g, '""')}"`,
         `"${(m.pangkalan_gudep || '').replace(/"/g, '""')}"`,
-        `"${safeCsv(krida)}"`,
+        `"${krida.replace(/"/g, '""')}"`,
         `"${m.tingkat_keanggotaan || ''}"`,
         `"${m.status_anggota || ''}"`,
         `"${m.kta_status || ''}"`,
@@ -584,9 +575,9 @@ export const MemberAdministration: React.FC = () => {
                           {/* Wilayah & Pangkalan */}
                           <td className="py-3.5 px-4">
                             {(() => {
-                              const provName = resolveProvinsiName(safeRegionCode(m.provinsi_id)) || m.provinsi_nama || 'Kwartir Nasional';
-                              const regName = resolveKabupatenName(safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.kabupaten_nama || '-';
-                              const distName = resolveKecamatanName(safeRegionCode(m.kecamatan_id || m.wilayah_kecamatan_id), safeRegionCode((m as any).kabupaten_kota_id || m.kabupaten_id)) || m.wilayah_kecamatan_nama || m.kwartir_ranting || '';
+                              const provName = resolveProvinsiName(m.provinsi_id) || m.provinsi_nama || 'Kwartir Nasional';
+                              const regName = resolveKabupatenName(m.kabupaten_id) || m.kabupaten_nama || '-';
+                              const distName = resolveKecamatanName(m.kecamatan_id || m.wilayah_kecamatan_id, m.kabupaten_id) || m.wilayah_kecamatan_nama || m.kwartir_ranting || '';
                               return (
                                 <>
                                   <p className="font-semibold text-slate-800">
@@ -786,21 +777,48 @@ export const MemberAdministration: React.FC = () => {
                         <button
                           type="button"
                           onClick={async () => {
-                            await memberApi.reviewMember(
-                                 getBackendMemberId(m),
-                                 'Berkas diverifikasi absah oleh Admin Wilayah'
-                               );
-                               await refreshMembersFromApi();
-                            addToast({
-                              type: 'success',
-                              title: 'Berkas Terverifikasi',
-                              message: `Anggota ${m.nama_lengkap} lolos verifikasi tahap Wilayah (REVIEWED_VERIFIED).`,
-                            });
+                            try {
+                              if (isSuperAdmin) {
+                                await approveMember(
+                                  getBackendMemberId(m),
+                                  'SUPER_ADMIN_DIRECT_APPROVAL: data diperiksa dan disahkan langsung oleh Super Administrator.',
+                                  currentUser?.fullName || currentUser?.username || 'Super Administrator',
+                                  'SUPER_ADMIN'
+                                );
+                                await refreshMembersFromApi();
+                                addToast({
+                                  type: 'success',
+                                  title: 'Pengesahan Langsung Berhasil',
+                                  message: `Anggota ${m.nama_lengkap} langsung berstatus ACTIVE. Tahap review wilayah dilewati oleh kewenangan Super Administrator.`,
+                                });
+                              } else {
+                                await reviewMember(
+                                  getBackendMemberId(m),
+                                  'Berkas diverifikasi absah oleh Admin Wilayah',
+                                  'Admin Wilayah',
+                                  simulatedScope
+                                );
+                                await refreshMembersFromApi();
+                                addToast({
+                                  type: 'success',
+                                  title: 'Berkas Terverifikasi',
+                                  message: `Anggota ${m.nama_lengkap} lolos verifikasi tahap Wilayah (REVIEWED_VERIFIED).`,
+                                });
+                              }
+                            } catch (error: any) {
+                              addToast({
+                                type: 'error',
+                                title: isSuperAdmin ? 'Pengesahan Gagal' : 'Verifikasi Gagal',
+                                message: error?.message || 'Gagal memproses verifikasi anggota.',
+                              });
+                            }
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                          className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer ${
+                            isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'
+                          }`}
                         >
-                          <Check className="w-3.5 h-3.5" />
-                          Review & Verifikasi Berkas (Wilayah)
+                          {isSuperAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                          {isSuperAdmin ? 'Sahkan Langsung' : 'Review & Verifikasi Berkas (Wilayah)'}
                         </button>
                       </div>
                     )}
@@ -822,18 +840,44 @@ export const MemberAdministration: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              reviewMember(getBackendMemberId(m), 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
-                              addToast({
-                                type: 'success',
-                                title: 'Verifikasi Ulang Lolos',
-                                message: `Anggota ${m.nama_lengkap} kini berstatus REVIEWED_VERIFIED.`,
-                              });
+                            onClick={async () => {
+                              try {
+                                if (isSuperAdmin) {
+                                  await approveMember(
+                                    getBackendMemberId(m),
+                                    'SUPER_ADMIN_DIRECT_APPROVAL: hasil revisi disahkan langsung oleh Super Administrator.',
+                                    currentUser?.fullName || currentUser?.username || 'Super Administrator',
+                                    'SUPER_ADMIN'
+                                  );
+                                  await refreshMembersFromApi();
+                                  addToast({
+                                    type: 'success',
+                                    title: 'Pengesahan Langsung Berhasil',
+                                    message: `Anggota ${m.nama_lengkap} langsung berstatus ACTIVE.`,
+                                  });
+                                } else {
+                                  await reviewMember(getBackendMemberId(m), 'Berkas perbaikan telah diverifikasi ulang absah', 'Admin Wilayah', simulatedScope);
+                                  await refreshMembersFromApi();
+                                  addToast({
+                                    type: 'success',
+                                    title: 'Verifikasi Ulang Lolos',
+                                    message: `Anggota ${m.nama_lengkap} kini berstatus REVIEWED_VERIFIED.`,
+                                  });
+                                }
+                              } catch (error: any) {
+                                addToast({
+                                  type: 'error',
+                                  title: isSuperAdmin ? 'Pengesahan Gagal' : 'Verifikasi Ulang Gagal',
+                                  message: error?.message || 'Gagal memproses verifikasi ulang.',
+                                });
+                              }
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                            className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer ${
+                              isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'
+                            }`}
                           >
-                            <Check className="w-3.5 h-3.5" />
-                            Verifikasi Ulang &rarr;
+                            {isSuperAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                            {isSuperAdmin ? 'Sahkan Langsung' : 'Verifikasi Ulang →'}
                           </button>
                         </div>
                       </div>
@@ -899,19 +943,36 @@ export const MemberAdministration: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                approveMember(getBackendMemberId(m), 'Disetujui Admin Pusat', 'Admin Pusat', simulatedScope);
-                                const res = activateMember(getBackendMemberId(m), 'Penerbitan KTA & QR Identity', 'Admin Pusat');
-                                addToast({
-                                  type: 'success',
-                                  title: 'Anggota Disetujui & KTA Terbit',
-                                  message: `Nomor KTA: ${res.nomorKta} berhasil diterbitkan dengan QR Token aktif.`,
-                                });
+                              onClick={async () => {
+                                try {
+                                  await approveMember(
+                                    getBackendMemberId(m),
+                                    isSuperAdmin
+                                      ? 'SUPER_ADMIN_DIRECT_APPROVAL: pengesahan final langsung oleh Super Administrator.'
+                                      : 'Final Approval tingkat nasional.',
+                                    isSuperAdmin
+                                      ? (currentUser?.fullName || currentUser?.username || 'Super Administrator')
+                                      : 'Admin Pusat',
+                                    isSuperAdmin ? 'SUPER_ADMIN' : simulatedScope
+                                  );
+                                  await refreshMembersFromApi();
+                                  addToast({
+                                    type: 'success',
+                                    title: 'Pengesahan Anggota Berhasil',
+                                    message: `${m.nama_lengkap} kini berstatus ACTIVE. Penerbitan KTA dilakukan pada aksi terpisah.`,
+                                  });
+                                } catch (error: any) {
+                                  addToast({
+                                    type: 'error',
+                                    title: 'Final Approval Gagal',
+                                    message: error?.message || 'Gagal mengesahkan anggota.',
+                                  });
+                                }
                               }}
                               className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
-                              Final Approval & Terbitkan KTA
+                              Final Approval / Sahkan Anggota
                             </button>
                           </div>
                         )}
@@ -990,7 +1051,7 @@ export const MemberAdministration: React.FC = () => {
                   onChange={(e) => {
                     const newProv = e.target.value;
                     setCreateProvCode(newProv);
-                    const list = getKabupatenByProvinsi(safeRegionCode(newProv));
+                    const list = getKabupatenByProvinsi(newProv);
                     if (list.length > 0) {
                       setCreateKabCode(list[0].kode_kabupaten);
                       const dists = getKecamatanByKabupaten(list[0].kode_kabupaten);
@@ -1016,14 +1077,14 @@ export const MemberAdministration: React.FC = () => {
                   onChange={(e) => {
                     const newKab = e.target.value;
                     setCreateKabCode(newKab);
-                    const dists = getKecamatanByKabupaten(safeRegionCode(newKab));
+                    const dists = getKecamatanByKabupaten(newKab);
                     if (dists.length > 0) {
                       setCreateKecCode(dists[0].kode_kecamatan);
                     }
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-[#0066B3]"
                 >
-                  {getKabupatenByProvinsi(safeRegionCode(createProvCode)).map((r) => (
+                  {getKabupatenByProvinsi(createProvCode).map((r) => (
                     <option key={r.kode_kabupaten} value={r.kode_kabupaten}>
                       {r.kode_kabupaten} - {r.nama_kabupaten}
                     </option>
