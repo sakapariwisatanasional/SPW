@@ -6,7 +6,7 @@
  * 1. Sheet KTA_TEMPLATE di Google Spreadsheet (melalui Google Apps Script Web App)
  * 2. Schema KTA_TEMPLATE (front_layout_json, back_layout_json, identity_layout_mode, qr_settings_json)
  * 3. Upload asset gambar / logo / background ke Google Drive
- * 4. Fallback sinkronisasi lokal jika offline / development mode
+ * 4. GAS adalah source of truth; tidak ada fallback persistence browser
  */
 
 import {
@@ -38,7 +38,7 @@ export const spreadsheetService = {
         return response.data;
       }
     } catch (err) {
-      console.info('Gagal mengambil template dari GAS endpoint:', err);
+      console.error('Gagal mengambil template dari GAS endpoint:', err);
     }
     return null;
   },
@@ -93,13 +93,11 @@ export const spreadsheetService = {
 
         storage.saveKtaSettings(merged);
         return merged;
-      }
-    } catch (err) {
-      console.info('Menggunakan KTA Settings lokal / storage:', err);
+      }    } catch (err) {
+      console.error('Gagal memuat KTA Settings dari GAS:', err);
     }
 
-    // Fallback: baca dari local storage
-    return storage.getKtaSettings();
+    return null;
   },
 
   /**
@@ -201,9 +199,6 @@ export const spreadsheetService = {
       updated_at: new Date().toISOString(),
     };
 
-    // Simpan ke storage lokal terlebih dahulu
-    storage.saveKtaSettings(settings);
-
     try {
       const response = await apiClient.post<{ message: string }>(
         'admin.kta.template.save',
@@ -217,12 +212,12 @@ export const spreadsheetService = {
         };
       }
     } catch (err: any) {
-      console.warn('Gagal sinkronisasi ke GAS endpoint, tersimpan di LocalStorage:', err);
+      console.error('Gagal menyimpan template KTA ke GAS:', err);
     }
 
     return {
-      success: true,
-      message: 'Template KTA berhasil disimpan dan disinkronkan ke repositori sistem.',
+      success: false,
+      message: 'Template KTA gagal disimpan ke GAS. Tidak ada fallback LocalStorage.',
     };
   },
 
