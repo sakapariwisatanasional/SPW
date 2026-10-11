@@ -229,21 +229,21 @@ export const DEFAULT_KTA_SETTINGS: KtaCardSettings = {
   showSignerQrCode: true,
   showSignerName: true,
   showSignerTitle: true,
-  signerName: 'Dr. H. Budi Santoso, M.Si.',
-  signerTitle: 'Pimpinan Saka Pariwisata Nasional',
-  signerSubtitle: 'Kwartir Nasional Gerakan Pramuka',
+  signerName: '',
+  signerTitle: '',
+  signerSubtitle: '',
   signerQrX: 74,
   signerQrY: 46,
   signerQrSize: 18,
   signerQrPadding: 2,
   signerX: 74,
   signerY: 62,
-  issueLocationDate: 'Jakarta, 17 Agustus 2024',
+  issueLocationDate: '',
   showSignerVerified: true,
   lastUpdated: new Date().toISOString(),
 };
 
-const KTA_SETTINGS_STORAGE_KEY = 'SPWN_KTA_CARD_SETTINGS';
+let ktaSettingsMemoryCache: KtaCardSettings = DEFAULT_KTA_SETTINGS;
 
 export const storage = {
   getProvinces: () => {
@@ -272,162 +272,56 @@ export const storage = {
   },
 
   getMembers: (): KtaMemberBindingData[] => {
-    try {
-      const storeMembers = useAdminStore.getState().members;
-      if (storeMembers && storeMembers.length > 0) {
-        return storeMembers.map((m) => {
-          const distName =
-            m.wilayah_kecamatan_nama ||
-            resolveDistrictName(m.kabupaten_id, m.wilayah_kecamatan_id) ||
-            'Babakan Madang';
-          const pangkalan = (m as any).pangkalan_gudep || 'Pangkalan Saka Pariwisata';
-          const isNasional =
-            m.level_organisasi === 'KWARTIR_NASIONAL' || m.tingkat_keanggotaan === 'Pimpinan Saka';
+    const storeMembers = useAdminStore.getState().members;
+    if (!Array.isArray(storeMembers) || storeMembers.length === 0) return [];
 
-          return {
-            id: m.id,
-            fullName: m.nama_lengkap,
-            nationalMemberNumber: m.nomor_kta || '00.000000',
-            membershipLevel: m.tingkat_keanggotaan || 'Anggota',
-            currentPosition: (m as any).jabatan_khusus || m.tingkat_keanggotaan || 'Anggota',
-            provinceName: isNasional ? 'DKI Jakarta' : (m.provinsi_nama || 'Jawa Barat'),
-            regencyName: isNasional ? 'Kota Jakarta Pusat' : (m.kabupaten_nama || 'Kabupaten Bogor'),
-            districtName: distName,
-            kwartirName: isNasional ? 'Kwartir Nasional' : `Kwarda ${m.provinsi_nama || 'Jawa Barat'}`,
-            kwartirHierarchy: isNasional
-              ? 'Kwartir Nasional Gerakan Pramuka'
-              : `Kwarda ${m.provinsi_nama || 'Jawa Barat'} • Kwarcab ${m.kabupaten_nama || 'Kab. Bogor'}`,
-            branchName: pangkalan,
-            gugusDepan: pangkalan,
-            krida: m.krida_nama || 'KRIDA PEMANDU',
-            phone: m.nomor_telepon || '081234567890',
-            email: m.email || 'anggota@spwn.id',
-            joinYear: (m.tanggal_bergabung || '2024').substring(0, 4),
-            status: m.status_anggota || 'ACTIVE',
-            photoUrl: m.foto_url,
-            qrToken: m.qr_token || 'SPWN-QR-DEMO',
-            qrUrl: m.qr_url || `https://spwn.id/verifikasi/${m.qr_token || 'SPWN-QR-DEMO'}`,
-          };
-        });
-      }
-    } catch {
-      // fallback
-    }
+    return storeMembers.map((m) => {
+      const distName =
+        m.wilayah_kecamatan_nama ||
+        resolveDistrictName(m.kabupaten_id, m.wilayah_kecamatan_id) ||
+        '';
+      const pangkalan = (m as any).pangkalan_gudep || '';
+      const isNasional =
+        m.level_organisasi === 'KWARTIR_NASIONAL' ||
+        m.tingkat_keanggotaan === 'Pimpinan Saka';
 
-    // Default sample member for preview
-    return [
-      {
-        id: 'SPW-000001',
-        fullName: 'Bagas Pratama Putra',
-        nationalMemberNumber: '00.3201.010.000001',
-        membershipLevel: 'Anggota',
-        currentPosition: 'Penegak Bantara',
-        provinceName: 'Jawa Barat',
-        regencyName: 'Kabupaten Bogor',
-        districtName: 'Babakan Madang',
-        kwartirName: 'Kwarda Jawa Barat',
-        kwartirHierarchy: 'Kwarda Jawa Barat • Kwarcab Kab. Bogor',
-        branchName: 'Gudep 01.045 - 01.046 Pangkalan SMKN 1 Bogor',
-        gugusDepan: 'Gudep 01.045 - 01.046 Pangkalan SMKN 1 Bogor',
-        krida: 'KRIDA PEMANDU',
-        phone: '081298765432',
-        email: 'bagas.pratama@spwn.id',
-        joinYear: '2024',
-        status: 'ACTIVE',
-        photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=240&auto=format&fit=crop&q=80',
-        qrToken: 'SPWN-QR-BAGASPRATAMA001',
-        qrUrl: 'https://spwn.id/verifikasi/SPWN-QR-BAGASPRATAMA001',
-      },
-      {
-        id: 'SPW-000002',
-        fullName: 'Siti Nurhaliza Rahayu',
-        nationalMemberNumber: '00.000002',
-        membershipLevel: 'Pimpinan Saka',
-        currentPosition: 'Pimpinan Saka Nasional',
-        provinceName: 'DKI Jakarta',
-        regencyName: 'Kota Jakarta Pusat',
-        districtName: 'Gambir',
-        kwartirName: 'Kwartir Nasional',
-        kwartirHierarchy: 'Kwartir Nasional Gerakan Pramuka',
-        branchName: 'Kwarnas Gerakan Pramuka - Pangkalan Saka Nasional',
-        gugusDepan: 'Kwarnas Gerakan Pramuka - Pangkalan Saka Nasional',
-        krida: 'KRIDA PENYULUH',
-        phone: '081288899900',
-        email: 'siti.nurhaliza@spwn.id',
-        joinYear: '2023',
-        status: 'ACTIVE',
-        photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=240&auto=format&fit=crop&q=80',
-        qrToken: 'SPWN-QR-SITINURHALIZA002',
-        qrUrl: 'https://spwn.id/verifikasi/SPWN-QR-SITINURHALIZA002',
-      },
-      {
-        id: 'SPW-000003',
-        fullName: 'Rian Kurniawan, S.Pd.',
-        nationalMemberNumber: '00.3271.020.000003',
-        membershipLevel: 'Pamong Saka',
-        currentPosition: 'Pamong Saka Pariwisata',
-        provinceName: 'Jawa Barat',
-        regencyName: 'Kota Bogor',
-        districtName: 'Bogor Selatan',
-        kwartirName: 'Kwarda Jawa Barat',
-        kwartirHierarchy: 'Kwarda Jawa Barat • Kwarcab Kota Bogor',
-        branchName: 'Gudep 02.011 - 02.012 Pangkalan Saka Kota Bogor',
-        gugusDepan: 'Gudep 02.011 - 02.012 Pangkalan Saka Kota Bogor',
-        krida: 'KRIDA KULINER & CINDERAMATA',
-        phone: '081377788899',
-        email: 'rian.kurniawan@spwn.id',
-        joinYear: '2022',
-        status: 'ACTIVE',
-        photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=240&auto=format&fit=crop&q=80',
-        qrToken: 'SPWN-QR-RIANKURNIAWAN003',
-        qrUrl: 'https://spwn.id/verifikasi/SPWN-QR-RIANKURNIAWAN003',
-      },
-    ];
+      return {
+        id: m.id,
+        fullName: m.nama_lengkap || '',
+        nationalMemberNumber: m.nomor_kta || '',
+        membershipLevel: m.tingkat_keanggotaan || '',
+        currentPosition: (m as any).jabatan_khusus || m.tingkat_keanggotaan || '',
+        provinceName: isNasional ? 'Kwartir Nasional' : (m.provinsi_nama || ''),
+        regencyName: isNasional ? '' : (m.kabupaten_nama || ''),
+        districtName: distName,
+        kwartirName: isNasional ? 'Kwartir Nasional' : (m.provinsi_nama ? `Kwarda ${m.provinsi_nama}` : ''),
+        kwartirHierarchy: isNasional
+          ? 'Kwartir Nasional'
+          : [m.provinsi_nama ? `Kwarda ${m.provinsi_nama}` : '', m.kabupaten_nama ? `Kwarcab ${m.kabupaten_nama}` : '']
+              .filter(Boolean).join(' • '),
+        branchName: pangkalan,
+        gugusDepan: pangkalan,
+        krida: m.krida_nama || '',
+        phone: m.nomor_telepon || '',
+        email: m.email || '',
+        joinYear: (m.tanggal_bergabung || '').substring(0, 4),
+        status: m.status_anggota || '',
+        photoUrl: m.foto_url || '',
+        qrToken: m.qr_token || '',
+        qrUrl: m.qr_url || '',
+      };
+    });
   },
 
   getKtaSettings: (): KtaCardSettings => {
-    try {
-      const stored = localStorage.getItem(KTA_SETTINGS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Hapus logo dummy bawaan lama yang tidak bisa diedit
-        const sanitizedLogos = (parsed.logos || []).filter(
-          (l: any) =>
-            l &&
-            l.url &&
-            !l.url.includes('photo-1596461404969-9ae70f2830c1') &&
-            l.id !== 'logo-back' &&
-            l.id !== 'logo-spwn'
-        );
-
-        return {
-          ...DEFAULT_KTA_SETTINGS,
-          ...parsed,
-          showBackgroundPattern: parsed.showBackgroundPattern ?? false,
-          identityLayoutMode: parsed.identityLayoutMode || 'AUTO_FLOW',
-          identityDensity: parsed.identityDensity || 'standard',
-          identityFontScale: parsed.identityFontScale || 1.0,
-          autoArrangeEnabled: parsed.autoArrangeEnabled ?? true,
-          logos: sanitizedLogos,
-          dataFields: parsed.dataFields && parsed.dataFields.length > 0 ? parsed.dataFields : DEFAULT_KTA_DATA_FIELDS,
-        };
-      }
-    } catch (e) {
-      console.warn('Failed to parse KTA settings from storage, using default:', e);
-    }
-    return DEFAULT_KTA_SETTINGS;
+    return ktaSettingsMemoryCache;
   },
 
   saveKtaSettings: (settings: KtaCardSettings): void => {
-    try {
-      const payload: KtaCardSettings = {
-        ...settings,
-        lastUpdated: new Date().toISOString(),
-      };
-      localStorage.setItem(KTA_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-    } catch (e) {
-      console.error('Failed to save KTA settings to storage:', e);
-    }
+    ktaSettingsMemoryCache = {
+      ...settings,
+      lastUpdated: new Date().toISOString(),
+    };
   },
 
   generateNationalMemberNumbersByRegion: (
