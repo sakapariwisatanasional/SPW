@@ -22,8 +22,25 @@ export type SakaMembershipLevel =
   | 'Mabisaka';
 
 export type KtaMemberFieldKey =
-  | 'fullName'
+  // Canonical dynamic KTA fields
+  | 'full_name'
+  | 'no_kta'
   | 'id'
+  | 'position'
+  | 'tingkat'
+  | 'krida'
+  | 'provinsi_nama'
+  | 'kabupaten_kota_nama'
+  | 'kecamatan_nama'
+  | 'kwartir'
+  | 'pangkalan_gudep'
+  | 'status'
+  | 'photo_url'
+  | 'valid_until'
+  | 'custom_text'
+
+  // Legacy aliases kept for backward compatibility with existing templates
+  | 'fullName'
   | 'nationalMemberNumber'
   | 'membershipLevel'
   | 'currentPosition'
@@ -34,11 +51,9 @@ export type KtaMemberFieldKey =
   | 'kwartirHierarchy'
   | 'branchName'
   | 'gugusDepan'
-  | 'krida'
   | 'phone'
   | 'email'
-  | 'joinYear'
-  | 'status';
+  | 'joinYear';
 
 export interface KtaDataFieldConfig {
   id: string;
@@ -56,6 +71,10 @@ export interface KtaDataFieldConfig {
   color: string;
   textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
   align?: 'left' | 'center' | 'right';
+
+  // Dynamic designer extras
+  customValue?: string;
+  sourceLabel?: string;
 }
 
 export interface KtaTextElement {
@@ -186,6 +205,13 @@ export interface KtaCardSettings {
   showSignerTitle?: boolean;
   showSignerSubtitle?: boolean;
   signerMemberId?: string;
+  /**
+   * Token/URL verifikasi resmi milik anggota yang dipilih sebagai pengesah.
+   * Disimpan pada template agar QR belakang tetap menunjuk profil pengesah
+   * meskipun kartu sedang dirender untuk anggota lain.
+   */
+  signerQrToken?: string;
+  signerQrUrl?: string;
   signerName?: string;
   signerTitle?: string;
   signerSubtitle?: string;
@@ -243,11 +269,6 @@ export interface KtaTemplateDbRecord {
  */
 export interface KtaMemberBindingData {
   id: string;
-  /**
-   * Identifier anggota resmi dari backend.
-   * Opsional untuk kompatibilitas dengan integrasi lama.
-   */
-  memberId?: string;
   fullName: string;
   nationalMemberNumber: string;
   membershipLevel?: SakaMembershipLevel | string;
@@ -271,4 +292,17 @@ export interface KtaMemberBindingData {
   photoUrl?: string;
   qrToken?: string;
   qrUrl?: string;
+
+  // Canonical aliases used by Dynamic KTA Designer
+  full_name?: string;
+  no_kta?: string;
+  position?: string;
+  tingkat?: string;
+  level_organisasi?: string;
+  provinsi_nama?: string;
+  kabupaten_kota_nama?: string;
+  kecamatan_nama?: string;
+  pangkalan_gudep?: string;
+  photo_url?: string;
+  valid_until?: string;
 }
