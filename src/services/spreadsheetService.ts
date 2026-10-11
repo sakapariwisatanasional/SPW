@@ -215,11 +215,22 @@ export const spreadsheetService = {
       }
     } catch (err: any) {
       console.error('Gagal menyimpan template KTA ke GAS:', err);
+
+      const detail =
+        err?.message ||
+        err?.response?.message ||
+        err?.error?.message ||
+        'Unknown GAS error';
+
+      return {
+        success: false,
+        message: `Template KTA gagal disimpan ke GAS: ${detail}`,
+      };
     }
 
     return {
       success: false,
-      message: 'Template KTA gagal disimpan ke GAS. Tidak ada fallback LocalStorage.',
+      message: 'Template KTA gagal disimpan ke GAS: respons endpoint tidak valid.',
     };
   },
 
