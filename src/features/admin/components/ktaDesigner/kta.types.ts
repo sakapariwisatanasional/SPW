@@ -205,6 +205,13 @@ export interface KtaCardSettings {
   showSignerTitle?: boolean;
   showSignerSubtitle?: boolean;
   signerMemberId?: string;
+  /**
+   * Token/URL verifikasi resmi milik anggota yang dipilih sebagai pengesah.
+   * Disimpan pada template agar QR belakang tetap menunjuk profil pengesah
+   * meskipun kartu sedang dirender untuk anggota lain.
+   */
+  signerQrToken?: string;
+  signerQrUrl?: string;
   signerName?: string;
   signerTitle?: string;
   signerSubtitle?: string;
