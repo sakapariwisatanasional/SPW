@@ -27,18 +27,57 @@ import { formatCurrencyIDR } from '../../../utils/formatters';
 import { apiClient } from '../../../services/api/apiClient';
 import { KridaGridSection } from '../../krida/components/KridaGridSection';
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
+import { spreadsheetService } from '../../../services/spreadsheetService';
+import { KtaCardSettings } from '../../../types/kta.types';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { setActiveView, addToast } = useUIStore();
   const [isLoadingSkeleton, setIsLoadingSkeleton] = useState(false);
   const [selectedKridaFilter, setSelectedKridaFilter] = useState('ALL');
+  const [ktaTemplateSettings, setKtaTemplateSettings] = useState<KtaCardSettings | null>(null);
+  const [ktaTemplateLoading, setKtaTemplateLoading] = useState(true);
 
   const [nationalIntegration, setNationalIntegration] = useState({
     pangkalan: 'Memuat data...',
     destinasi: 'Memuat data...',
     umkm: 'Memuat data...'
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadKtaTemplateSettings() {
+      setKtaTemplateLoading(true);
+
+      try {
+        const template = await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+
+        if (!mounted) return;
+
+        if (template) {
+          setKtaTemplateSettings(template);
+        } else {
+          setKtaTemplateSettings(null);
+          console.warn('Template KTA TMPL_DEFAULT belum tersedia di GAS.');
+        }
+      } catch (error) {
+        if (!mounted) return;
+        console.error('Gagal memuat template KTA dari GAS:', error);
+        setKtaTemplateSettings(null);
+      } finally {
+        if (mounted) {
+          setKtaTemplateLoading(false);
+        }
+      }
+    }
+
+    void loadKtaTemplateSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const readDirectoryMetrics = (response: any) => {
     const raw = response?.data ?? response;
@@ -451,10 +490,18 @@ export const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.7fr] gap-4 items-stretch">
               <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="w-full max-w-[620px] mx-auto overflow-hidden rounded-xl">
-                  <DigitalMemberCard
-                    member={dashboardKtaMember}
-                    previewSettings={null}
-                  />
+                  {ktaTemplateLoading ? (
+                    <div className="w-full aspect-[1.586/1] rounded-xl bg-slate-100 animate-pulse" />
+                  ) : ktaTemplateSettings ? (
+                    <DigitalMemberCard
+                      member={dashboardKtaMember}
+                      previewSettings={ktaTemplateSettings}
+                    />
+                  ) : (
+                    <div className="w-full aspect-[1.586/1] rounded-xl border border-amber-200 bg-amber-50 flex items-center justify-center px-4 text-center text-xs font-semibold text-amber-800">
+                      Template KTA belum berhasil dimuat dari GAS.
+                    </div>
+                  )}
                 </div>
               </div>
 
