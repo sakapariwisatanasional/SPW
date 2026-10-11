@@ -102,7 +102,7 @@ export const MembershipPage: React.FC = () => {
           const kecamatan = item.kecamatan || item.wilayah_kecamatan_nama || item['Kecamatan'] || '';
           const kridaName = item.krida || item.kridaName || item.krida_nama || item['Krida'] || item['Nama Krida'] || 'KRIDA PEMANDU';
           const membershipLevel = item.tingkat_keanggotaan || item.tingkatan || item.membershipLevel || item.tingkat || item['Tingkat'] || item['Tingkatan'] || item['Jabatan'] || 'Penegak';
-          const photoUrl = item.foto_url || item.foto || item.photoUrl || item['Foto URL'] || item['Foto'] || item['Foto Profil'] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
+          const photoUrl = item.foto_url || item.foto || item.photoUrl || item['Foto URL'] || item['Foto'] || item['Foto Profil'] || '';
           const status = item.status || item.status_anggota || item['Status'] || 'ACTIVE';
           const verificationToken = item.verificationToken || item.qr_token || item['QR Token'] || '';
           const joinedDate = item.joinedDate || item.tanggal_bergabung || item['Tanggal Bergabung'] || item['Tanggal Daftar'] || new Date().toISOString().slice(0, 10);
@@ -192,12 +192,14 @@ export const MembershipPage: React.FC = () => {
     return matchKeyword && matchKrida && matchProvince && matchLevel;
   });
 
-  const handleCreateMember = (e: React.FormEvent) => {
+  const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!regFullName.trim()) {
       addToast({ type: 'error', title: 'Validasi', message: 'Nama lengkap anggota wajib diisi' });
       return;
     }
+
     if (!regNik || regNik.length !== 16 || !/^\d{16}$/.test(regNik)) {
       addToast({ type: 'error', title: 'Validasi NIK', message: 'NIK harus terdiri dari 16 digit angka' });
       return;
@@ -206,46 +208,81 @@ export const MembershipPage: React.FC = () => {
     const regencyObj = getRegencyByCode(regKabCode);
     const provObj = getProvinceByCode(regProvCode);
     const districtObj = availableDistricts.find((d) => d.districtCode3 === regKecCode);
+    const isNasional = regLevel === 'KWARTIR_NASIONAL';
 
-    const generatedKta = previewGeneratedKta;
-    const qrToken = ktaService.generateQrToken(generatedKta, regNik);
+    try {
+      const response = await memberApi.register({
+        full_name: regFullName.trim(),
+        nama_lengkap: regFullName.trim(),
+        nik: regNik,
+        provinsi_id: isNasional ? '00' : regProvCode,
+        provinsi_nama: isNasional ? 'KWARTIR NASIONAL' : (provObj?.name || ''),
+        kabupaten_id: isNasional ? '0000' : regKabCode,
+        kabupaten_nama: isNasional ? 'PUSAT (KWARNAS)' : (regencyObj?.name || ''),
+        kecamatan_id: isNasional ? '0000000' : regKecCode,
+        wilayah_kecamatan_id: isNasional ? '0000000' : regKecCode,
+        wilayah_kecamatan_nama: isNasional ? 'PUSAT' : (districtObj?.name || ''),
+        level_organisasi: regLevel,
+        tingkat_keanggotaan: regLevelKeanggotaan,
+        krida_id: regKridaId,
+        krida_nama: KRIDA_MASTER.find((k) => k.id === regKridaId)?.name || '',
+        is_public: false,
+        source: 'ADMIN_PORTAL',
+      });
 
-    const newMember: MemberRecord = {
-      id: `MEM-${Date.now().toString().slice(-4)}`,
-      noKta: generatedKta,
-      fullName: regFullName,
-      gender: 'L',
-      birthPlace: regencyObj ? regencyObj.name : 'Indonesia',
-      birthDate: '2004-01-01',
-      levelOrganisasi: regLevel,
-      kodeProvinsi: regLevel === 'KWARTIR_NASIONAL' ? '00' : regProvCode,
-      kodeKabupaten: regLevel === 'KWARTIR_NASIONAL' ? '0000' : regKabCode,
-      kodeKecamatan: regLevel === 'KWARTIR_NASIONAL' ? '000' : regKecCode,
-      province: regLevel === 'KWARTIR_NASIONAL' ? 'Kwartir Nasional' : (provObj ? provObj.name : 'Provinsi'),
-      city: regLevel === 'KWARTIR_NASIONAL' ? 'Pusat (Kwarnas)' : (regencyObj ? regencyObj.name : 'Kabupaten/Kota'),
-      kecamatan: districtObj ? districtObj.name : (regLevel === 'KWARTIR_NASIONAL' ? 'Pusat' : 'Kecamatan'),
-      address: 'Pangkalan Saka Pariwisata',
-      kridaId: regKridaId,
-      kridaName: KRIDA_MASTER.find((k) => k.id === regKridaId)?.name || 'KRIDA PEMANDU',
-      membershipLevel: regLevelKeanggotaan,
-      photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-      status: 'ACTIVE',
-      verificationToken: qrToken,
-      joinedDate: new Date().toISOString().slice(0, 10),
-      createdAt: new Date().toISOString(),
-    };
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Backend gagal menyimpan anggota.');
+      }
 
-    setMembers([newMember, ...members]);
-    setIsRegisterModalOpen(false);
-    setRegFullName('');
-    setRegNik('');
-    setRegSequence(String(parseInt(regSequence || '1', 10) + 1));
+      const item: any = response.data;
+      const saved: MemberRecord = {
+        id: item.id || item.member_id || '',
+        noKta: item.no_kta || item.nomor_kta || '',
+        no_kta: item.no_kta || item.nomor_kta || '',
+        nomor_kta: item.no_kta || item.nomor_kta || '',
+        nomorKTA: item.no_kta || item.nomor_kta || '',
+        fullName: item.full_name || item.nama_lengkap || regFullName.trim(),
+        full_name: item.full_name || item.nama_lengkap || regFullName.trim(),
+        nama_lengkap: item.full_name || item.nama_lengkap || regFullName.trim(),
+        nama: item.full_name || item.nama_lengkap || regFullName.trim(),
+        gender: (item.jenis_kelamin || 'L') as any,
+        birthPlace: item.tempat_lahir || '',
+        birthDate: item.tanggal_lahir || '',
+        levelOrganisasi: (item.level_organisasi || regLevel) as OrganizationLevelType,
+        kodeProvinsi: item.provinsi_id || (isNasional ? '00' : regProvCode),
+        kodeKabupaten: item.kabupaten_id || (isNasional ? '0000' : regKabCode),
+        kodeKecamatan: item.kecamatan_id || regKecCode,
+        province: item.provinsi_nama || (isNasional ? 'KWARTIR NASIONAL' : provObj?.name || ''),
+        city: item.kabupaten_nama || (isNasional ? 'PUSAT (KWARNAS)' : regencyObj?.name || ''),
+        kecamatan: item.wilayah_kecamatan_nama || districtObj?.name || '',
+        address: item.alamat_domisili || '',
+        kridaId: item.krida_id || regKridaId,
+        kridaName: item.krida_nama || KRIDA_MASTER.find((k) => k.id === regKridaId)?.name || '',
+        membershipLevel: item.tingkat_keanggotaan || regLevelKeanggotaan,
+        photoUrl: item.foto_url || item.photo_url || '',
+        status: (item.status_anggota || item.status || 'PENDING') as any,
+        verificationToken: item.qr_token || '',
+        joinedDate: item.tanggal_bergabung || item.created_at || '',
+        createdAt: item.created_at || '',
+      };
 
-    addToast({
-      type: 'success',
-      title: 'Pendaftaran Berhasil',
-      message: `Anggota berhasil didaftarkan dengan No. KTA: ${generatedKta}`,
-    });
+      setMembers((prev) => [saved, ...prev.filter((m) => m.id !== saved.id)]);
+      setIsRegisterModalOpen(false);
+      setRegFullName('');
+      setRegNik('');
+
+      addToast({
+        type: 'success',
+        title: 'Pendaftaran Tersimpan',
+        message: 'Data anggota telah disimpan ke GAS/Spreadsheet. Nomor KTA diterbitkan melalui workflow KTA setelah pengesahan.',
+      });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Pendaftaran Gagal',
+        message: error?.message || 'Gagal menyimpan anggota ke GAS.',
+      });
+    }
   };
 
   const memberColumns = [
