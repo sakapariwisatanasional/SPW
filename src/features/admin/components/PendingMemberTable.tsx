@@ -38,6 +38,8 @@ import {
 import { memberApi } from '../../../services/api/member.api';
 import { useUIStore } from '../../../stores/uiStore';
 import { useAdminStore } from '../stores/adminStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { ROLES } from '../../../config/constants';
 
 export interface PendingMemberItem {
   id: string;
@@ -74,6 +76,8 @@ export interface PendingMemberItem {
 export const PendingMemberTable: React.FC = () => {
   const { addToast } = useUIStore();
   const { loadMembers } = useAdminStore();
+  const { currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN;
 
   const [membersList, setMembersList] = useState<PendingMemberItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -98,23 +102,12 @@ export const PendingMemberTable: React.FC = () => {
     setErrorMsg(null);
     try {
       const response = await memberApi.getPendingMembers();
-      const rawData =
-        response.data ||
-        (response as any).members ||
-        (response as any).data?.members ||
-        [];
+      const rawData = response.data || (response as any).members || [];
 
       if (Array.isArray(rawData)) {
         setMembersList(rawData);
       } else {
         setMembersList([]);
-      }
-
-      // Sinkronisasi state admin global (non-blocking)
-      try {
-        await loadMembers();
-      } catch {
-        // tidak menghambat tabel pending
       }
     } catch (err: any) {
       const msg = err?.message || 'Gagal memuat daftar anggota pending dari server.';
@@ -191,7 +184,7 @@ export const PendingMemberTable: React.FC = () => {
         // REVIEWED_VERIFIED -> ACTIVE
         const res = await memberApi.activateMember(
           memberId,
-          notes || 'Aktivasi resmi keanggotaan SAKA Pariwisata'
+          notes || (isSuperAdmin ? 'SUPER_ADMIN_DIRECT_APPROVAL: pengesahan langsung oleh Super Administrator.' : 'Aktivasi resmi keanggotaan SAKA Pariwisata')
         );
         addToast({
           type: 'success',
@@ -566,14 +559,18 @@ export const PendingMemberTable: React.FC = () => {
                               onClick={() =>
                                 setActiveModal({
                                   member,
-                                  actionType: 'REVIEW',
-                                  notes: 'Berkas telah ditinjau dan diverifikasi wilayah',
+                                  actionType: isSuperAdmin ? 'ACTIVATE' : 'REVIEW',
+                                  notes: isSuperAdmin
+                                    ? 'SUPER_ADMIN_DIRECT_APPROVAL: data diperiksa dan disahkan langsung oleh Super Administrator.'
+                                    : 'Berkas telah ditinjau dan diverifikasi wilayah',
                                 })
                               }
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#0066B3] hover:bg-[#004C85] transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all shadow-xs cursor-pointer disabled:opacity-50 ${
+                                isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#0066B3] hover:bg-[#004C85]'
+                              }`}
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Review</span>
+                              {isSuperAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              <span>{isSuperAdmin ? 'Sahkan Langsung' : 'Review'}</span>
                             </button>
                             <button
                               type="button"
@@ -622,6 +619,41 @@ export const PendingMemberTable: React.FC = () => {
                                 })
                               }
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
+
+                        {effectiveStatus === 'REVISION_REQUIRED' && isSuperAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isItemProcessing}
+                              onClick={() =>
+                                setActiveModal({
+                                  member,
+                                  actionType: 'ACTIVATE',
+                                  notes: 'SUPER_ADMIN_DIRECT_APPROVAL: hasil revisi diperiksa dan disahkan langsung oleh Super Administrator.',
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>Sahkan Langsung</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isItemProcessing}
+                              onClick={() =>
+                                setActiveModal({
+                                  member,
+                                  actionType: 'REJECT',
+                                  notes: 'Hasil revisi tidak memenuhi persyaratan.',
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 cursor-pointer disabled:opacity-50"
                             >
                               <X className="w-3 h-3" />
                               <span>Reject</span>
@@ -718,7 +750,7 @@ export const PendingMemberTable: React.FC = () => {
                 )}
                 <h3 className="text-sm font-black text-slate-900">
                   {activeModal.actionType === 'REVIEW' && 'Konfirmasi Review Berkas'}
-                  {activeModal.actionType === 'ACTIVATE' && 'Konfirmasi Aktivasi Anggota'}
+                  {activeModal.actionType === 'ACTIVATE' && (isSuperAdmin ? 'Konfirmasi Pengesahan Langsung' : 'Konfirmasi Aktivasi Anggota')}
                   {activeModal.actionType === 'REJECT' && 'Konfirmasi Penolakan Pendaftaran'}
                   {activeModal.actionType === 'GENERATE_KTA' && 'Konfirmasi Penerbitan KTA'}
                 </h3>
@@ -764,7 +796,9 @@ export const PendingMemberTable: React.FC = () => {
                 {activeModal.actionType === 'REVIEW' &&
                   'Aksi ini memanggil API [admin.member.review] dan mengubah status keanggotaan menjadi REVIEWED_VERIFIED.'}
                 {activeModal.actionType === 'ACTIVATE' &&
-                  'Aksi ini memanggil API [admin.member.activate], mengubah status menjadi ACTIVE, dan mengaktifkan akun login.'}
+                  isSuperAdmin
+                    ? 'Super Administrator mengesahkan langsung ke ACTIVE. Tahap REVIEWED_VERIFIED tidak wajib dilewati, namun bypass tetap dicatat di audit backend.'
+                    : 'Aksi ini memanggil API [admin.member.activate] dan mengubah status menjadi ACTIVE.'}
                 {activeModal.actionType === 'REJECT' &&
                   'Aksi ini memanggil API [admin.member.reject] untuk menolak berkas pendaftaran anggota.'}
                 {activeModal.actionType === 'GENERATE_KTA' &&
