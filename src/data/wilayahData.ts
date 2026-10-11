@@ -1411,70 +1411,39 @@ export const DISTRICTS_MAP: Record<string, DistrictItem> = Object.fromEntries(
 // -----------------------------------------------------------------
 // 4. CUSTOM DISTRICT STORAGE & CSV PARSER
 // -----------------------------------------------------------------
-const CUSTOM_DISTRICTS_STORAGE_KEY = 'SPWN_CUSTOM_DISTRICTS_V1';
-
-// In-memory cache for fast lookup
-let customDistrictsCache: DistrictItem[] | null = null;
+// Custom district cache is runtime-only. Persistensi wilayah resmi harus berasal dari GAS.
+let customDistrictsCache: DistrictItem[] = [];
 
 export function getCustomDistricts(regencyCode?: string): DistrictItem[] {
-  if (customDistrictsCache === null) {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const stored = localStorage.getItem(CUSTOM_DISTRICTS_STORAGE_KEY);
-        customDistrictsCache = stored ? JSON.parse(stored) : [];
-      } catch (e) {
-        console.warn('Gagal membaca custom districts dari localStorage', e);
-        customDistrictsCache = [];
-      }
-    } else {
-      customDistrictsCache = [];
-    }
-  }
-
   if (regencyCode) {
-    return (customDistrictsCache || []).filter((d) => d.regencyCode === regencyCode);
+    return customDistrictsCache.filter((d) => d.regencyCode === regencyCode);
   }
-  return customDistrictsCache || [];
+  return customDistrictsCache;
 }
 
 export function saveCustomDistricts(newItems: DistrictItem[]): number {
-  const current = getCustomDistricts();
   const map = new Map<string, DistrictItem>();
-  
-  // Load existing
-  current.forEach((item) => map.set(item.code, item));
-  
-  // Merge new items
+  customDistrictsCache.forEach((item) => map.set(item.code, item));
+
   newItems.forEach((item) => {
     if (item.code && item.name && item.regencyCode) {
       map.set(item.code, item);
     }
   });
 
-  const merged = Array.from(map.values());
-  customDistrictsCache = merged;
+  customDistrictsCache = Array.from(map.values());
 
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      localStorage.setItem(CUSTOM_DISTRICTS_STORAGE_KEY, JSON.stringify(merged));
-      window.dispatchEvent(new CustomEvent('spwn:districts-updated', { detail: { count: merged.length } }));
-    } catch (e) {
-      console.warn('Gagal menyimpan custom districts ke localStorage', e);
-    }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('spwn:districts-updated', { detail: { count: customDistrictsCache.length } }));
   }
 
-  return merged.length;
+  return customDistrictsCache.length;
 }
 
 export function clearCustomDistricts(): void {
   customDistrictsCache = [];
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      localStorage.removeItem(CUSTOM_DISTRICTS_STORAGE_KEY);
-      window.dispatchEvent(new CustomEvent('spwn:districts-updated', { detail: { count: 0 } }));
-    } catch (e) {
-      console.warn('Gagal menghapus custom districts', e);
-    }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('spwn:districts-updated', { detail: { count: 0 } }));
   }
 }
 
