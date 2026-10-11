@@ -49,7 +49,7 @@ import {
   KtaIdentityDensity,
   SakaMembershipLevel,
 } from '../../../types/kta.types';
-import { storage, DEFAULT_KTA_SETTINGS } from '../../../services/storage';
+import { DEFAULT_KTA_SETTINGS } from '../../../services/storage';
 import { spreadsheetService } from '../../../services/spreadsheetService';
 import { DigitalMemberCard, calculateLayoutGuard } from './DigitalMemberCard';
 import { useAdminStore } from '../stores/adminStore';
@@ -76,7 +76,10 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
   onSaved,
 }) => {
   // Store & RBAC
-  const { simulatedScope } = useAdminStore();
+  const {
+    simulatedScope,
+    loadMembers,
+  } = useAdminStore();
   const effectiveRole = userRole || simulatedScope;
   const isSuperAdmin = effectiveRole === 'SUPER_ADMIN';
 
@@ -219,31 +222,218 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
     }));
   };
 
+  const mapGasMemberToKtaBinding = (member: any): KtaMemberBindingData => {
+    const fullName =
+      member.full_name ||
+      member.nama_lengkap ||
+      member.nama ||
+      '';
+
+    const noKta =
+      member.no_kta ||
+      member.nomor_kta ||
+      member.nomorKTA ||
+      '';
+
+    const position =
+      member.position ||
+      member.jabatan ||
+      member.tingkat_keanggotaan ||
+      member.tingkatan ||
+      'Anggota';
+
+    const provinceName =
+      member.provinsi_nama ||
+      member.province ||
+      '';
+
+    const regencyName =
+      member.kabupaten_kota_nama ||
+      member.kabupaten_nama ||
+      member.city ||
+      '';
+
+    const districtName =
+      member.kecamatan_nama ||
+      member.wilayah_kecamatan_nama ||
+      member.district ||
+      '';
+
+    const kwartirName =
+      member.kwartir_nama ||
+      member.kwartir_cabang ||
+      member.kwartir ||
+      '';
+
+    const kwartirHierarchy =
+      member.kwartirHierarchy ||
+      member.kwartir_hierarchy ||
+      kwartirName ||
+      provinceName ||
+      regencyName ||
+      '';
+
+    return {
+      id:
+        member.id ||
+        member.member_id ||
+        member.memberId ||
+        noKta,
+
+      fullName,
+      nationalMemberNumber: noKta,
+      membershipLevel:
+        member.membershipLevel ||
+        member.tingkat ||
+        member.level_organisasi ||
+        member.tingkat_organisasi ||
+        '',
+
+      currentPosition: position,
+      provinceName,
+      provinsi_id: member.provinsi_id || member.kode_provinsi || '',
+      regencyName,
+      kabupaten_id:
+        member.kabupaten_kota_id ||
+        member.kabupaten_id ||
+        member.kode_kabupaten ||
+        '',
+      districtName,
+      kecamatan_id:
+        member.kecamatan_id ||
+        member.wilayah_kecamatan_id ||
+        member.kode_kecamatan ||
+        '',
+      wilayah_kecamatan_id:
+        member.wilayah_kecamatan_id ||
+        member.kecamatan_id ||
+        '',
+      kwartirName,
+      kwartirHierarchy,
+      branchName: member.branchName || member.kwartir_cabang || regencyName,
+      gugusDepan:
+        member.pangkalan_gudep ||
+        member.gugus_depan ||
+        member.gudep ||
+        '',
+      krida: member.krida_nama || member.krida || '',
+      phone: member.phone || member.nomor_telepon || member.telepon || '',
+      email: member.email || '',
+      joinYear:
+        member.joinYear ||
+        (member.tanggal_bergabung
+          ? String(member.tanggal_bergabung).substring(0, 4)
+          : ''),
+      status: member.status_anggota || member.status || '',
+      photoUrl:
+        member.photo_url ||
+        member.foto_url ||
+        member.foto ||
+        '',
+      qrToken: member.qr_token || '',
+      qrUrl:
+        member.verification_url ||
+        member.qr_url ||
+        '',
+
+      // Canonical aliases used by the dynamic KTA designer
+      full_name: fullName,
+      no_kta: noKta,
+      position,
+      tingkat:
+        member.tingkat ||
+        member.tingkat_organisasi ||
+        member.level_organisasi ||
+        '',
+      level_organisasi:
+        member.level_organisasi ||
+        member.tingkat_organisasi ||
+        member.tingkat ||
+        '',
+      provinsi_nama: provinceName,
+      kabupaten_kota_nama: regencyName,
+      kecamatan_nama: districtName,
+      pangkalan_gudep:
+        member.pangkalan_gudep ||
+        member.gugus_depan ||
+        member.gudep ||
+        '',
+      photo_url:
+        member.photo_url ||
+        member.foto_url ||
+        member.foto ||
+        '',
+      valid_until: member.valid_until || member.berlaku_sampai || '',
+    };
+  };
+
   const loadInitialData = async () => {
-    // 1. Ambil data anggota untuk Dynamic Data Binding
-    const members = storage.getMembers();
-    setMembersList(members);
-    if (members.length > 0 && !selectedMemberId) {
-      setSelectedMemberId(members[0].id);
+    setNotification(null);
+
+    // 1. GAS = Rule of Truth untuk anggota.
+    // Tidak membaca anggota dari LocalStorage/browser.
+    try {
+      const gasMembers = await loadMembers();
+      const mapped = (Array.isArray(gasMembers) ? gasMembers : [])
+        .map(mapGasMemberToKtaBinding)
+        .filter((member) => Boolean(member.id));
+
+      setMembersList(mapped);
+
+      if (mapped.length > 0) {
+        setSelectedMemberId((current) =>
+          current && mapped.some((member) => member.id === current)
+            ? current
+            : mapped[0].id
+        );
+      } else {
+        setSelectedMemberId('');
+      }
+    } catch (error: any) {
+      setMembersList([]);
+      setSelectedMemberId('');
+      setNotification({
+        type: 'error',
+        message:
+          error?.message ||
+          'Gagal mengambil data anggota dari GAS. KTA Designer tidak memakai fallback data browser.',
+      });
     }
 
-    // 2. Ambil KTA settings dari spreadsheet / local storage
+    // 2. GAS = Rule of Truth untuk template KTA.
+    // Jika backend belum memiliki template, gunakan DEFAULT hanya sebagai
+    // state awal editor; tidak disimpan ke browser.
     try {
       const current = await spreadsheetService.refreshKtaSettings();
       if (current) {
         setSettings(normalizeDynamicFields(current));
       } else {
-        setSettings(normalizeDynamicFields(storage.getKtaSettings()));
+        setSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
+        setNotification((prev) =>
+          prev || {
+            type: 'info',
+            message:
+              'Template KTA belum tersedia di GAS. Editor memakai default sementara sampai disimpan ke GAS.',
+          }
+        );
       }
-    } catch {
-      setSettings(normalizeDynamicFields(storage.getKtaSettings()));
+    } catch (error: any) {
+      setSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
+      setNotification((prev) =>
+        prev || {
+          type: 'error',
+          message:
+            error?.message ||
+            'Gagal memuat template KTA dari GAS. Tidak ada fallback LocalStorage.',
+        }
+      );
     }
   };
 
-  // Preview Member terpilih
+  // Preview member terpilih hanya berasal dari hasil GAS.
   const previewMember = useMemo(() => {
     if (!membersList || membersList.length === 0) {
-      return storage.getMembers()[0];
+      return undefined;
     }
     const found = membersList.find((m) => m.id === selectedMemberId);
     return found || membersList[0];
@@ -256,7 +446,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
         field.side === 'FRONT' &&
         field.visible &&
         canonicalKtaFieldKey(field.field) !== 'photo_url' &&
-        canRenderKtaField(field.field, previewMember)
+        (!previewMember || canRenderKtaField(field.field, previewMember))
     );
   }, [settings.dataFields, previewMember]);
 
@@ -655,7 +845,6 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
     if (!isSuperAdmin) return;
     if (window.confirm('Kembalikan seluruh tata letak KTA ke pengaturan standar resmi SPWN?')) {
       setSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
-      storage.saveKtaSettings(normalizeDynamicFields(DEFAULT_KTA_SETTINGS));
       setNotification({
         type: 'info',
         message: 'Pengaturan KTA telah dikembalikan ke standar baku resmi SPWN Apps 2.0.',
@@ -765,9 +954,13 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                 </label>
                 <select
                   value={selectedMemberId}
+                  disabled={membersList.length === 0}
                   onChange={(e) => setSelectedMemberId(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0066B3]/20 shadow-2xs cursor-pointer"
                 >
+                  {membersList.length === 0 && (
+                    <option value="">Belum ada data anggota dari GAS</option>
+                  )}
                   {membersList.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.fullName} ({m.membershipLevel || 'Anggota'} - {m.nationalMemberNumber || m.id})
@@ -778,13 +971,27 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
 
               {/* Live Digital Card Preview Component */}
               <div className="pt-2">
-                <DigitalMemberCard
-                  member={previewMember}
-                  previewSettings={settings}
-                  side={previewSide}
-                  showControls={false}
-                  onSideChange={setPreviewSide}
-                />
+                {previewMember ? (
+                  <DigitalMemberCard
+                    member={previewMember}
+                    previewSettings={settings}
+                    side={previewSide}
+                    showControls={false}
+                    onSideChange={setPreviewSide}
+                  />
+                ) : (
+                  <div className="min-h-[220px] rounded-2xl border border-dashed border-slate-300 bg-white flex items-center justify-center p-6 text-center">
+                    <div>
+                      <UserCheck className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                      <div className="text-sm font-bold text-slate-700">
+                        Belum ada anggota dari GAS
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Pratinjau akan tampil setelah admin.member.list mengembalikan data.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sisi & Ukuran Quick Controls */}
@@ -1320,7 +1527,7 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
                                 <span className="text-[10px] font-mono text-slate-400 block truncate">
                                   key: {canonicalKtaFieldKey(field.field)}
                                 </span>
-                                {!canRenderKtaField(field.field, previewMember) && (
+                                {previewMember && !canRenderKtaField(field.field, previewMember) && (
                                   <span className="text-[9px] font-semibold text-amber-700 block mt-0.5">
                                     Disembunyikan otomatis oleh Visibility Guard untuk tingkat anggota ini.
                                   </span>
@@ -3266,6 +3473,83 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
 
                     {settings.showSignerQrCode !== false && (
                       <div className="space-y-3 pt-2 border-t border-slate-200">
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <div className="text-[11px] font-bold text-slate-800">
+                                Ambil Pengesah dari Anggota Terdaftar (GAS)
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                QR pengesah memakai qr_token resmi anggota, bukan ID lokal atau token dummy.
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                              GAS
+                            </span>
+                          </div>
+
+                          <select
+                            disabled={!isSuperAdmin}
+                            value={settings.signerMemberId || ''}
+                            onChange={(e) => {
+                              const signerId = e.target.value;
+                              const signer = membersList.find((member) => member.id === signerId);
+
+                              if (!signer) {
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  signerMemberId: undefined,
+                                  signerQrToken: undefined,
+                                  signerQrUrl: undefined,
+                                }));
+                                return;
+                              }
+
+                              setSettings((prev) => ({
+                                ...prev,
+                                signerMemberId: signer.id,
+                                signerQrToken: signer.qrToken || undefined,
+                                signerQrUrl: signer.qrUrl || undefined,
+                                signerName: signer.fullName || prev.signerName,
+                                signerTitle: signer.currentPosition || prev.signerTitle,
+                                signerSubtitle:
+                                  signer.kwartirHierarchy ||
+                                  signer.kwartirName ||
+                                  prev.signerSubtitle,
+                              }));
+                            }}
+                            className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900"
+                          >
+                            <option value="">Pilih anggota sebagai penandatangan...</option>
+                            {membersList
+                              .filter((member) => Boolean(member.qrToken || member.qrUrl))
+                              .map((member) => (
+                                <option key={member.id} value={member.id}>
+                                  {member.fullName} — {member.currentPosition || 'Anggota'}
+                                  {member.nationalMemberNumber
+                                    ? ` — ${member.nationalMemberNumber}`
+                                    : ''}
+                                </option>
+                              ))}
+                          </select>
+
+                          {settings.signerMemberId && (
+                            <div className="text-[10px] text-slate-600">
+                              {settings.signerQrToken
+                                ? 'QR Token resmi ditemukan dan siap dirender.'
+                                : settings.signerQrUrl
+                                ? 'URL verifikasi resmi ditemukan dan siap dirender.'
+                                : 'Anggota terpilih belum memiliki QR Token/KTA resmi.'}
+                            </div>
+                          )}
+
+                          {membersList.filter((member) => Boolean(member.qrToken || member.qrUrl)).length === 0 && (
+                            <div className="text-[10px] font-semibold text-amber-700">
+                              Belum ada anggota GAS yang memiliki qr_token / verification_url.
+                            </div>
+                          )}
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <div className="flex justify-between text-[11px] text-slate-600 mb-1">
