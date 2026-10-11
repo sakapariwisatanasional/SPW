@@ -308,10 +308,13 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     : member?.qrUrl || member?.qr_url ||
       (member?.id ? ktaService.generateMemberQrUrl(member.id) : `${window.location.origin}/verifikasi`);
 
+  // QR pengesah harus menggunakan qr_token / verification_url resmi anggota
+  // yang dipilih di KTA Designer. Jangan pernah membentuk token dari member ID.
   const signerQrVerificationUrl =
-    previewSettings.signerMemberId
-      ? ktaService.generateMemberQrUrl(previewSettings.signerMemberId)
-      : `${ktaService.generateMemberQrUrl('SIGNER-KWARNAS')}`;
+    previewSettings.signerQrToken
+      ? ktaService.generateMemberQrUrl(previewSettings.signerQrToken)
+      : previewSettings.signerQrUrl ||
+        `${window.location.origin}/verifikasi`;
 
   const aspectRatio =
     (previewSettings.widthMm || 85.6) / (previewSettings.heightMm || 53.98);
