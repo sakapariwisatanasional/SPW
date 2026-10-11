@@ -84,8 +84,8 @@ export const spreadsheetService = {
           id: record.template_id || DEFAULT_KTA_SETTINGS.id,
           name: record.template_name || DEFAULT_KTA_SETTINGS.name,
           identityLayoutMode: record.identity_layout_mode || 'AUTO_FLOW',
-          frontBackgroundUrl: record.front_background_url || elementsParsed.frontBackgroundUrl,
-          backBackgroundUrl: record.back_background_url || elementsParsed.backBackgroundUrl,
+          frontBackgroundUrl: record.front_background_url || elementsParsed.frontBackgroundUrl || DEFAULT_KTA_SETTINGS.frontBackgroundUrl,
+          backBackgroundUrl: record.back_background_url || elementsParsed.backBackgroundUrl || DEFAULT_KTA_SETTINGS.backBackgroundUrl,
           widthMm: record.card_width || elementsParsed.widthMm || 85.6,
           heightMm: record.card_height || elementsParsed.heightMm || 53.98,
           qrSize: record.qr_size || elementsParsed.qrSize || 18,
@@ -184,7 +184,7 @@ export const spreadsheetService = {
 
     // Payload KTA_TEMPLATE
     const templateDbPayload: KtaTemplateDbRecord = {
-      template_id: settings.id || 'TMPL_DEFAULT',
+      template_id: 'TMPL_DEFAULT',
       template_name: settings.name || 'Template KTA SPWN Resmi (ISO ID-1)',
       front_background_url: settings.frontBackgroundUrl || '',
       back_background_url: settings.backBackgroundUrl || '',
