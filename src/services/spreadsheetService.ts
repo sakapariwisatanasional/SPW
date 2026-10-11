@@ -14,7 +14,7 @@ import {
   KtaLayoutGuardStatus,
   KtaTemplateDbRecord,
 } from '../types/kta.types';
-import { storage, DEFAULT_KTA_SETTINGS } from './storage';
+import { DEFAULT_KTA_SETTINGS } from './storage';
 import { apiClient } from './api/apiClient';
 import { calculateLayoutGuard } from '../features/admin/components/DigitalMemberCard';
 
@@ -91,7 +91,6 @@ export const spreadsheetService = {
           qrSize: record.qr_size || elementsParsed.qrSize || 18,
         };
 
-        storage.saveKtaSettings(merged);
         return merged;
       }    } catch (err) {
       console.error('Gagal memuat KTA Settings dari GAS:', err);
@@ -152,6 +151,9 @@ export const spreadsheetService = {
       terms: settings.terms,
       customBackgroundColor: settings.customBackgroundColorBack,
       backgroundUrl: settings.backBackgroundUrl,
+      signerMemberId: settings.signerMemberId,
+      signerQrToken: settings.signerQrToken,
+      signerQrUrl: settings.signerQrUrl,
       signerName: settings.signerName,
       signerTitle: settings.signerTitle,
       signerSubtitle: settings.signerSubtitle,
@@ -260,14 +262,18 @@ export const spreadsheetService = {
         };
       }
     } catch (err: any) {
-      console.info('Gagal unggah ke Drive via API, fallback ke inline data URL:', err);
+      console.error('Gagal unggah asset KTA ke GAS/Drive:', err);
+      return {
+        success: false,
+        message:
+          err?.message ||
+          'Asset gagal diunggah ke Google Drive. Tidak ada fallback Local Data URI.',
+      };
     }
 
-    // Fallback: kembalikan base64 data URL untuk preview lokal
     return {
-      success: true,
-      directUrl: base64Data,
-      message: 'Asset berhasil dimuat untuk pratinjau (Local Data URI).',
+      success: false,
+      message: 'Asset gagal diunggah ke Google Drive.',
     };
   },
 };
