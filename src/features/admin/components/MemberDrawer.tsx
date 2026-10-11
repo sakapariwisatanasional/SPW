@@ -273,7 +273,20 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   const isReviewed = currentMember.status_anggota === 'REVIEWED_VERIFIED';
   const isRevision = currentMember.status_anggota === 'REVISION_REQUIRED';
   const isActive = currentMember.status_anggota === 'ACTIVE';
-  const isKtaGenerated = currentMember.status_anggota === 'KTA_GENERATED' || Boolean(currentMember.nomor_kta && currentMember.kta_status === 'ACTIVE');
+  const hasKtaArtifacts = Boolean(
+    (currentMember.nomor_kta || (currentMember as any).no_kta) &&
+    currentMember.qr_token &&
+    (
+      (currentMember as any).verification_url ||
+      (currentMember as any).qr_url
+    )
+  );
+
+  const isKtaGenerated =
+    currentMember.status_anggota === 'KTA_GENERATED' ||
+    currentMember.kta_status === 'ACTIVE' ||
+    hasKtaArtifacts;
+
   const isRejected = currentMember.status_anggota === 'REJECTED';
   const hasKta = isKtaGenerated;
 
