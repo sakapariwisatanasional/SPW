@@ -65,22 +65,9 @@ export const MemberProfileView: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  // Audit keamanan tidak disimpan di browser. Tampilkan hanya data dari backend jika endpoint audit tersedia.
+  const activityLogs: any[] = [];
 
-  // Activity Log
-  const [activityLogs, setActivityLogs] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`SPWN_ACTIVITY_LOGS_${currentUser.id}`);
-      return saved
-        ? JSON.parse(saved)
-        : [
-            { id: '1', action: 'Masuk ke Sistem (Login)', timestamp: new Date(Date.now() - 3600000).toLocaleString('id-ID'), ip: '180.252.12.89', status: 'SUCCESS' },
-            { id: '2', action: 'Membuka KTA Digital & QR', timestamp: new Date(Date.now() - 7200000).toLocaleString('id-ID'), ip: '180.252.12.89', status: 'SUCCESS' },
-            { id: '3', action: 'Pembaruan Portofolio Kegiatan', timestamp: new Date(Date.now() - 86400000).toLocaleString('id-ID'), ip: '180.252.12.89', status: 'SUCCESS' },
-          ];
-    } catch {
-      return [];
-    }
-  });
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,16 +129,6 @@ export const MemberProfileView: React.FC = () => {
       }
 
       // Add to log
-      const newLog = {
-        id: Date.now().toString(),
-        action: 'Perubahan Kata Sandi Pengguna',
-        timestamp: new Date().toLocaleString('id-ID'),
-        ip: '180.252.12.89',
-        status: 'SUCCESS',
-      };
-      const updatedLogs = [newLog, ...activityLogs];
-      setActivityLogs(updatedLogs);
-      localStorage.setItem(`SPWN_ACTIVITY_LOGS_${currentUser.id}`, JSON.stringify(updatedLogs));
 
       setPasswordSuccess('Kata sandi berhasil diperbarui dengan aman!');
       setOldPassword('');
@@ -596,6 +573,11 @@ export const MemberProfileView: React.FC = () => {
             </div>
 
             <div className="space-y-3">
+              {activityLogs.length === 0 && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-500">
+                  Log keamanan tidak disimpan di browser. Endpoint audit GAS belum tersedia untuk tampilan anggota.
+                </div>
+              )}
               {activityLogs.map((log: any) => (
                 <div
                   key={log.id}
