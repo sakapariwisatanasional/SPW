@@ -56,6 +56,8 @@ interface AdminState {
 
   // Data Collections
   members: AdminMemberRecord[];
+  membersLoading: boolean;
+  membersError: string | null;
   adminAppointments: AdminAppointmentRecord[];
   ktaLogs: KtaGenerationLogEntry[];
   approvals: MemberApprovalEntry[];
@@ -154,6 +156,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   members: [],
+  membersLoading: false,
+  membersError: null,
   adminAppointments: [],
   ktaLogs: [],
   approvals: [],
@@ -779,54 +783,186 @@ export const useAdminStore = create<AdminState>((set, get) => ({
    * menggantikan INITIAL_MEMBERS dummy
    */
   loadMembers: async () => {
+    set({
+      membersLoading: true,
+      membersError: null,
+    });
+
     try {
-      const response = await apiClient.post<any>(
-        'member.list',
-        {}
-      );
+      /**
+       * Admin Portal harus memakai endpoint admin.member.list.
+       * Backend endpoint ini mengembalikan data anggota sesuai RBAC admin
+       * dan merupakan source of truth untuk dashboard administrasi.
+       */
+      const response = await apiClient.get<any>('admin.member.list');
+
+      /**
+       * Normalisasi seluruh response shape yang pernah dipakai GAS:
+       * 1. data: [...]
+       * 2. data: { data: [...] }
+       * 3. data: { members: [...] }
+       * 4. { members: [...] }
+       *
+       * BUG lama:
+       * const fetched = response.data || ...
+       * Jika response.data adalah object { data: [...] }, ekspresi berhenti
+       * pada object tersebut sehingga Array.isArray(fetched) = false.
+       */
+      const candidates = [
+        response?.data,
+        response?.data?.data,
+        response?.data?.members,
+        (response as any)?.members,
+        (response as any)?.data?.data?.members,
+      ];
 
       const fetched =
-        response.data ||
-        (response as any).members ||
-        (response as any).data?.members ||
-        [];
+        candidates.find((value) => Array.isArray(value)) || [];
 
-      if (Array.isArray(fetched) && fetched.length > 0) {
+      const normalizedMembers = (fetched as any[]).map((member: any) => {
+        const status =
+          member.status_anggota ||
+          member.status ||
+          'PENDING';
 
-        const normalizedMembers = fetched.map((member:any) => ({
+        return {
           ...member,
 
-          // gunakan ID resmi backend sebagai identitas utama
-          id: member.id || member.member_id || member.memberId || '',
+          // ID resmi backend / spreadsheet
+          id:
+            member.id ||
+            member.member_id ||
+            member.memberId ||
+            '',
 
-          // mapping GAS MEMBER -> Admin Dashboard format
-          nomor_kta: member.no_kta || member.nomor_kta || '',
-          nama_lengkap: member.full_name || member.nama_lengkap || member.nama || '',
-          nomor_telepon: member.phone || member.nomor_telepon || '',
-          provinsi_nama: member.provinsi_nama || member.province || '',
-          kabupaten_nama: member.kabupaten_kota_nama || member.kabupaten_nama || member.city || '',
-          wilayah_kecamatan_nama: member.kecamatan_nama || member.wilayah_kecamatan_nama || member.district || '',
-          provinsi_id: member.provinsi_id || '',
-          kabupaten_id: member.kabupaten_kota_id || member.kabupaten_id || '',
-          kecamatan_id: member.kecamatan_id || member.wilayah_kecamatan_id || '',
-          wilayah_kecamatan_id: member.kecamatan_id || member.wilayah_kecamatan_id || '',
-          krida_nama: member.krida || member.krida_nama || '',
-          tingkat_keanggotaan: member.position || member.tingkat_keanggotaan || '',
-          status_anggota: member.status || member.status_anggota || '',
-          foto_url: member.photo_url || member.foto_url || '',
-        }));
+          nomor_kta:
+            member.no_kta ||
+            member.nomor_kta ||
+            '',
 
-        set({
-          members: normalizedMembers
-        });
+          no_kta:
+            member.no_kta ||
+            member.nomor_kta ||
+            '',
 
-        return normalizedMembers;
-      }
+          nama_lengkap:
+            member.full_name ||
+            member.nama_lengkap ||
+            member.nama ||
+            '',
 
-      return get().members;
-    } catch (e) {
-      console.warn('Gagal memuat data anggota dari backend GAS:', e);
-      return get().members;
+          full_name:
+            member.full_name ||
+            member.nama_lengkap ||
+            member.nama ||
+            '',
+
+          nomor_telepon:
+            member.phone ||
+            member.nomor_telepon ||
+            member.telepon ||
+            '',
+
+          provinsi_nama:
+            member.provinsi_nama ||
+            member.province ||
+            '',
+
+          kabupaten_nama:
+            member.kabupaten_kota_nama ||
+            member.kabupaten_nama ||
+            member.city ||
+            '',
+
+          wilayah_kecamatan_nama:
+            member.kecamatan_nama ||
+            member.wilayah_kecamatan_nama ||
+            member.district ||
+            '',
+
+          provinsi_id:
+            member.provinsi_id ||
+            member.kode_provinsi ||
+            '',
+
+          kabupaten_id:
+            member.kabupaten_kota_id ||
+            member.kabupaten_id ||
+            member.kode_kabupaten ||
+            '',
+
+          kecamatan_id:
+            member.kecamatan_id ||
+            member.wilayah_kecamatan_id ||
+            member.kode_kecamatan ||
+            '',
+
+          wilayah_kecamatan_id:
+            member.kecamatan_id ||
+            member.wilayah_kecamatan_id ||
+            member.kode_kecamatan ||
+            '',
+
+          krida_nama:
+            member.krida_nama ||
+            member.krida ||
+            '',
+
+          tingkat_keanggotaan:
+            member.tingkat_keanggotaan ||
+            member.position ||
+            member.tingkatan ||
+            '',
+
+          status_anggota: status,
+          status,
+
+          kta_status:
+            member.kta_status ||
+            (member.no_kta || member.nomor_kta ? 'ACTIVE' : 'NOT_CREATED'),
+
+          foto_url:
+            member.photo_url ||
+            member.foto_url ||
+            member.foto ||
+            '',
+
+          qr_token:
+            member.qr_token || '',
+
+          verification_url:
+            member.verification_url ||
+            member.qr_url ||
+            '',
+        } as AdminMemberRecord;
+      });
+
+      // GAS adalah source of truth: response kosong berarti UI juga kosong.
+      set({
+        members: normalizedMembers,
+        membersLoading: false,
+        membersError: null,
+      });
+
+      return normalizedMembers;
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        'Tidak dapat mengambil data anggota dari GAS';
+
+      console.error(
+        'Gagal memuat admin.member.list dari GAS:',
+        error
+      );
+
+      // Jangan fallback ke dummy / data browser lama.
+      set({
+        members: [],
+        membersLoading: false,
+        membersError: message,
+      });
+
+      return [];
     }
   },
 
