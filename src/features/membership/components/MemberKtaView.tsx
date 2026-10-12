@@ -14,6 +14,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
 import { spreadsheetService } from '../../../services/spreadsheetService';
+import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 
 
 export const MemberKtaView: React.FC = () => {
@@ -102,92 +103,11 @@ export const MemberKtaView: React.FC = () => {
 
 
 
-  const memberBinding:KtaMemberBindingData | null =
-    useMemo(()=>{
-
-      if(!ktaData) return null;
-
-
-      return {
-
-        id:
-          ktaData.id,
-
-        nationalMemberNumber:
-          ktaData.nationalMemberNumber ||
-          ktaData.no_kta,
-
-        fullName:
-          ktaData.fullName ||
-          ktaData.nama_lengkap,
-
-        membershipLevel:
-          ktaData.membershipLevel ||
-          ktaData.position ||
-          "Anggota",
-
-        currentPosition:
-          ktaData.currentPosition ||
-          ktaData.position ||
-          "Anggota",
-
-        provinceName:
-          ktaData.province,
-
-        regencyName:
-          ktaData.city,
-
-        districtName:
-          ktaData.district,
-
-        kwartirName:
-          ktaData.city
-            ? `Kwarcab ${ktaData.city}`
-            : 'Kwarcab SAKA Pariwisata',
-
-        kwartirHierarchy:
-          [
-            ktaData.province
-              ? `Kwarda ${ktaData.province}`
-              : '',
-            ktaData.city
-              ? `Kwarcab ${ktaData.city}`
-              : '',
-            ktaData.district
-              ? `Kwarran ${ktaData.district}`
-              : ''
-          ]
-          .filter(Boolean)
-          .join(' • ')
-          ||
-          'Kwartir Nasional',
-
-        krida:
-          ktaData.krida,
-
-        phone:
-          ktaData.phone,
-
-        email:
-          ktaData.email,
-
-        status:
-          ktaData.status,
-
-        photoUrl:
-          ktaData.photoUrl,
-
-        qrUrl:
-          ktaData.verificationUrl,
-
-        qrToken:
-          ktaData.nationalMemberNumber ||
-          ktaData.no_kta
-
-      };
-
-
-    },[ktaData]);
+  const memberBinding: KtaMemberBindingData | null =
+    useMemo(() => {
+      if (!ktaData) return null;
+      return mapMemberToKtaBinding(ktaData);
+    }, [ktaData]);
 
 
 
@@ -207,6 +127,16 @@ export const MemberKtaView: React.FC = () => {
     return (
       <div className="p-8 text-center">
         Data KTA tidak tersedia
+      </div>
+    );
+
+  }
+
+  if(!templateSettings){
+
+    return (
+      <div className="p-8 text-center text-amber-700">
+        Template KTA TMPL_DEFAULT belum berhasil dimuat dari GAS.
       </div>
     );
 
@@ -235,6 +165,8 @@ export const MemberKtaView: React.FC = () => {
         <DigitalMemberCard
 
           member={memberBinding}
+
+          previewSettings={templateSettings}
 
           side={cardSide}
 
