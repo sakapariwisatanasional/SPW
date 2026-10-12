@@ -74,21 +74,40 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
       ? achievementMembers.data
       : [];
 
-    // Backend may return members before achievement.summary is hydrated.
-    // Keep the dashboard render-safe while detail/statistics requests complete.
-    return rawMembers.map((member: any) => ({
-      ...member,
-      summary: {
-        completedSkk: 0,
-        progressPercent: 0,
-        inProgressSkk: 0,
-        notStartedSkk: 23,
-        averageScore: 0,
-        ...(member?.summary || {}),
-      },
-      activities: Array.isArray(member?.activities) ? member.activities : [],
-      badges: Array.isArray(member?.badges) ? member.badges : [],
-    }));
+    // GAS directory sudah mengirim read-model peserta yang terhidrasi.
+    // Fallback hanya untuk keamanan render, bukan data bisnis palsu.
+    return rawMembers.map((member: any) => {
+      const summary = member?.summary || {};
+      const totalAvailable = Number(summary.totalSkkAvailable || 0);
+      const completed = Number(
+        summary.verifiedSkk ??
+        summary.completedSkk ??
+        0
+      );
+      const inProgress = Number(summary.inProgressSkk || 0);
+
+      return {
+        ...member,
+        level:
+          member?.level ||
+          (completed > 0 ? 'PURWA' : 'BELUM_ADA'),
+        summary: {
+          totalSkkAvailable: totalAvailable,
+          completedSkk: completed,
+          verifiedSkk: completed,
+          progressPercent: Number(summary.progressPercent || 0),
+          inProgressSkk: inProgress,
+          notStartedSkk: Number(
+            summary.notStartedSkk ??
+            Math.max(0, totalAvailable - completed - inProgress)
+          ),
+          averageScore: Number(summary.averageScore || 0),
+          ...summary,
+        },
+        activities: Array.isArray(member?.activities) ? member.activities : [],
+        badges: Array.isArray(member?.badges) ? member.badges : [],
+      };
+    });
   }, [achievementMembers]);
 
   useEffect(() => {
@@ -185,11 +204,18 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
             <span>Tingkat Madya</span>
           </span>
         );
-      default:
+      case 'PURWA':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
             <ShieldCheck className="w-3 h-3 text-emerald-600" />
             <span>Tingkat Purwa</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs">
+            <CircleDashed className="w-3 h-3 text-slate-500" />
+            <span>Belum Ada Level</span>
           </span>
         );
     }
@@ -245,7 +271,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-100 leading-relaxed font-normal">
-              Pantauan menyeluruh terhadap data statistik kemajuan 23 SKK, matriks capaian 4 Krida, serta riwayat portofolio kegiatan anggota SAKA Pariwisata dari berbagai Kwartir Daerah se-Indonesia.
+              Pantauan menyeluruh terhadap data statistik kemajuan SKK, matriks capaian 4 Krida, serta riwayat portofolio kegiatan anggota SAKA Pariwisata dari berbagai Kwartir Daerah se-Indonesia.
             </p>
           </div>
 
@@ -290,7 +316,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
             <p className="text-xl sm:text-2xl font-black text-[#009B4D] mt-0.5">
               {nationalStats.avgProgress}%
             </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">23 SKK Nasional</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Target SKK sesuai Krida</p>
           </div>
         </div>
 
@@ -422,7 +448,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
             </span>
           </div>
           <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
-            Klik nama anggota untuk membuka Matriks 23 SKK & Riwayat Kegiatan
+            Klik nama anggota untuk membuka Matriks SKK & Riwayat Kegiatan
           </span>
         </div>
 
@@ -500,7 +526,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-bold text-slate-800">
-                            {member.summary.completedSkk} / 23 SKK
+                            {member.summary.completedSkk} / {member.summary.totalSkkAvailable || 0} SKK
                           </span>
                           <span className="font-semibold text-[#0066B3]">
                             {member.summary.progressPercent}%
@@ -611,7 +637,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
               <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold block">Kemajuan SKK</span>
                 <span className="text-sm font-bold text-[#0066B3]">
-                  {selectedMember.summary.completedSkk} / 23 SKK ({selectedMember.summary.progressPercent}%)
+                  {selectedMember.summary.completedSkk} / {selectedMember.summary.totalSkkAvailable || 0} SKK ({selectedMember.summary.progressPercent}%)
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
