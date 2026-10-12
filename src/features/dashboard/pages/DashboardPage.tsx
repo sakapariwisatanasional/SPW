@@ -29,6 +29,7 @@ import { KridaGridSection } from '../../krida/components/KridaGridSection';
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
 import { spreadsheetService } from '../../../services/spreadsheetService';
 import { KtaCardSettings } from '../../../types/kta.types';
+import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuthStore();
@@ -45,28 +46,24 @@ export const DashboardPage: React.FC = () => {
   });
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     async function loadKtaTemplateSettings() {
       setKtaTemplateLoading(true);
-
       try {
-        const template = await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+        const template =
+          await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
 
-        if (!mounted) return;
-
-        if (template) {
+        if (active) {
           setKtaTemplateSettings(template);
-        } else {
-          setKtaTemplateSettings(null);
-          console.warn('Template KTA TMPL_DEFAULT belum tersedia di GAS.');
         }
       } catch (error) {
-        if (!mounted) return;
-        console.error('Gagal memuat template KTA dari GAS:', error);
-        setKtaTemplateSettings(null);
+        console.error('Dashboard gagal memuat template KTA GAS:', error);
+        if (active) {
+          setKtaTemplateSettings(null);
+        }
       } finally {
-        if (mounted) {
+        if (active) {
           setKtaTemplateLoading(false);
         }
       }
@@ -75,7 +72,7 @@ export const DashboardPage: React.FC = () => {
     void loadKtaTemplateSettings();
 
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
@@ -330,20 +327,24 @@ export const DashboardPage: React.FC = () => {
       .substring(0,2)
       .toUpperCase();
 
-  const dashboardKtaMember = {
-    id: profile.id || currentUser?.memberId || '',
-    fullName: displayName,
-    noKta: displayKta,
-    role: profile.position || displayRole,
-    kridaName: displayKrida,
-    province: displayProvince,
-    photoUrl: displayPhoto,
-    verificationToken:
-      profile.qr_token ||
+  const dashboardKtaMember = mapMemberToKtaBinding({
+    ...profile,
+    ...currentUser,
+    id: profile.id || currentUser?.memberId || (currentUser as any)?.id || '',
+    full_name: displayName,
+    no_kta: displayKta,
+    position: profile.position || displayRole,
+    krida: displayKrida,
+    provinsi_nama: displayProvince,
+    pangkalan_gudep: displayPangkalan,
+    photo_url: displayPhoto,
+    qr_token: profile.qr_token || (currentUser as any)?.qr_token || '',
+    verification_url:
       profile.verification_url ||
+      (currentUser as any)?.verification_url ||
       '',
-    status: displayStatus
-  };
+    status: displayStatus,
+  });
 
   return (
     <div className="space-y-6">
@@ -499,7 +500,7 @@ export const DashboardPage: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full aspect-[1.586/1] rounded-xl border border-amber-200 bg-amber-50 flex items-center justify-center px-4 text-center text-xs font-semibold text-amber-800">
-                      Template KTA belum berhasil dimuat dari GAS.
+                      Template KTA TMPL_DEFAULT tidak berhasil dimuat dari GAS.
                     </div>
                   )}
                 </div>
