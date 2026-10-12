@@ -1,204 +1,389 @@
 /**
- * SPWN Apps 2.0 - Admin Scope & RBAC Navigation Bar
+ * SPWN Apps 2.0 - SuperAdmin Role QA Inspector
  * Location: src/features/admin/components/AdminScopeBar.tsx
  */
 
-import React from 'react';
-import { Shield, ShieldAlert, ShieldCheck, MapPin, Globe, ChevronRight, Users, ArrowRightLeft } from 'lucide-react';
+import React, { useMemo } from 'react';
+import {
+  ShieldCheck,
+  Building2,
+  MapPinned,
+  School,
+  UserRoundCog,
+  UserRound,
+  ChevronRight,
+  FlaskConical,
+} from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { ROLES } from '../../../config/constants';
-import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
+
+type QaPerspective =
+  | 'SUPER_ADMIN'
+  | 'ADMIN_KWARDA'
+  | 'ADMIN_KWARCAB'
+  | 'ADMIN_PANGKALAN'
+  | 'PAMONG_SAKA'
+  | 'ANGGOTA';
 
 export const AdminScopeBar: React.FC = () => {
-  const { setActiveView } = useUIStore();
-  const { switchRole } = useAuthStore();
   const {
-    simulatedScope,
+    members,
+    qaPerspective,
     scopeProvinceId,
     scopeProvinceName,
     scopeRegencyId,
     scopeRegencyName,
-    setSimulatedScope,
+    scopeDistrictId,
+    scopeDistrictName,
+    scopePangkalanId,
+    scopePangkalanName,
+    setQaPerspective,
   } = useAdminStore();
 
-  const regenciesForJabar = getRegenciesByProvince(scopeProvinceId === 'ALL' ? '32' : scopeProvinceId);
+  const { setActiveView } = useUIStore();
+  const { switchRole } = useAuthStore();
+
+  const provinceOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m: any) => {
+      const id = String(m.provinsi_id || '').trim();
+      const name = String(m.provinsi_nama || m.province || '').trim();
+      if (id && name) map.set(id, name);
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members]);
+
+  const regencyOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m: any) => {
+      if (
+        scopeProvinceId !== 'ALL' &&
+        String(m.provinsi_id || '') !== String(scopeProvinceId)
+      ) return;
+
+      const id = String(
+        m.kabupaten_kota_id ||
+        m.kabupaten_id ||
+        ''
+      ).trim();
+
+      const name = String(
+        m.kabupaten_kota_nama ||
+        m.kabupaten_nama ||
+        m.city ||
+        ''
+      ).trim();
+
+      if (id && name) map.set(id, name);
+    });
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, scopeProvinceId]);
+
+  const districtOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m: any) => {
+      if (
+        scopeRegencyId !== 'ALL' &&
+        String(m.kabupaten_kota_id || m.kabupaten_id || '') !==
+          String(scopeRegencyId)
+      ) return;
+
+      const id = String(
+        m.kecamatan_id ||
+        m.wilayah_kecamatan_id ||
+        ''
+      ).trim();
+
+      const name = String(
+        m.kecamatan_nama ||
+        m.wilayah_kecamatan_nama ||
+        m.district ||
+        ''
+      ).trim();
+
+      if (id && name) map.set(id, name);
+    });
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, scopeRegencyId]);
+
+  const pangkalanOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((m: any) => {
+      if (
+        scopeDistrictId &&
+        scopeDistrictId !== 'ALL' &&
+        String(m.kecamatan_id || m.wilayah_kecamatan_id || '') !==
+          String(scopeDistrictId)
+      ) return;
+
+      const name = String(
+        m.pangkalan_gudep ||
+        m.pangkalan ||
+        m.gugus_depan ||
+        ''
+      ).trim();
+
+      const id = String(m.pangkalan_id || name).trim();
+      if (id && name) map.set(id, name);
+    });
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, scopeDistrictId]);
+
+  const applyPerspective = (perspective: QaPerspective) => {
+    if (perspective === 'ANGGOTA') {
+      setQaPerspective('ANGGOTA', {
+        provId: scopeProvinceId,
+        provName: scopeProvinceName,
+        regId: scopeRegencyId,
+        regName: scopeRegencyName,
+        distId: scopeDistrictId,
+        distName: scopeDistrictName,
+        pangkalanId: scopePangkalanId,
+        pangkalanName: scopePangkalanName,
+      });
+
+      sessionStorage.setItem(
+        'spwn_superadmin_role_qa_return',
+        'true'
+      );
+      switchRole(ROLES.MEMBER);
+      setActiveView('membership');
+      return;
+    }
+
+    setQaPerspective(perspective, {
+      provId: scopeProvinceId,
+      provName: scopeProvinceName,
+      regId: scopeRegencyId,
+      regName: scopeRegencyName,
+      distId: scopeDistrictId,
+      distName: scopeDistrictName,
+      pangkalanId: scopePangkalanId,
+      pangkalanName: scopePangkalanName,
+    });
+  };
+
+  const needsProvince = qaPerspective !== 'SUPER_ADMIN';
+  const needsRegency = [
+    'ADMIN_KWARCAB',
+    'ADMIN_PANGKALAN',
+    'PAMONG_SAKA',
+    'ANGGOTA',
+  ].includes(qaPerspective);
+
+  const needsDistrict = [
+    'ADMIN_PANGKALAN',
+    'PAMONG_SAKA',
+    'ANGGOTA',
+  ].includes(qaPerspective);
+
+  const needsPangkalan = needsDistrict;
+
+  const roles: {
+    id: QaPerspective;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    { id: 'SUPER_ADMIN', label: 'SuperAdmin', icon: <ShieldCheck className="w-4 h-4" /> },
+    { id: 'ADMIN_KWARDA', label: 'Admin Kwarda', icon: <Building2 className="w-4 h-4" /> },
+    { id: 'ADMIN_KWARCAB', label: 'Admin Kwarcab', icon: <MapPinned className="w-4 h-4" /> },
+    { id: 'ADMIN_PANGKALAN', label: 'Admin Pangkalan', icon: <School className="w-4 h-4" /> },
+    { id: 'PAMONG_SAKA', label: 'Pamong Saka', icon: <UserRoundCog className="w-4 h-4" /> },
+    { id: 'ANGGOTA', label: 'Anggota', icon: <UserRound className="w-4 h-4" /> },
+  ];
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs transition-all">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Scope Context & Title */}
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
-              simulatedScope === 'SUPER_ADMIN'
-                ? 'bg-purple-50 text-purple-700 border border-purple-200/80'
-                : simulatedScope === 'ADMIN_PUSAT'
-                ? 'bg-blue-50 text-[#0066B3] border border-blue-200/80'
-                : 'bg-emerald-50 text-[#009B4D] border border-emerald-200/80'
-            }`}
-          >
-            {simulatedScope === 'SUPER_ADMIN' ? (
-              <ShieldAlert className="w-5 h-5" />
-            ) : simulatedScope === 'ADMIN_PUSAT' ? (
-              <ShieldCheck className="w-5 h-5" />
-            ) : (
-              <Shield className="w-5 h-5" />
-            )}
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 flex items-center justify-center">
+              <FlaskConical className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                Mode Pemeriksaan Peran SuperAdmin
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                Uji tampilan, scope, dan fitur setiap peran memakai data GAS nyata.
+              </div>
+            </div>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Portal Administrasi SPWN Apps 2.0
-              </span>
-              <span
-                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  simulatedScope === 'SUPER_ADMIN'
-                    ? 'bg-purple-100 text-purple-800'
-                    : simulatedScope === 'ADMIN_PUSAT'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-emerald-100 text-emerald-800'
+          <div className="text-[10px] rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-amber-800">
+            Session asli tetap <strong>SUPER_ADMIN</strong>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {roles.map((role) => {
+            const active = qaPerspective === role.id;
+            return (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => applyPerspective(role.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  active
+                    ? 'bg-violet-700 text-white border-violet-700 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-violet-300 hover:bg-violet-50'
                 }`}
               >
-                {simulatedScope === 'SUPER_ADMIN'
-                  ? 'SUPER_ADMIN (Nasional)'
-                  : simulatedScope === 'ADMIN_PUSAT'
-                  ? 'ADMIN_NASIONAL'
-                  : 'ADMIN_WILAYAH'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs text-slate-700 mt-1 flex-wrap font-medium">
-              <span className="text-slate-500">Scope:</span>
-              <span className="font-semibold text-slate-900">{scopeProvinceName}</span>
-              {simulatedScope === 'ADMIN_WILAYAH' && (
-                <>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-[#0066B3]">{scopeRegencyName}</span>
-                </>
-              )}
-            </div>
-          </div>
+                {role.icon}
+                {role.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* RBAC Role & Scope Switcher Controls - Khusus Halaman Superadmin */}
-        <div className="flex flex-wrap items-center gap-2 bg-slate-100/90 p-1.5 rounded-xl border border-slate-200">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1">
-            Simulasi Demo:
-          </span>
-          <button
-            type="button"
-            onClick={() => setSimulatedScope('SUPER_ADMIN')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
-              simulatedScope === 'SUPER_ADMIN'
-                ? 'bg-purple-700 text-white border-purple-700 hover:bg-white hover:text-purple-700'
-                : 'bg-white text-purple-700 border-purple-200 hover:bg-purple-700 hover:text-white hover:border-purple-700'
-            }`}
-          >
-            Demo Super Admin
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSimulatedScope('ADMIN_PUSAT')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
-              simulatedScope === 'ADMIN_PUSAT'
-                ? 'bg-[#0066B3] text-white border-[#0066B3] hover:bg-white hover:text-[#0066B3]'
-                : 'bg-white text-[#0066B3] border-blue-200 hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3]'
-            }`}
-          >
-            Demo Admin Nasional
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSimulatedScope('ADMIN_WILAYAH', '32', 'Jawa Barat', '3201', 'Kabupaten Bogor')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-2 ${
-              simulatedScope === 'ADMIN_WILAYAH'
-                ? 'bg-[#009B4D] text-white border-[#009B4D] hover:bg-white hover:text-[#009B4D]'
-                : 'bg-white text-[#009B4D] border-emerald-200 hover:bg-[#009B4D] hover:text-white hover:border-[#009B4D]'
-            }`}
-          >
-            Demo Admin Wilayah
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              sessionStorage.setItem('spwn_simulated_from_superadmin', 'true');
-              switchRole(ROLES.MEMBER);
-              setActiveView('membership');
-            }}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-amber-700 border-2 border-amber-300 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-            title="Uji tampilan & fitur Dashboard KTA Anggota SAKA"
-          >
-            <Users className="w-3.5 h-3.5 shrink-0" />
-            <span>Demo Anggota SAKA</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Regional Scoping Dropdown (if ADMIN_WILAYAH) */}
-      {simulatedScope === 'ADMIN_WILAYAH' && (
-        <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center gap-3 text-xs bg-emerald-50/40 p-3 rounded-xl border border-emerald-100">
-          <div className="flex items-center gap-1.5 text-emerald-800 font-semibold shrink-0">
-            <MapPin className="w-4 h-4 text-[#009B4D]" />
-            <span>Wilayah Binaan Aktif:</span>
-          </div>
-
-          <div className="flex items-center gap-2">
+        {needsProvince && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 pt-3 border-t border-slate-100">
             <select
-              value={scopeProvinceId}
+              value={scopeProvinceId === 'ALL' ? '' : scopeProvinceId}
               onChange={(e) => {
-                const prov = PROVINCES.find((p) => p.code === e.target.value);
-                setSimulatedScope(
-                  'ADMIN_WILAYAH',
-                  e.target.value,
-                  prov?.name || 'Jawa Barat',
-                  'ALL',
-                  'Seluruh Kabupaten'
-                );
+                const selected = provinceOptions.find((x) => x.id === e.target.value);
+                setQaPerspective(qaPerspective, {
+                  provId: e.target.value || 'ALL',
+                  provName: selected?.name || 'Seluruh Indonesia',
+                  regId: 'ALL',
+                  regName: 'Seluruh Kabupaten/Kota',
+                  distId: 'ALL',
+                  distName: 'Seluruh Kecamatan',
+                  pangkalanId: 'ALL',
+                  pangkalanName: 'Seluruh Pangkalan',
+                });
               }}
-              className="bg-white border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white"
             >
-              <option value="32">32 - JAWA BARAT</option>
-              <option value="31">31 - DKI JAKARTA</option>
-              <option value="33">33 - JAWA TENGAH</option>
-              <option value="35">35 - JAWA TIMUR</option>
-              <option value="51">51 - BALI</option>
-            </select>
-
-            <select
-              value={scopeRegencyId}
-              onChange={(e) => {
-                const reg = regenciesForJabar.find((r) => r.code === e.target.value);
-                setSimulatedScope(
-                  'ADMIN_WILAYAH',
-                  scopeProvinceId,
-                  scopeProvinceName,
-                  e.target.value,
-                  reg?.name || 'Seluruh Kabupaten'
-                );
-              }}
-              className="bg-white border border-emerald-300 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="ALL">Semua Kabupaten/Kota Binaan</option>
-              {regenciesForJabar.map((r) => (
-                <option key={r.code} value={r.code}>
-                  {r.code} - {r.name}
-                </option>
+              <option value="">Pilih Provinsi / Kwarda</option>
+              {provinceOptions.map((x) => (
+                <option key={x.id} value={x.id}>{x.name}</option>
               ))}
             </select>
+
+            {needsRegency && (
+              <select
+                value={scopeRegencyId === 'ALL' ? '' : scopeRegencyId}
+                onChange={(e) => {
+                  const selected = regencyOptions.find((x) => x.id === e.target.value);
+                  setQaPerspective(qaPerspective, {
+                    provId: scopeProvinceId,
+                    provName: scopeProvinceName,
+                    regId: e.target.value || 'ALL',
+                    regName: selected?.name || 'Seluruh Kabupaten/Kota',
+                    distId: 'ALL',
+                    distName: 'Seluruh Kecamatan',
+                    pangkalanId: 'ALL',
+                    pangkalanName: 'Seluruh Pangkalan',
+                  });
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white"
+              >
+                <option value="">Pilih Kabupaten/Kota / Kwarcab</option>
+                {regencyOptions.map((x) => (
+                  <option key={x.id} value={x.id}>{x.name}</option>
+                ))}
+              </select>
+            )}
+
+            {needsDistrict && (
+              <select
+                value={scopeDistrictId === 'ALL' ? '' : scopeDistrictId}
+                onChange={(e) => {
+                  const selected = districtOptions.find((x) => x.id === e.target.value);
+                  setQaPerspective(qaPerspective, {
+                    provId: scopeProvinceId,
+                    provName: scopeProvinceName,
+                    regId: scopeRegencyId,
+                    regName: scopeRegencyName,
+                    distId: e.target.value || 'ALL',
+                    distName: selected?.name || 'Seluruh Kecamatan',
+                    pangkalanId: 'ALL',
+                    pangkalanName: 'Seluruh Pangkalan',
+                  });
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white"
+              >
+                <option value="">Pilih Kecamatan</option>
+                {districtOptions.map((x) => (
+                  <option key={x.id} value={x.id}>{x.name}</option>
+                ))}
+              </select>
+            )}
+
+            {needsPangkalan && (
+              <select
+                value={scopePangkalanId === 'ALL' ? '' : scopePangkalanId}
+                onChange={(e) => {
+                  const selected = pangkalanOptions.find((x) => x.id === e.target.value);
+                  setQaPerspective(qaPerspective, {
+                    provId: scopeProvinceId,
+                    provName: scopeProvinceName,
+                    regId: scopeRegencyId,
+                    regName: scopeRegencyName,
+                    distId: scopeDistrictId,
+                    distName: scopeDistrictName,
+                    pangkalanId: e.target.value || 'ALL',
+                    pangkalanName: selected?.name || 'Seluruh Pangkalan',
+                  });
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white"
+              >
+                <option value="">Pilih Pangkalan</option>
+                {pangkalanOptions.map((x) => (
+                  <option key={x.id} value={x.id}>{x.name}</option>
+                ))}
+              </select>
+            )}
           </div>
+        )}
 
-          <span className="text-[11px] text-emerald-700 ml-auto italic">
-            *Regional Scoping Middleware aktif: Hanya menampilkan anggota di wilayah ini.
-          </span>
+        <div className="text-[11px] text-slate-600 flex flex-wrap items-center gap-1">
+          <span className="font-semibold">Perspektif aktif:</span>
+          <span>{qaPerspective}</span>
+
+          {needsProvince && scopeProvinceId !== 'ALL' && (
+            <>
+              <ChevronRight className="w-3 h-3" />
+              <span>{scopeProvinceName}</span>
+            </>
+          )}
+
+          {needsRegency && scopeRegencyId !== 'ALL' && (
+            <>
+              <ChevronRight className="w-3 h-3" />
+              <span>{scopeRegencyName}</span>
+            </>
+          )}
+
+          {needsDistrict && scopeDistrictId !== 'ALL' && (
+            <>
+              <ChevronRight className="w-3 h-3" />
+              <span>{scopeDistrictName}</span>
+            </>
+          )}
+
+          {needsPangkalan && scopePangkalanId !== 'ALL' && (
+            <>
+              <ChevronRight className="w-3 h-3" />
+              <span>{scopePangkalanName}</span>
+            </>
+          )}
         </div>
-      )}
-
+      </div>
     </div>
   );
 };
