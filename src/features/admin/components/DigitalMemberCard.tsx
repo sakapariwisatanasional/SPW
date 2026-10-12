@@ -296,7 +296,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       }
 
       case 'kwartir':
-        return resolveKwartirDisplay(member);
+        return resolveKwartirDisplay(member, false);
 
       case 'pangkalan_gudep':
         return member.pangkalan_gudep || member.gugusDepan || member.branchName || '';
@@ -911,13 +911,24 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   title="Zone 2: Structured Auto-Flow Identity Stack"
                 >
                   {activeFrontFields.map((field) => {
-                    const val = getFieldValue(field.field, field.customValue);
-                    const isName = canonicalKtaFieldKey(field.field) === 'full_name';
-                    const isKta = canonicalKtaFieldKey(field.field) === 'no_kta';
-                    const isLevel = canonicalKtaFieldKey(field.field) === 'tingkat';
+                    const canonicalField = canonicalKtaFieldKey(field.field);
+                    const isName = canonicalField === 'full_name';
+                    const isKta = canonicalField === 'no_kta';
+                    const isLevel = canonicalField === 'tingkat';
+                    const isKwartir = canonicalField === 'kwartir';
 
-                    // Kontrol visibilitas label tambahan: disembunyikan jika layout padat atau showFieldLabels nonaktif
+                    // Khusus field Kwartir:
+                    // - showLabel=true  => tampilkan prefix hierarki, mis. "Kwartir Cabang KOTA DEPOK"
+                    // - showLabel=false => hanya nama wilayah, mis. "KOTA DEPOK"
+                    // KWARNAS tetap "Kwartir Nasional" karena itu nama organisasi final.
+                    const val = isKwartir
+                      ? resolveKwartirDisplay(member, field.showLabel ?? false)
+                      : getFieldValue(field.field, field.customValue);
+
+                    // Kontrol label tambahan biasa. Field Kwartir dikecualikan karena
+                    // toggle "Label" pada Designer berfungsi sebagai toggle "Prefix".
                     const shouldDisplayLabel =
+                      !isKwartir &&
                       field.showLabel &&
                       previewSettings.showFieldLabels !== false &&
                       !isName &&
