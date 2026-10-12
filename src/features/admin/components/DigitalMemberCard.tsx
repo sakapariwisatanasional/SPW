@@ -187,6 +187,10 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
 }) => {
   const [currentSide, setCurrentSide] = useState<KtaCardSide>(side);
 
+  React.useEffect(() => {
+    console.info('[KTA BUILD] KTA_PRINT_IFRAME_V4_20261012_2206');
+  }, []);
+
   // Renderer tidak boleh membaca template dari LocalStorage.
   // Caller harus mengirim template GAS. DEFAULT hanya fallback visual eksplisit
   // untuk komponen yang belum diintegrasikan, bukan persistence/source of truth.
@@ -1486,7 +1490,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
             className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Cetak Kartu</span>
+            <span>Cetak Kartu v4</span>
           </button>
         </div>
       )}
