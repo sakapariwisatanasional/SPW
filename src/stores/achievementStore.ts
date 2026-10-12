@@ -37,73 +37,27 @@ export const useAchievementStore = create((set) => ({
     }));
   },
 
-  // Preview UI only. Tidak membuat identitas anggota backend.
-  loadDemoProfile: async (type: any) => {
-    const isActive = type === "active";
-
-    const preview = {
-      nama: isActive ? "Contoh Anggota" : "Anggota Baru",
-      full_name: isActive ? "Contoh Anggota" : "Anggota Baru",
-      level: isActive ? "MADYA" : "PURWA",
-      summary: {
-        completedSkk: isActive ? 8 : 0,
-        inProgressSkk: isActive ? 2 : 0,
-        progressPercent: isActive ? 80 : 0,
-      },
-      skkItems: [],
-      badges: [],
-      activities: [],
-    };
-
-    set({
-      profile: {
-        member: preview,
-        summary: preview.summary,
-      },
-      skkItems: [],
-      skk: [],
-      badges: [],
-      activities: [],
-      loading: false,
-      isLoading: false,
-      error: null,
-    });
-  },
-
+  // Legacy compatibility only. Tidak membuat profile lokal/dummy.
   loadSimulationAchievement: (user: any) => {
-    if (!user) return;
-
     const memberId =
       user?.memberProfile?.id ||
+      user?.memberProfile?.member_id ||
       user?.memberId ||
       user?.id ||
       null;
 
-    set({
-      profile: {
-        member: {
-          id: memberId,
-          memberId,
-          nama: user?.memberProfile?.full_name || user?.nama || user?.full_name || "",
-          full_name: user?.memberProfile?.full_name || user?.full_name || user?.nama || "",
-          no_kta: user?.memberProfile?.no_kta,
-          province: user?.memberProfile?.province || user?.province,
-          level: user?.memberProfile?.level || user?.level || "PURWA",
-        },
-        summary: user?.summary || {
-          completedSkk: 0,
-          inProgressSkk: 0,
-          progressPercent: 0,
-        },
-      },
-      skkItems: Array.isArray(user?.skkItems) ? user.skkItems : [],
-      skk: Array.isArray(user?.skkItems) ? user.skkItems : [],
-      badges: Array.isArray(user?.badges) ? user.badges : [],
-      activities: Array.isArray(user?.activities) ? user.activities : [],
-      loading: false,
-      isLoading: false,
-      error: null,
-    });
+    if (!memberId) {
+      set({
+        profile: null,
+        skkItems: [],
+        skk: [],
+        badges: [],
+        activities: [],
+        loading: false,
+        isLoading: false,
+        error: "Member ID GAS tidak tersedia untuk profil pencapaian",
+      });
+    }
   },
 
   loadAchievement: async (
