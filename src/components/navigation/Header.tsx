@@ -18,31 +18,19 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { ROLES, UserRole } from '../../config/constants';
+import { ROLES } from '../../config/constants';
 import { Avatar } from '../ui/Avatar';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { MemberProfileModal } from '../../features/membership/components/MemberProfileModal';
-import { SIMULATION_USERS } from '../../config/simulationUsers';
+import { useAdminStore } from '../../features/admin/stores/adminStore';
 
 export const Header: React.FC = () => {
   const {
     currentUser,
-    setImpersonatedUser,
-    clearImpersonation,
-    getEffectiveUser,
     isAuthenticated,
     logout,
     updateCurrentUserProfile
   } = useAuthStore();
-
-  // User yang tampil mengikuti simulasi SuperAdmin
-  // Akun asli tetap tersimpan di currentUser
-  const displayUser =
-    getEffectiveUser
-      ? getEffectiveUser()
-      : currentUser;
-
   const {
     toggleSidebar,
     activeView,
@@ -52,19 +40,26 @@ export const Header: React.FC = () => {
     searchQuery,
     setSearchQuery,
   } = useUIStore();
+  const {
+    qaPerspective,
+    setQaPerspective,
+  } = useAdminStore();
+
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const isPublicUser = !isAuthenticated || displayUser?.role === ROLES.PUBLIC_USER;
+  const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
-  const availableRoles = [
-    { key:'ADMIN_PUSAT', role:ROLES.ADMIN_PUSAT, label:'Admin Pusat (Kwarnas)', badgeVariant:'purple' },
-    { key:'PENGURUS_PROVINSI', role:'PENGURUS_PROVINSI' as UserRole, label:'Pengurus Provinsi Demo', badgeVariant:'green' },
-    { key:'PEMBINA_SAKA', role:'PEMBINA' as UserRole, label:'Pembina SAKA Demo', badgeVariant:'orange' },
-    { key:'MEMBER_AKTIF', role:ROLES.MEMBER, label:'Member Aktif (Fajar)', badgeVariant:'green' },
-    { key:'MEMBER_BARU', role:ROLES.MEMBER, label:'Member Baru', badgeVariant:'blue' },
-    { key:'SUPER_ADMIN', role:ROLES.SUPER_ADMIN, label:'Kembali Super Admin', badgeVariant:'blue' },
-  ];
+  const availableQaPerspectives = [
+    { id: 'SUPER_ADMIN', label: 'SuperAdmin' },
+    { id: 'ADMIN_KWARDA', label: 'Admin Kwarda' },
+    { id: 'ADMIN_KWARCAB', label: 'Admin Kwarcab' },
+    { id: 'ADMIN_PANGKALAN', label: 'Admin Pangkalan' },
+    { id: 'PAMONG_SAKA', label: 'Pamong Saka' },
+    { id: 'PINSAKA', label: 'Pinsaka' },
+    { id: 'MABISAKA', label: 'Mabisaka' },
+    { id: 'ANGGOTA', label: 'Anggota' },
+  ] as const;
 
   // Map active view to workspace title
   const getViewTitle = () => {
@@ -168,7 +163,7 @@ export const Header: React.FC = () => {
         ) : (
           <>
             {/* Quick Admin Portal Trigger */}
-            {(displayUser?.role === ROLES.SUPER_ADMIN || displayUser?.role === ROLES.ADMIN_PUSAT || displayUser?.role === ROLES.ADMIN_WILAYAH) && (
+            {(currentUser.role === ROLES.SUPER_ADMIN || currentUser.role === ROLES.ADMIN_PUSAT || currentUser.role === ROLES.ADMIN_WILAYAH) && (
               <Button
                 size="sm"
                 variant="primary"
@@ -182,17 +177,21 @@ export const Header: React.FC = () => {
           </>
         )}
 
-        {/* Role Switcher Simulator (Enterprise RBAC Showcase) - KHUSUS SUPERADMIN */}
-        {displayUser?.role === ROLES.SUPER_ADMIN && (
+        {/* SuperAdmin QA Perspective - data nyata, tanpa user demo */}
+        {currentUser.role === ROLES.SUPER_ADMIN && (
           <div className="relative">
             <button
               onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 border-slate-200 hover:border-[#0066B3] hover:bg-[#0066B3] hover:text-white bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer transition-colors shadow-2xs group"
-              title="Menu Simulasi Demo Peran RBAC (Khusus Superadmin)"
+              title="Mode Pemeriksaan Peran SuperAdmin"
             >
               <Shield className="w-3.5 h-3.5 text-[#0066B3] group-hover:text-white shrink-0 transition-colors" />
-              <span className="hidden lg:inline text-slate-500 group-hover:text-white/80 transition-colors">Peran:</span>
-              <span className="font-semibold text-slate-900 group-hover:text-white truncate max-w-[70px] sm:max-w-[110px] transition-colors">{displayUser?.role}</span>
+              <span className="hidden lg:inline text-slate-500 group-hover:text-white/80 transition-colors">
+                Perspektif:
+              </span>
+              <span className="font-semibold text-slate-900 group-hover:text-white truncate max-w-[90px] sm:max-w-[130px] transition-colors">
+                {qaPerspective}
+              </span>
               <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-white ml-0.5 shrink-0 transition-colors" />
             </button>
 
@@ -202,48 +201,65 @@ export const Header: React.FC = () => {
                   className="fixed inset-0 z-40"
                   onClick={() => setIsRoleDropdownOpen(false)}
                 />
+
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-3.5 py-2 border-b border-slate-100">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Simulasi Demo Pengurus & Anggota</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Khusus Superadmin menguji kapabilitas seluruh peran sistem</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Mode Pemeriksaan Peran SuperAdmin
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Session backend tetap SUPER_ADMIN. Perspektif ini memakai data GAS nyata, bukan akun demo.
+                    </p>
                   </div>
-                  <div className="max-h-72 overflow-y-auto py-1.5 px-1.5 space-y-1">
-                    {availableRoles.map((item) => (
-                      <button
-                        key={item.role}
-                        onClick={() => {
-                          if (item.role === ROLES.MEMBER) {
-                            sessionStorage.setItem('spwn_simulated_from_superadmin', 'true');
-                            setImpersonatedUser({
-                               ...currentUser,
-                               role:item.role,
-                               simulationRole:item.role,
-                               simulationLabel:item.label
-                             });
-                            setActiveView('membership');
-                          } else {
-                            setImpersonatedUser({
-                               ...currentUser,
-                               role:item.role,
-                               simulationRole:item.role,
-                               simulationLabel:item.label
-                             });
-                          }
-                          setIsRoleDropdownOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs rounded-xl hover:bg-[#0066B3] hover:text-white text-slate-800 flex items-center justify-between cursor-pointer transition-colors group"
-                      >
-                        <div className="space-y-0.5 min-w-0 pr-2">
-                          <p className="font-semibold truncate group-hover:text-white">{item.label}</p>
-                          <p className="text-[10px] font-mono text-slate-400 group-hover:text-white/80">{item.role}</p>
-                        </div>
-                        {displayUser?.role === item.role ? (
-                          <Badge size="sm" variant={item.badgeVariant}>Aktif</Badge>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 group-hover:text-white font-semibold">Pilih</span>
-                        )}
-                      </button>
-                    ))}
+
+                  <div className="max-h-80 overflow-y-auto py-1.5 px-1.5 space-y-1">
+                    {availableQaPerspectives.map((item) => {
+                      const active = qaPerspective === item.id;
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setQaPerspective(item.id);
+
+                            if (item.id === 'ANGGOTA') {
+                              setActiveView('member-achievement');
+                            } else if (
+                              item.id === 'PAMONG_SAKA' ||
+                              item.id === 'PINSAKA' ||
+                              item.id === 'MABISAKA'
+                            ) {
+                              setActiveView('member-achievement');
+                            }
+
+                            setIsRoleDropdownOpen(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-xs rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                            active
+                              ? 'bg-[#0066B3] text-white'
+                              : 'hover:bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          <div className="space-y-0.5 min-w-0 pr-2">
+                            <p className="font-semibold truncate">
+                              {item.label}
+                            </p>
+                            <p className={`text-[10px] font-mono ${
+                              active ? 'text-white/75' : 'text-slate-400'
+                            }`}>
+                              {item.id}
+                            </p>
+                          </div>
+
+                          <span className={`text-[10px] font-semibold ${
+                            active ? 'text-white' : 'text-slate-400'
+                          }`}>
+                            {active ? 'Aktif' : 'Pilih'}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </>
@@ -271,16 +287,16 @@ export const Header: React.FC = () => {
               className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl border border-slate-200/80 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-colors cursor-pointer text-left shadow-2xs group"
             >
               <Avatar
-                src={displayUser?.avatarUrl}
-                name={(displayUser?.nama || displayUser?.fullName)}
+                src={currentUser.avatarUrl}
+                name={currentUser.fullName}
                 size="sm"
                 status="online"
               />
               <div className="hidden lg:block text-left">
                 <p className="text-xs font-semibold text-slate-900 group-hover:text-white leading-tight truncate max-w-[120px] transition-colors">
-                  {(displayUser?.nama || displayUser?.fullName)}
+                  {currentUser.fullName}
                 </p>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300 leading-tight truncate max-w-[120px] transition-colors">{displayUser?.province || 'Nasional'}</p>
+                <p className="text-[10px] text-slate-400 group-hover:text-slate-300 leading-tight truncate max-w-[120px] transition-colors">{currentUser.province || 'Nasional'}</p>
               </div>
             </button>
 
