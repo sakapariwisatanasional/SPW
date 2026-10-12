@@ -5,7 +5,7 @@
  * Mengintegrasikan KTA Lifecycle:
  * - Antrean Penerbitan KTA Otomatis
  * - Regenerate KTA dengan Izin Khusus & Audit Log Alasan Peremajaan
- * - KTA Batch Preview & Cetak Massal (MENGGUNAKAN LegacyKtaPreview TERISOLASI)
+ * - KTA Batch Preview & Cetak Massal menggunakan DigitalMemberCard + template GAS
  * - Log Riwayat Penerbitan KTA (KTA_Generation_Log)
  */
 
@@ -56,7 +56,7 @@ export const KtaManagementCenter: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'batch' | 'logs'>('queue');
   const [searchKta, setSearchKta] = useState('');
 
-  // Selected member for single Preview (using LegacyKtaPreview)
+  // Selected member for single preview using DigitalMemberCard
   const [previewMember, setPreviewMember] = useState<AdminMemberRecord | null>(null);
 
   // Selected member for Regenerate KTA Modal
