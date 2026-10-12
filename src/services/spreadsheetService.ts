@@ -18,6 +18,28 @@ import { DEFAULT_KTA_SETTINGS } from './storage';
 import { apiClient } from './api/apiClient';
 import { calculateLayoutGuard } from '../features/admin/components/DigitalMemberCard';
 
+const normalizeSheetNumber = (
+  value: unknown,
+  fallback: number
+): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+
+    // Legacy bug: Google Sheets cell formatted as Date serialized numeric
+    // card dimension as ISO 1900 date. Convert it back to Sheets serial.
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime()) && /^19\d\d-/.test(value)) {
+      const sheetsEpoch = Date.UTC(1899, 11, 30);
+      return (parsed.getTime() - sheetsEpoch) / 86400000;
+    }
+  }
+
+  return fallback;
+};
+
 export interface UploadAssetResult {
   success: boolean;
   directUrl?: string;
@@ -86,9 +108,9 @@ export const spreadsheetService = {
           identityLayoutMode: record.identity_layout_mode || 'AUTO_FLOW',
           frontBackgroundUrl: record.front_background_url || elementsParsed.frontBackgroundUrl || DEFAULT_KTA_SETTINGS.frontBackgroundUrl,
           backBackgroundUrl: record.back_background_url || elementsParsed.backBackgroundUrl || DEFAULT_KTA_SETTINGS.backBackgroundUrl,
-          widthMm: record.card_width || elementsParsed.widthMm || 85.6,
-          heightMm: record.card_height || elementsParsed.heightMm || 53.98,
-          qrSize: record.qr_size || elementsParsed.qrSize || 18,
+          widthMm: normalizeSheetNumber(record.card_width, Number(elementsParsed.widthMm) || 85.6),
+          heightMm: normalizeSheetNumber(record.card_height, Number(elementsParsed.heightMm) || 53.98),
+          qrSize: normalizeSheetNumber(record.qr_size, Number(elementsParsed.qrSize) || 18),
         };
 
         return merged;
