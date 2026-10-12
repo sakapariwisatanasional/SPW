@@ -1493,3 +1493,4 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     </div>
   );
 };
+
