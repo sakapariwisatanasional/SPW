@@ -439,8 +439,16 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       liveFrame?.offsetHeight || measuredHeight || designWidthPx / aspectRatio
     );
 
-    const widthMm = previewSettings.widthMm || 85.6;
-    const heightMm = previewSettings.heightMm || 53.98;
+    // Ukuran fisik cetak 1:1.
+    // Untuk preset CR80/KTA gunakan ISO/IEC 7810 ID-1: 85.60 × 53.98 mm,
+    // terlepas dari kemungkinan format sel Google Sheet yang pernah mengubah
+    // angka 53.98 menjadi nilai tanggal/serial.
+    const isCr80 =
+      previewSettings.preset === 'CR80_KTA' ||
+      previewSettings.preset === 'KTP';
+
+    const widthMm = isCr80 ? 85.6 : (previewSettings.widthMm || 85.6);
+    const heightMm = isCr80 ? 53.98 : (previewSettings.heightMm || 53.98);
     const cssPxPerMm = 96 / 25.4;
     const physicalWidthPx = widthMm * cssPxPerMm;
     const physicalHeightPx = heightMm * cssPxPerMm;
@@ -623,8 +631,12 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     const style = document.createElement('style');
     style.id = 'kta-print-runtime-style';
     style.textContent = `
+      /*
+       * SATU HALAMAN A4, DUA SISI KTA, UKURAN FISIK 1:1.
+       * @page margin 0 juga mencegah header/footer browser mengambil ruang cetak.
+       */
       @page {
-        size: ${widthMm}mm ${heightMm}mm;
+        size: A4 portrait;
         margin: 0;
       }
 
@@ -633,10 +645,13 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       }
 
       @media print {
-        html, body {
+        html,
+        body {
+          width: 210mm !important;
+          height: 297mm !important;
           margin: 0 !important;
           padding: 0 !important;
-          overflow: visible !important;
+          overflow: hidden !important;
           background: #FFFFFF !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
@@ -647,29 +662,46 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
         }
 
         #kta-print-root-runtime {
-          display: block !important;
-          position: static !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          width: ${widthMm}mm !important;
-        }
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 10mm !important;
 
-        #kta-print-root-runtime .kta-print-sheet {
-          position: relative !important;
-          width: ${widthMm}mm !important;
-          height: ${heightMm}mm !important;
+          box-sizing: border-box !important;
+          width: 210mm !important;
+          height: 297mm !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 25mm 0 0 0 !important;
+
           overflow: hidden !important;
-          break-after: page;
-          page-break-after: always;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
 
-        #kta-print-root-runtime .kta-print-sheet:last-child {
-          break-after: auto;
-          page-break-after: auto;
+        #kta-print-root-runtime .kta-print-sheet {
+          position: relative !important;
+          flex: 0 0 auto !important;
+
+          width: ${widthMm}mm !important;
+          height: ${heightMm}mm !important;
+
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+
+          break-before: auto !important;
+          break-after: auto !important;
+          break-inside: avoid !important;
+
+          page-break-before: auto !important;
+          page-break-after: auto !important;
+          page-break-inside: avoid !important;
+
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
 
         #kta-print-root-runtime .kta-print-frozen-canvas {
@@ -679,6 +711,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           margin: 0 !important;
           padding: 0 !important;
           overflow: visible !important;
+          transform-origin: top left !important;
         }
       }
     `;
