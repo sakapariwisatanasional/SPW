@@ -137,6 +137,34 @@ export const MemberAchievementPage: React.FC = () => {
     badges.length === 0 &&
     activities.length === 0;
 
+  const achievementAccess =
+    (profile as any)?.access ||
+    (profile as any)?.member?.capabilities ||
+    {};
+
+  const memberPosition = String(
+    (profile as any)?.member?.position ||
+    (profile as any)?.member?.jabatan ||
+    achievementAccess?.position ||
+    'ANGGOTA'
+  ).trim().toUpperCase();
+
+  const isAchievementParticipant =
+    achievementAccess?.can_participate !== false &&
+    (profile as any)?.member?.canParticipateAchievement !== false;
+
+  const isPamong =
+    memberPosition === 'PAMONG SAKA' ||
+    memberPosition === 'PAMONG_SAKA';
+
+  const isPinsaka =
+    memberPosition === 'PIMPINAN SAKA' ||
+    memberPosition === 'PINSAKA' ||
+    memberPosition === 'PIMPINAN_SAKA';
+
+  const isMabisaka =
+    memberPosition === 'MABISAKA';
+
   // Jika SuperAdmin dalam mode Pantauan Seluruh Wilayah
   if (isSuperAdmin && viewMode === 'superadmin') {
     return (
@@ -257,8 +285,37 @@ export const MemberAchievementPage: React.FC = () => {
               onTogglePrivacyView={togglePrivacyView}
             />
 
-            {/* Jika Anggota Baru / Belum Memiliki Pencapaian */}
-            {hasNoAchievements ? (
+            {/* Jabatan struktural/pembina tidak menjadi peserta Krida/SKK */}
+            {!isAchievementParticipant && (isPamong || isPinsaka || isMabisaka) ? (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h2 className="text-lg font-extrabold text-slate-900">
+                      Mode Monitoring Pencapaian Anggota
+                    </h2>
+
+                    <p className="text-sm text-slate-700">
+                      Jabatan <strong>{memberPosition}</strong> tidak mengikuti penyelesaian
+                      Krida dan SKK sebagai peserta.
+                    </p>
+
+                    <p className="text-sm text-slate-600">
+                      {isPamong
+                        ? 'Pamong Saka bertugas mendampingi anggota, meninjau bukti/portofolio, serta melakukan verifikasi SKK anggota binaan sesuai kewenangannya.'
+                        : 'Jabatan ini dapat melihat dan meninjau perkembangan pencapaian anggota sesuai wilayah kewenangannya, tanpa memiliki progres Krida/SKK pribadi.'}
+                    </p>
+
+                    <div className="pt-2 text-xs font-semibold text-blue-800">
+                      Pencapaian pribadi dinonaktifkan oleh Rule of Truth GAS berdasarkan jabatan anggota.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : hasNoAchievements ? (
               <div className="space-y-6">
                 <AchievementEmptyState
                   memberNama={profile.member.nama}
