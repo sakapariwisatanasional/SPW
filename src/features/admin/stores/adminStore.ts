@@ -99,6 +99,17 @@ interface AdminState {
   batchGenerateKta: (memberIds: string[], reason: string, sessionUserName: string) => void;
   loadMembers: () => Promise<AdminMemberRecord[]>;
   loadDashboardData: () => Promise<void>;
+  syncMemberUserStatuses: () => Promise<{
+    scanned: number;
+    eligible: number;
+    activated: number;
+    already_active: number;
+    skipped_status: number;
+    skipped_email: number;
+    user_not_found: number;
+    failed: number;
+    details?: any[];
+  }>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -1042,6 +1053,35 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         dashboardError: message,
       });
     }
+  },
+
+  syncMemberUserStatuses: async () => {
+    const response = await apiClient.post<any>(
+      'admin.member.syncUserStatus',
+      {}
+    );
+
+    const result =
+      response?.data?.data ||
+      response?.data ||
+      response ||
+      {};
+
+    await get().loadDashboardData();
+
+    return {
+      scanned: Number(result.scanned || 0),
+      eligible: Number(result.eligible || 0),
+      activated: Number(result.activated || 0),
+      already_active: Number(result.already_active || 0),
+      skipped_status: Number(result.skipped_status || 0),
+      skipped_email: Number(result.skipped_email || 0),
+      user_not_found: Number(result.user_not_found || 0),
+      failed: Number(result.failed || 0),
+      details: Array.isArray(result.details)
+        ? result.details
+        : [],
+    };
   },
 
   assignAdmin: (data) => {
