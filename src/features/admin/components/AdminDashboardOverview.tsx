@@ -146,12 +146,58 @@ export const AdminDashboardOverview: React.FC = () => {
     }).slice(0, 6);
   }, [scopedMembers, globalSearchQuery]);
 
-  // Krida distribution
+  // Distribusi Krida dari data anggota GAS.
+  // Jangan hanya bergantung pada krida_id karena data lama dapat hanya memiliki
+  // kolom krida / krida_nama.
+  const normalizeKridaText = (value: unknown) =>
+    String(value || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+
   const kridaCounts = useMemo(() => {
     return (Array.isArray(KRIDA_MASTER) ? KRIDA_MASTER : []).map((k) => {
-      const count = scopedMembers.filter((m) => m.krida_id === k.id).length;
-      const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
-      return { ...k, count, percentage };
+      const masterId = normalizeKridaText(k.id);
+      const masterName = normalizeKridaText(k.name);
+
+      const count = scopedMembers.filter((m: any) => {
+        const memberId = normalizeKridaText(m.krida_id);
+        const memberName = normalizeKridaText(
+          m.krida_nama ||
+          m.krida
+        );
+
+        if (memberId && memberId === masterId) {
+          return true;
+        }
+
+        if (memberName && memberName === masterName) {
+          return true;
+        }
+
+        // Compatibility untuk beberapa nilai lama yang tidak diawali "KRIDA".
+        const masterNameWithoutPrefix =
+          masterName.replace(/^KRIDA\s+/, '');
+
+        const memberNameWithoutPrefix =
+          memberName.replace(/^KRIDA\s+/, '');
+
+        return Boolean(
+          memberNameWithoutPrefix &&
+          memberNameWithoutPrefix === masterNameWithoutPrefix
+        );
+      }).length;
+
+      const percentage =
+        totalCount > 0
+          ? Math.round((count / totalCount) * 100)
+          : 0;
+
+      return {
+        ...k,
+        count,
+        percentage,
+      };
     });
   }, [scopedMembers, totalCount]);
 
