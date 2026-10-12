@@ -94,8 +94,6 @@ interface AdminState {
     | 'ADMIN_KWARCAB'
     | 'ADMIN_PANGKALAN'
     | 'PAMONG_SAKA'
-    | 'PINSAKA'
-    | 'MABISAKA'
     | 'ANGGOTA';
   scopeProvinceId: string; // 'ALL' or '32'
   scopeProvinceName: string;
@@ -130,8 +128,6 @@ interface AdminState {
       | 'ADMIN_KWARCAB'
       | 'ADMIN_PANGKALAN'
       | 'PAMONG_SAKA'
-      | 'PINSAKA'
-      | 'MABISAKA'
       | 'ANGGOTA',
     options?: {
       provId?: string;
@@ -322,27 +318,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         scopeDistrictName: 'Seluruh Kecamatan',
         scopePangkalanId: 'ALL',
         scopePangkalanName: 'Seluruh Pangkalan',
-      });
-      return;
-    }
-
-    if (
-      perspective === 'PINSAKA' ||
-      perspective === 'MABISAKA'
-    ) {
-      set({
-        qaPerspective: perspective,
-        actingLevel: 'WILAYAH',
-        actingRole: 'MEMBER',
-        simulatedScope: 'MEMBER',
-        scopeProvinceId: provId === 'ALL' ? '32' : provId,
-        scopeProvinceName: provName || 'JAWA BARAT',
-        scopeRegencyId: regId,
-        scopeRegencyName: regName,
-        scopeDistrictId: distId,
-        scopeDistrictName: distName,
-        scopePangkalanId: pangkalanId,
-        scopePangkalanName: pangkalanName,
       });
       return;
     }
@@ -1052,13 +1027,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             '',
 
           nomor_kta:
-            member.no_kta ||
             member.nomor_kta ||
+            member.no_kta ||
             '',
 
           no_kta:
-            member.no_kta ||
             member.nomor_kta ||
+            member.no_kta ||
             '',
 
           nama_lengkap:
@@ -1142,8 +1117,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             (member.no_kta || member.nomor_kta ? 'ACTIVE' : 'NOT_CREATED'),
 
           foto_url:
-            member.photo_url ||
             member.foto_url ||
+            member.photo_url ||
             member.foto ||
             '',
 
