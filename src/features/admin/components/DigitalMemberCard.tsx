@@ -31,7 +31,7 @@ import {
 import { DynamicQrCode } from '../../../components/display/DynamicQrCode';
 import { resolveDistrictName, getProvinceByCode, getRegencyByCode } from '../../../data/wilayahData';
 import { ktaService } from '../../../services/ktaService';
-import { storage } from '../../../services/storage';
+import { DEFAULT_KTA_SETTINGS } from '../../../services/storage';
 import { canonicalKtaFieldKey } from './ktaDesigner/ktaFieldRegistry';
 import {
   canRenderKtaField,
@@ -148,6 +148,35 @@ export function calculateLayoutGuard(
   };
 }
 
+
+const normalizeDriveImageUrl = (rawUrl?: string): string => {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+
+  // Already a render-friendly Google Drive thumbnail URL.
+  if (/^https:\/\/drive\.google\.com\/thumbnail\?/i.test(value)) {
+    return value;
+  }
+
+  // Google Drive share links:
+  // /file/d/FILE_ID/view
+  // /open?id=FILE_ID
+  // /uc?export=view&id=FILE_ID
+  // /uc?id=FILE_ID
+  if (/drive\.google\.com/i.test(value)) {
+    const pathMatch = value.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const queryMatch = value.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const fileId = pathMatch?.[1] || queryMatch?.[1];
+
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w2000`;
+    }
+  }
+
+  return value;
+};
+
+
 export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
   member,
   previewSettings: propSettings,
@@ -158,9 +187,11 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
 }) => {
   const [currentSide, setCurrentSide] = useState<KtaCardSide>(side);
 
-  // Ambil settings dari KTA Designer aktif jika tidak di-pass via props
+  // Renderer tidak boleh membaca template dari LocalStorage.
+  // Caller harus mengirim template GAS. DEFAULT hanya fallback visual eksplisit
+  // untuk komponen yang belum diintegrasikan, bukan persistence/source of truth.
   const previewSettings: KtaCardSettings = React.useMemo(() => {
-    return propSettings || storage.getKtaSettings();
+    return propSettings || DEFAULT_KTA_SETTINGS;
   }, [propSettings]);
 
   // Sinkronisasi side saat props berubah
@@ -323,9 +354,9 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
   const bgColor = isFront
     ? previewSettings.customBackgroundColorFront || '#004C85'
     : previewSettings.customBackgroundColorBack || '#0B1F33';
-  const bgImg = isFront
-    ? previewSettings.frontBackgroundUrl
-    : previewSettings.backBackgroundUrl;
+  const bgImg = normalizeDriveImageUrl(
+    isFront ? previewSettings.frontBackgroundUrl : previewSettings.backBackgroundUrl
+  );
 
   // Dynamic field order: SuperAdmin controls order through template.
   const activeFrontFields = (previewSettings.dataFields || [])
@@ -724,7 +755,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           {frontLogo && logoPlacement === 'BACKGROUND_WATERMARK' && isFront && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
               <img
-                src={frontLogo.url}
+                src={normalizeDriveImageUrl(frontLogo.url)}
                 alt={frontLogo.name}
                 className="w-1/2 h-1/2 object-contain"
                 referrerPolicy="no-referrer"
@@ -763,7 +794,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                         }}
                       >
                         <img
-                          src={frontLogo.url}
+                          src={normalizeDriveImageUrl(frontLogo.url)}
                           alt={frontLogo.name || 'Logo'}
                           className="w-full h-full object-contain"
                           referrerPolicy="no-referrer"
@@ -792,7 +823,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                       }}
                     >
                       <img
-                        src={frontLogo.url}
+                        src={normalizeDriveImageUrl(frontLogo.url)}
                         alt={frontLogo.name || 'Logo Kanan'}
                         className="w-full h-full object-contain"
                         referrerPolicy="no-referrer"
