@@ -25,6 +25,8 @@ type QaPerspective =
   | 'ADMIN_KWARCAB'
   | 'ADMIN_PANGKALAN'
   | 'PAMONG_SAKA'
+  | 'PINSAKA'
+  | 'MABISAKA'
   | 'ANGGOTA';
 
 export const AdminScopeBar: React.FC = () => {
@@ -181,6 +183,8 @@ export const AdminScopeBar: React.FC = () => {
     'ADMIN_KWARCAB',
     'ADMIN_PANGKALAN',
     'PAMONG_SAKA',
+    'PINSAKA',
+    'MABISAKA',
     'ANGGOTA',
   ].includes(qaPerspective);
 
@@ -202,6 +206,8 @@ export const AdminScopeBar: React.FC = () => {
     { id: 'ADMIN_KWARCAB', label: 'Admin Kwarcab', icon: <MapPinned className="w-4 h-4" /> },
     { id: 'ADMIN_PANGKALAN', label: 'Admin Pangkalan', icon: <School className="w-4 h-4" /> },
     { id: 'PAMONG_SAKA', label: 'Pamong Saka', icon: <UserRoundCog className="w-4 h-4" /> },
+    { id: 'PINSAKA', label: 'Pinsaka', icon: <ShieldCheck className="w-4 h-4" /> },
+    { id: 'MABISAKA', label: 'Mabisaka', icon: <ShieldCheck className="w-4 h-4" /> },
     { id: 'ANGGOTA', label: 'Anggota', icon: <UserRound className="w-4 h-4" /> },
   ];
 
