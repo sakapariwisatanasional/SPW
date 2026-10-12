@@ -66,6 +66,34 @@ export const MemberAchievementPage: React.FC = () => {
   const qaMember = React.useMemo(() => {
     const list = Array.isArray(adminMembers) ? adminMembers : [];
 
+    // Saat benar-benar berada pada Member Shell, jangan biarkan selectedMemberId
+    // lama dari Portal Admin mengambil alih identitas profil.
+    if (currentUser?.role === ROLES.MEMBER) {
+      const currentIdentity =
+        (currentUser as any)?.memberProfile?.id ||
+        (currentUser as any)?.memberProfile?.member_id ||
+        (currentUser as any)?.memberId ||
+        (currentUser as any)?.id ||
+        '';
+
+      if (currentIdentity) {
+        const ownMember = list.find((m: any) =>
+          [
+            m.id,
+            m.member_id,
+            m.nomor_kta,
+            m.no_kta,
+          ].some((value) =>
+            String(value || '') === String(currentIdentity)
+          )
+        );
+
+        if (ownMember) return ownMember;
+      }
+
+      return null;
+    }
+
     if (selectedMemberId) {
       const selected = list.find((m: any) =>
         String(m.id || m.member_id || '') === String(selectedMemberId)
@@ -109,16 +137,26 @@ export const MemberAchievementPage: React.FC = () => {
   ]);
 
   const targetMemberId =
-    qaMember?.id ||
-    qaMember?.member_id ||
-    qaMember?.no_kta ||
-    qaMember?.nomor_kta ||
-    (currentUser as any)?.memberProfile?.id ||
-    (currentUser as any)?.memberProfile?.member_id ||
-    (currentUser as any)?.memberId ||
-    (currentUser as any)?.no_kta ||
-    (currentUser as any)?.nomor_kta ||
-    '';
+    currentUser?.role === ROLES.MEMBER
+      ? (
+          (currentUser as any)?.memberProfile?.id ||
+          (currentUser as any)?.memberProfile?.member_id ||
+          (currentUser as any)?.memberId ||
+          (currentUser as any)?.id ||
+          (currentUser as any)?.nomor_kta ||
+          (currentUser as any)?.no_kta ||
+          ''
+        )
+      : (
+          qaMember?.id ||
+          qaMember?.member_id ||
+          qaMember?.nomor_kta ||
+          qaMember?.no_kta ||
+          (currentUser as any)?.memberProfile?.id ||
+          (currentUser as any)?.memberProfile?.member_id ||
+          (currentUser as any)?.memberId ||
+          ''
+        );
 
   useEffect(() => {
     if (!targetMemberId) return;
@@ -129,6 +167,96 @@ export const MemberAchievementPage: React.FC = () => {
       (currentUser as any)?.memberId
     );
   }, [targetMemberId, currentUser?.role, loadAchievement]);
+
+  // Sinkronkan identitas yang tampil di Member Shell dengan read-model GAS.
+  // Ini hanya memperbarui state/session browser dengan data hasil baca GAS;
+  // tidak menulis balik data anggota.
+  useEffect(() => {
+    if (
+      currentUser?.role !== ROLES.MEMBER ||
+      !profile?.member
+    ) {
+      return;
+    }
+
+    const gasMember: any = profile.member;
+
+    const nextKta =
+      gasMember.nomor_kta ||
+      gasMember.no_kta ||
+      gasMember.memberId ||
+      '';
+
+    const nextPhoto =
+      gasMember.fotoUrl ||
+      gasMember.photo_url ||
+      '';
+
+    const nextName =
+      gasMember.full_name ||
+      gasMember.nama ||
+      currentUser.fullName ||
+      '';
+
+    const nextMemberId =
+      gasMember.internalId ||
+      (currentUser as any)?.memberId ||
+      currentUser.id;
+
+    const currentKta =
+      (currentUser as any)?.nomor_kta ||
+      (currentUser as any)?.no_kta ||
+      '';
+
+    const currentPhoto =
+      (currentUser as any)?.avatarUrl ||
+      (currentUser as any)?.photo_url ||
+      '';
+
+    const currentName =
+      currentUser.fullName ||
+      '';
+
+    if (
+      String(currentKta) === String(nextKta) &&
+      String(currentPhoto) === String(nextPhoto) &&
+      String(currentName) === String(nextName)
+    ) {
+      return;
+    }
+
+    const updatedUser: any = {
+      ...currentUser,
+      fullName: nextName,
+      memberId: nextMemberId,
+      nomor_kta: nextKta,
+      no_kta: nextKta,
+      avatarUrl: nextPhoto,
+      photo_url: nextPhoto,
+      memberProfile: {
+        ...((currentUser as any)?.memberProfile || {}),
+        id: nextMemberId,
+        member_id: nextMemberId,
+        full_name: nextName,
+        nomor_kta: nextKta,
+        no_kta: nextKta,
+        photo_url: nextPhoto,
+      },
+    };
+
+    useAuthStore.setState({
+      currentUser: updatedUser,
+    } as any);
+
+    try {
+      localStorage.setItem(
+        'spwn_session_user',
+        JSON.stringify(updatedUser)
+      );
+    } catch {
+      // Browser storage optional; UI tetap memakai Zustand state.
+    }
+  }, [profile, currentUser]);
 
   const hasNoAchievements =
     profile &&
