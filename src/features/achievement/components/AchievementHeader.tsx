@@ -24,16 +24,12 @@ interface AchievementHeaderProps {
   member: AchievementMemberInfo;
   isPrivacyScoreVisible: boolean;
   onTogglePrivacyView: () => void;
-  onSwitchDemoProfile?: (type: 'active' | 'empty') => void;
-  currentDemoType?: 'active' | 'empty';
 }
 
 export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
   member,
   isPrivacyScoreVisible,
-  onTogglePrivacyView,
-  onSwitchDemoProfile,
-  currentDemoType = 'active'
+  onTogglePrivacyView
 }) => {
   // Warna level kepramukaan resmi
   const levelBadgeConfig = {
@@ -71,12 +67,23 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
           {/* Avatar Container */}
           <div className="relative">
-            <img
-              src={member.fotoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-              alt={member.full_name || member.nama}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
-              referrerPolicy="no-referrer"
-            />
+            {member.fotoUrl ? (
+              <img
+                src={member.fotoUrl}
+                alt={member.full_name || member.nama}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white shadow-md ring-2 ring-slate-100 bg-slate-100 flex items-center justify-center text-xl font-extrabold text-slate-500">
+                {String(member.full_name || member.nama || '?')
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((part) => part.charAt(0).toUpperCase())
+                  .join('')}
+              </div>
+            )}
             <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1 rounded-full border-2 border-white shadow-sm" title="KTA Aktif">
               <UserCheck className="w-3.5 h-3.5" />
             </div>
@@ -98,12 +105,12 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
             {/* Nomor KTA & Krida */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600 mb-3">
               <span className="font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                {member.no_kta || member.nomorKta}
+                {member.no_kta || member.nomorKta || 'Belum Terbit'}
               </span>
               <span className="text-slate-300">•</span>
               <span className="inline-flex items-center gap-1 font-medium text-[#0066B3]">
                 <Sparkles className="w-3.5 h-3.5" />
-                {member.kridaUtamaNama}
+                {member.kridaUtamaNama || 'Krida belum ditetapkan'}
               </span>
             </div>
 
@@ -111,17 +118,17 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {member.pangkalan} ({member.kwarcab}, {member.kwarda})
+                {[member.pangkalan, member.kwarcab, member.kwarda].filter(Boolean).join(' • ') || 'Wilayah / Pangkalan belum tersedia'}
               </span>
               <span className="inline-flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Bergabung: {member.tanggalBergabung}
+                Bergabung: {member.tanggalBergabung || 'Belum tersedia'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right Side: Privacy & Demo Controls */}
+        {/* Right Side: Privacy Controls */}
         <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
           {/* Privacy Score Protection Tag & Toggle */}
           <div className="flex items-center gap-2">
@@ -152,36 +159,6 @@ export const AchievementHeader: React.FC<AchievementHeaderProps> = ({
             </button>
           </div>
 
-          {/* Quick Demo Switcher (Active vs Empty State) */}
-          {onSwitchDemoProfile && (
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs">
-              <span className="text-slate-500 px-1.5 text-[11px] font-medium">Uji Profil:</span>
-              <button
-                type="button"
-                id="btn-demo-active-profile"
-                onClick={() => onSwitchDemoProfile('active')}
-                className={`px-2.5 py-1 rounded-md transition-all font-medium ${
-                  currentDemoType === 'active'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Fajar (Aktif)
-              </button>
-              <button
-                type="button"
-                id="btn-demo-empty-profile"
-                onClick={() => onSwitchDemoProfile('empty')}
-                className={`px-2.5 py-1 rounded-md transition-all font-medium ${
-                  currentDemoType === 'empty'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Bagas (Baru / Kosong)
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
