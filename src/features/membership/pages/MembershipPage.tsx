@@ -46,7 +46,9 @@ import {
   getRegencyByCode,
   resolveDistrictName,
 } from '../../../data/wilayahData';
-import { storage } from '../../../services/storage';
+import { spreadsheetService } from '../../../services/spreadsheetService';
+import { KtaCardSettings } from '../../../types/kta.types';
+import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 import { ktaService } from '../../../services/ktaService';
 import { memberApi } from '../../../services/api/member.api';
 
@@ -60,6 +62,9 @@ export const MembershipPage: React.FC = () => {
   const [selectedProvince, setSelectedProvince] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState<'ALL' | OrganizationLevelType>('ALL');
   const [selectedMemberForKTA, setSelectedMemberForKTA] = useState<MemberRecord | null>(null);
+  const [ktaTemplateSettings, setKtaTemplateSettings] = useState<KtaCardSettings | null>(null);
+  const [ktaTemplateLoading, setKtaTemplateLoading] = useState(true);
+  const [ktaTemplateError, setKtaTemplateError] = useState<string | null>(null);
 
   // Modal Pendaftaran & Generator KTA Interaktif
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -81,6 +86,55 @@ export const MembershipPage: React.FC = () => {
   // 2. Wilayah: 00.PPKK.CCC.NNNNNN (Tanpa kode provinsi pada nomor KTA, namun kode provinsi, kab, kec tetap tersimpan di database)
   const [members, setMembers] = useState<MemberRecord[]>([]);
 
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadKtaTemplate() {
+      setKtaTemplateLoading(true);
+      setKtaTemplateError(null);
+
+      try {
+        const template =
+          await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+
+        if (!mounted) return;
+
+        if (!template) {
+          setKtaTemplateSettings(null);
+          setKtaTemplateError(
+            'Template TMPL_DEFAULT belum tersedia di GAS.'
+          );
+          return;
+        }
+
+        setKtaTemplateSettings(template);
+      } catch (error: any) {
+        if (!mounted) return;
+
+        console.error(
+          'MembershipPage gagal memuat template KTA dari GAS:',
+          error
+        );
+
+        setKtaTemplateSettings(null);
+        setKtaTemplateError(
+          error?.message ||
+          'Template KTA gagal dimuat dari GAS.'
+        );
+      } finally {
+        if (mounted) {
+          setKtaTemplateLoading(false);
+        }
+      }
+    }
+
+    void loadKtaTemplate();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     async function loadMembers() {
@@ -865,38 +919,61 @@ export const MembershipPage: React.FC = () => {
         size="lg"
       >
         {selectedMemberForKTA && (() => {
-          const bindingMember = {
+          const bindingMember = mapMemberToKtaBinding({
+            ...selectedMemberForKTA,
             id: selectedMemberForKTA.id,
-            fullName: selectedMemberForKTA.fullName,
-            nama_lengkap: selectedMemberForKTA.fullName,
-            nationalMemberNumber: selectedMemberForKTA.noKta,
-            nomor_kta: selectedMemberForKTA.noKta,
-            membershipLevel: selectedMemberForKTA.membershipLevel,
+            full_name: selectedMemberForKTA.fullName,
+            no_kta: selectedMemberForKTA.noKta,
+            position: selectedMemberForKTA.membershipLevel,
             tingkat_keanggotaan: selectedMemberForKTA.membershipLevel,
-            currentPosition: selectedMemberForKTA.membershipLevel,
-            provinceName: (selectedMemberForKTA.kodeProvinsi && getProvinceByCode(selectedMemberForKTA.kodeProvinsi)?.name) || selectedMemberForKTA.province,
             provinsi_id: selectedMemberForKTA.kodeProvinsi,
-            regencyName: (selectedMemberForKTA.kodeKabupaten && getRegencyByCode(selectedMemberForKTA.kodeKabupaten)?.name) || selectedMemberForKTA.city,
+            provinsi_nama:
+              (selectedMemberForKTA.kodeProvinsi &&
+                getProvinceByCode(selectedMemberForKTA.kodeProvinsi)?.name) ||
+              selectedMemberForKTA.province,
             kabupaten_id: selectedMemberForKTA.kodeKabupaten,
-            districtName: (selectedMemberForKTA.kodeKabupaten && selectedMemberForKTA.kodeKecamatan && resolveDistrictName(selectedMemberForKTA.kodeKabupaten, selectedMemberForKTA.kodeKecamatan)) || selectedMemberForKTA.kecamatan,
-            wilayah_kecamatan_id: selectedMemberForKTA.kodeKecamatan,
+            kabupaten_kota_nama:
+              (selectedMemberForKTA.kodeKabupaten &&
+                getRegencyByCode(selectedMemberForKTA.kodeKabupaten)?.name) ||
+              selectedMemberForKTA.city,
+            kecamatan_id: selectedMemberForKTA.kodeKecamatan,
+            kecamatan_nama:
+              (selectedMemberForKTA.kodeKabupaten &&
+                selectedMemberForKTA.kodeKecamatan &&
+                resolveDistrictName(
+                  selectedMemberForKTA.kodeKabupaten,
+                  selectedMemberForKTA.kodeKecamatan
+                )) ||
+              selectedMemberForKTA.kecamatan,
             krida: selectedMemberForKTA.kridaName || 'KRIDA PEMANDU',
-            branchName: 'Pangkalan Saka Pariwisata',
-            gugusDepan: 'Pangkalan Saka Pariwisata',
-            photoUrl: selectedMemberForKTA.photoUrl,
+            pangkalan_gudep:
+              (selectedMemberForKTA as any).pangkalan ||
+              (selectedMemberForKTA as any).gugusDepan ||
+              'Pangkalan Saka Pariwisata',
+            photo_url: selectedMemberForKTA.photoUrl,
             status: selectedMemberForKTA.status,
-            qrToken: selectedMemberForKTA.verificationToken,
-            phone: '0812-3456-7890',
-            email: 'anggota@spwn.id',
-          };
+            qr_token: selectedMemberForKTA.verificationToken,
+            verification_url:
+              (selectedMemberForKTA as any).verificationUrl ||
+              (selectedMemberForKTA as any).verification_url ||
+              '',
+          });
 
           return (
             <div className="py-2 flex flex-col items-center gap-4">
-              <DigitalMemberCard
-                member={bindingMember}
-                previewSettings={storage.getKtaSettings()}
-                showControls={true}
-              />
+              {ktaTemplateLoading ? (
+                <div className="w-full max-w-md aspect-[1.586/1] rounded-2xl bg-slate-100 animate-pulse" />
+              ) : ktaTemplateSettings ? (
+                <DigitalMemberCard
+                  member={bindingMember}
+                  previewSettings={ktaTemplateSettings}
+                  showControls={true}
+                />
+              ) : (
+                <div className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-xs font-semibold text-rose-700">
+                  {ktaTemplateError || 'Template KTA tidak tersedia dari GAS.'}
+                </div>
+              )}
               
               {/* Technical Database Metadata */}
               <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1 font-mono">
