@@ -29,14 +29,18 @@ export const AdminPortalPage: React.FC = () => {
     activeTab,
     setActiveTab,
     loadMembers,
+    loadDashboardData,
     members,
     membersLoading,
     membersError,
+    dashboardLoading,
+    dashboardError,
+    dashboardLastSyncedAt,
   } = useAdminStore();
 
   React.useEffect(() => {
-    void loadMembers();
-  }, [loadMembers]);
+    void loadDashboardData();
+  }, [loadDashboardData]);
 
   const TABS: {
     id: AdminActiveTab;
@@ -161,20 +165,20 @@ export const AdminPortalPage: React.FC = () => {
           }`}
         >
           <div className="font-semibold">
-            {membersLoading
-              ? 'Mengambil data anggota dari GAS...'
-              : membersError
-              ? `GAS gagal dimuat: ${membersError}`
-              : `GAS terhubung • ${members.length} anggota dimuat`}
+            {membersLoading || dashboardLoading
+              ? 'Mengambil data Dashboard Admin dari GAS...'
+              : membersError || dashboardError
+              ? `GAS gagal dimuat: ${membersError || dashboardError}`
+              : `GAS terhubung • ${members.length} anggota • Dashboard tersinkron${dashboardLastSyncedAt ? ` • ${new Date(dashboardLastSyncedAt).toLocaleString('id-ID')}` : ''}`}
           </div>
 
           <button
             type="button"
-            onClick={() => void loadMembers()}
-            disabled={membersLoading}
+            onClick={() => void loadDashboardData()}
+            disabled={membersLoading || dashboardLoading}
             className="rounded-lg border border-current/20 bg-white px-3 py-1.5 font-bold disabled:opacity-50"
           >
-            {membersLoading ? 'Memuat...' : 'Muat Ulang GAS'}
+            {membersLoading || dashboardLoading ? 'Memuat...' : 'Muat Ulang GAS'}
           </button>
         </div>
       </div>
