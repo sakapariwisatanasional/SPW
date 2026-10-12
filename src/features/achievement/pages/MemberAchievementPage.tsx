@@ -15,6 +15,7 @@ import React, { useEffect, useState } from 'react';
 import { Award, Compass, RefreshCw, AlertCircle, Users, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { useAchievementStore } from '../../../stores/achievementStore';
+import { useAdminStore } from '../../admin/stores/adminStore';
 import { ROLES } from '../../../config/constants';
 import { AchievementHeader } from '../components/AchievementHeader';
 import { AchievementSummaryCard } from '../components/AchievementSummaryCard';
@@ -26,11 +27,16 @@ import { SuperAdminAchievementView } from '../components/SuperAdminAchievementVi
 import { Button } from '../../../components/ui';
 
 export const MemberAchievementPage: React.FC = () => {
+  const { currentUser } = useAuthStore();
   const {
-    currentUser,
-    impersonatedUser,
-    getEffectiveUser
-  } = useAuthStore();
+    members: adminMembers,
+    selectedMemberId,
+    qaPerspective,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
+  } = useAdminStore();
   const {
     profile,
     skkItems,
@@ -41,27 +47,13 @@ export const MemberAchievementPage: React.FC = () => {
     error,
     privacyScoreVisible,
     loadAchievement,
-    loadSimulationAchievement,
     setSelectedKrida,
-    togglePrivacyView,
-    loadDemoProfile
+    togglePrivacyView
   } = useAchievementStore();
 
   const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN || currentUser?.role === ROLES.ADMIN_PUSAT;
   const [viewMode, setViewMode] = useState<'superadmin' | 'personal'>(isSuperAdmin ? 'superadmin' : 'personal');
 
-  const [demoType, setDemoType] = useState<'active' | 'empty'>('active');
-
-  const effectiveUser = getEffectiveUser();
-
-  const getActiveMemberId = () => {
-    return (
-      effectiveUser?.memberProfile?.id ||
-      effectiveUser?.memberProfile?.memberId ||
-      effectiveUser?.memberId ||
-      ''
-    );
-  };
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -71,48 +63,77 @@ export const MemberAchievementPage: React.FC = () => {
     }
   }, [isSuperAdmin]);
 
-  useEffect(() => {
+  const qaMember = React.useMemo(() => {
+    const list = Array.isArray(adminMembers) ? adminMembers : [];
 
-    if (
-      impersonatedUser?.memberProfile?.id ||
-      impersonatedUser?.memberId
-    ) {
-      loadSimulationAchievement(
-        effectiveUser || impersonatedUser
+    if (selectedMemberId) {
+      const selected = list.find((m: any) =>
+        String(m.id || m.member_id || '') === String(selectedMemberId)
       );
-      return;
+      if (selected) return selected;
     }
 
-    if (
-      currentUser?.role === ROLES.SUPER_ADMIN ||
-      currentUser?.role === ROLES.ADMIN_PUSAT
-    ) {
-      return;
-    }
+    if (qaPerspective !== 'ANGGOTA') return null;
 
-    const memberId = getActiveMemberId();
+    return list.find((m: any) => {
+      if (
+        scopeProvinceId !== 'ALL' &&
+        String(m.provinsi_id || '') !== String(scopeProvinceId)
+      ) return false;
 
-    if (!memberId) {
-      return;
-    }
+      if (
+        scopeRegencyId !== 'ALL' &&
+        String(m.kabupaten_id || m.kabupaten_kota_id || '') !== String(scopeRegencyId)
+      ) return false;
 
-    loadAchievement(
-      memberId,
+      if (
+        scopeDistrictId !== 'ALL' &&
+        String(m.kecamatan_id || m.wilayah_kecamatan_id || '') !== String(scopeDistrictId)
+      ) return false;
+
+      if (
+        scopePangkalanId !== 'ALL' &&
+        String(m.pangkalan_id || m.pangkalan_gudep || '') !== String(scopePangkalanId)
+      ) return false;
+
+      return true;
+    }) || null;
+  }, [
+    adminMembers,
+    selectedMemberId,
+    qaPerspective,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
+  ]);
+
+  const targetMemberId =
+    qaMember?.id ||
+    qaMember?.member_id ||
+    qaMember?.no_kta ||
+    qaMember?.nomor_kta ||
+    (currentUser as any)?.memberProfile?.id ||
+    (currentUser as any)?.memberProfile?.member_id ||
+    (currentUser as any)?.memberId ||
+    (currentUser as any)?.no_kta ||
+    (currentUser as any)?.nomor_kta ||
+    '';
+
+  useEffect(() => {
+    if (!targetMemberId) return;
+
+    void loadAchievement(
+      String(targetMemberId),
       currentUser?.role,
-      memberId
+      (currentUser as any)?.memberId
     );
-
-  }, [currentUser, loadAchievement]);
-
-  const handleSwitchDemoProfile = async (type: 'active' | 'empty') => {
-    setDemoType(type);
-    await loadDemoProfile(type);
-  };
+  }, [targetMemberId, currentUser?.role, loadAchievement]);
 
   const hasNoAchievements =
     profile &&
-    (profile.summary?.completedSkk || 0) === 0 &&
-    (profile.summary?.inProgressSkk || 0) === 0 &&
+    profile.summary.completedSkk === 0 &&
+    profile.summary.inProgressSkk === 0 &&
     badges.length === 0 &&
     activities.length === 0;
 
@@ -140,7 +161,7 @@ export const MemberAchievementPage: React.FC = () => {
                   Mode: Pencapaian Pribadi (Super Administrator)
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Anda sedang melihat portofolio kecakapan pribadi. Klik untuk kembali ke daftar anggota nasional.
+                  Anda sedang melihat profil pencapaian anggota dari GAS. Tidak ada profil demo atau ID fallback.
                 </p>
               </div>
             </div>
@@ -176,23 +197,13 @@ export const MemberAchievementPage: React.FC = () => {
               type="button"
               id="btn-refresh-achievement"
               onClick={() => {
-
-                const memberId =
-                  currentUser?.memberProfile?.id ||
-                  currentUser?.memberProfile?.memberId ||
-                  currentUser?.memberId ||
-                  '';
-
-                if (!memberId) {
-                  return;
+                if (targetMemberId) {
+                  void loadAchievement(
+                    String(targetMemberId),
+                    currentUser?.role,
+                    (currentUser as any)?.memberId
+                  );
                 }
-
-                loadAchievement(
-                  memberId,
-                  currentUser?.role,
-                  memberId
-                );
-
               }}
               disabled={isLoading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition-all disabled:opacity-50"
@@ -202,6 +213,19 @@ export const MemberAchievementPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {!targetMemberId && viewMode === 'personal' && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 text-amber-900 text-sm">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Identitas anggota GAS belum dipilih</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Halaman tidak lagi memakai ID anggota contoh. Pilih anggota nyata dari data GAS
+                atau kembali ke Pantauan Seluruh Wilayah.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -231,8 +255,6 @@ export const MemberAchievementPage: React.FC = () => {
               member={profile.member}
               isPrivacyScoreVisible={privacyScoreVisible}
               onTogglePrivacyView={togglePrivacyView}
-              onSwitchDemoProfile={handleSwitchDemoProfile}
-              currentDemoType={demoType}
             />
 
             {/* Jika Anggota Baru / Belum Memiliki Pencapaian */}
@@ -241,11 +263,7 @@ export const MemberAchievementPage: React.FC = () => {
                 <AchievementEmptyState
                   memberNama={profile.member.nama}
                   onExploreCatalog={() => setSelectedKrida('pemandu')}
-                  onContactPembina={() => {
-                    window.dispatchEvent(
-                      new CustomEvent('spwn:contact-pembina')
-                    );
-                  }}
+                  onContactPembina={() => {}}
                 />
 
                 {/* Tetap tampilkan preview silabus SKK agar anggota tahu apa yang dapat dipelajari */}
