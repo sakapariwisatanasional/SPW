@@ -50,6 +50,10 @@ export const AdminDashboardOverview: React.FC = () => {
     ktaLogs,
     approvals,
     changeHistory,
+    dashboardLoading,
+    dashboardError,
+    dashboardLastSyncedAt,
+    loadDashboardData,
     simulatedScope,
     actingLevel,
     actingRole,
@@ -57,11 +61,6 @@ export const AdminDashboardOverview: React.FC = () => {
     scopeProvinceName,
     scopeRegencyId,
     scopeRegencyName,
-    scopeDistrictId,
-    scopePangkalanId,
-    scopeDistrictName,
-    scopePangkalanName,
-    setActingLevel,
     setActiveTab,
     setSelectedMemberId,
   } = useAdminStore();
@@ -80,24 +79,22 @@ export const AdminDashboardOverview: React.FC = () => {
   // Filter members based on regional scope
   const scopedMembers = useMemo(() => {
     return safeMembers.filter((m) => {
-      if (actingLevel === 'WILAYAH' || actingLevel === 'PAMONG_SAKA') {
-        if (scopeProvinceId !== 'ALL' && String(m.provinsi_id || '') !== String(scopeProvinceId)) return false;
-        if (scopeRegencyId !== 'ALL' && String(m.kabupaten_id || m.kabupaten_kota_id || '') !== String(scopeRegencyId)) return false;
-      }
-
-      if (actingLevel === 'PAMONG_SAKA') {
-        if (scopeDistrictId !== 'ALL' && String(m.kecamatan_id || m.wilayah_kecamatan_id || '') !== String(scopeDistrictId)) return false;
-        if (scopePangkalanId !== 'ALL' && String(m.pangkalan_id || '') !== String(scopePangkalanId)) return false;
+      if (actingLevel === 'WILAYAH') {
+        if (scopeProvinceId !== 'ALL' && m.provinsi_id !== scopeProvinceId) return false;
+        if (scopeRegencyId !== 'ALL' && m.kabupaten_id !== scopeRegencyId) return false;
       }
       return true;
     });
-  }, [safeMembers, actingLevel, simulatedScope, scopeProvinceId, scopeRegencyId, scopeDistrictId, scopePangkalanId]);
+  }, [safeMembers, simulatedScope, scopeProvinceId, scopeRegencyId]);
 
   // Operational Metrics
   const totalCount = scopedMembers.length;
-  const pendingVerificationCount = scopedMembers.filter((m) => m.status_anggota === 'PENDING').length;
-  const reviewedReadyCount = scopedMembers.filter((m) => m.status_anggota === 'REVIEWED_VERIFIED').length;
-  const activeMembersCount = scopedMembers.filter((m) => m.status_anggota === 'ACTIVE').length;
+  const getMemberStatus = (m: AdminMemberRecord) =>
+    String(m.status_anggota || (m as any).status || '').trim().toUpperCase();
+
+  const pendingVerificationCount = scopedMembers.filter((m) => getMemberStatus(m) === 'PENDING').length;
+  const reviewedReadyCount = scopedMembers.filter((m) => getMemberStatus(m) === 'REVIEWED_VERIFIED').length;
+  const activeMembersCount = scopedMembers.filter((m) => getMemberStatus(m) === 'ACTIVE').length;
   const activeKtaCount = scopedMembers.filter(
     (m) => (m.status_anggota === 'ACTIVE' || m.kta_status === 'ACTIVE') && Boolean(m.nomor_kta)
   ).length;
@@ -266,35 +263,6 @@ export const AdminDashboardOverview: React.FC = () => {
               Wilayah: {scopeProvinceName}
             </p>
           </div>
-        </div>
-
-        {/* Super Admin Acting Context */}
-        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 backdrop-blur-md">
-          <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-300">Mode Akses</span>
-          <button
-            type="button"
-            onClick={() => setActingLevel('NASIONAL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'NASIONAL' ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
-          >
-            Admin Nasional
-          </button>
-          <button
-            type="button"
-            onClick={() => setActingLevel('WILAYAH', scopeProvinceId === 'ALL' ? '32' : scopeProvinceId, scopeProvinceName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : scopeProvinceName, scopeRegencyId, scopeRegencyName)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'WILAYAH' ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
-          >
-            Admin Wilayah
-          </button>
-          <button
-            type="button"
-            onClick={() => setActingLevel('PAMONG_SAKA', scopeProvinceId === 'ALL' ? '32' : scopeProvinceId, scopeProvinceName === 'Seluruh Indonesia (Nasional)' ? 'Jawa Barat' : scopeProvinceName, scopeRegencyId, scopeRegencyName)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${actingLevel === 'PAMONG_SAKA' ? 'bg-amber-500 text-white border-amber-400' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
-          >
-            Pamong Saka
-          </button>
-          <span className="ml-auto text-[10px] text-slate-300">
-            SUPER_ADMIN → {actingRole.replace('_', ' ')} · {scopeProvinceName}{scopeRegencyName !== 'Seluruh Kabupaten/Kota' ? ` · ${scopeRegencyName}` : ''}{scopeDistrictName && scopeDistrictName !== 'Seluruh Kecamatan' ? ` · ${scopeDistrictName}` : ''}{scopePangkalanName && scopePangkalanName !== 'Seluruh Pangkalan' ? ` · ${scopePangkalanName}` : ''}
-          </span>
         </div>
 
         {/* Global Search Admin Input */}
@@ -486,6 +454,37 @@ export const AdminDashboardOverview: React.FC = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      <div className={`rounded-2xl border px-4 py-3 text-xs flex flex-wrap items-center justify-between gap-3 ${
+        dashboardError
+          ? 'border-rose-200 bg-rose-50 text-rose-800'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      }`}>
+        <div>
+          <span className="font-bold">
+            {dashboardLoading
+              ? 'Sinkronisasi Dashboard GAS...'
+              : dashboardError
+              ? `Dashboard GAS bermasalah: ${dashboardError}`
+              : `Dashboard GAS aktif • ${safeKtaLogs.length} log KTA • ${safeApprovals.length} approval • ${safeChangeHistory.length} audit`}
+          </span>
+          {!dashboardLoading && !dashboardError && dashboardLastSyncedAt && (
+            <span className="ml-2 opacity-70">
+              Terakhir: {new Date(dashboardLastSyncedAt).toLocaleString('id-ID')}
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void loadDashboardData()}
+          disabled={dashboardLoading}
+          className="rounded-lg border border-current/20 bg-white px-3 py-1.5 font-bold disabled:opacity-50"
+        >
+          <RefreshCw className={`inline-block w-3.5 h-3.5 mr-1 ${dashboardLoading ? 'animate-spin' : ''}`} />
+          Sinkronkan GAS
+        </button>
       </div>
 
       {/* ========================================================================= */}
