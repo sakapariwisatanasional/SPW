@@ -88,6 +88,13 @@ interface AdminState {
   actingLevel: 'NASIONAL' | 'WILAYAH' | 'PAMONG_SAKA';
   actingRole: 'ADMIN_NASIONAL' | 'ADMIN_WILAYAH' | 'MEMBER';
   simulatedScope: 'SUPER_ADMIN' | 'ADMIN_PUSAT' | 'ADMIN_WILAYAH' | 'MEMBER';
+  qaPerspective:
+    | 'SUPER_ADMIN'
+    | 'ADMIN_KWARDA'
+    | 'ADMIN_KWARCAB'
+    | 'ADMIN_PANGKALAN'
+    | 'PAMONG_SAKA'
+    | 'ANGGOTA';
   scopeProvinceId: string; // 'ALL' or '32'
   scopeProvinceName: string;
   scopeRegencyId: string; // 'ALL' or '3201'
@@ -113,6 +120,25 @@ interface AdminState {
     distName?: string,
     pangkalanId?: string,
     pangkalanName?: string
+  ) => void;
+  setQaPerspective: (
+    perspective:
+      | 'SUPER_ADMIN'
+      | 'ADMIN_KWARDA'
+      | 'ADMIN_KWARCAB'
+      | 'ADMIN_PANGKALAN'
+      | 'PAMONG_SAKA'
+      | 'ANGGOTA',
+    options?: {
+      provId?: string;
+      provName?: string;
+      regId?: string;
+      regName?: string;
+      distId?: string;
+      distName?: string;
+      pangkalanId?: string;
+      pangkalanName?: string;
+    }
   ) => void;
 
   // Data Collections
@@ -180,6 +206,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   actingLevel: 'NASIONAL',
   actingRole: 'ADMIN_NASIONAL',
   simulatedScope: 'SUPER_ADMIN',
+  qaPerspective: 'SUPER_ADMIN',
   scopeProvinceId: 'ALL',
   scopeProvinceName: 'Seluruh Indonesia (Nasional)',
   scopeRegencyId: 'ALL',
@@ -224,6 +251,86 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
     get().setActingLevel(level, provId, provName, regId, regName);
     set({
+      scopeDistrictId: distId,
+      scopeDistrictName: distName,
+      scopePangkalanId: pangkalanId,
+      scopePangkalanName: pangkalanName,
+    });
+  },
+
+  setQaPerspective: (perspective, options = {}) => {
+    const provId = options.provId || get().scopeProvinceId || 'ALL';
+    const provName = options.provName || get().scopeProvinceName || 'Seluruh Indonesia (Nasional)';
+    const regId = options.regId || get().scopeRegencyId || 'ALL';
+    const regName = options.regName || get().scopeRegencyName || 'Seluruh Kabupaten/Kota';
+    const distId = options.distId || get().scopeDistrictId || 'ALL';
+    const distName = options.distName || get().scopeDistrictName || 'Seluruh Kecamatan';
+    const pangkalanId = options.pangkalanId || get().scopePangkalanId || 'ALL';
+    const pangkalanName = options.pangkalanName || get().scopePangkalanName || 'Seluruh Pangkalan';
+
+    if (perspective === 'SUPER_ADMIN') {
+      set({
+        qaPerspective: perspective,
+        actingLevel: 'NASIONAL',
+        actingRole: 'ADMIN_NASIONAL',
+        simulatedScope: 'SUPER_ADMIN',
+        scopeProvinceId: 'ALL',
+        scopeProvinceName: 'Seluruh Indonesia (Nasional)',
+        scopeRegencyId: 'ALL',
+        scopeRegencyName: 'Seluruh Kabupaten/Kota',
+        scopeDistrictId: 'ALL',
+        scopeDistrictName: 'Seluruh Kecamatan',
+        scopePangkalanId: 'ALL',
+        scopePangkalanName: 'Seluruh Pangkalan',
+      });
+      return;
+    }
+
+    if (perspective === 'ADMIN_KWARDA') {
+      set({
+        qaPerspective: perspective,
+        actingLevel: 'WILAYAH',
+        actingRole: 'ADMIN_WILAYAH',
+        simulatedScope: 'ADMIN_WILAYAH',
+        scopeProvinceId: provId === 'ALL' ? '32' : provId,
+        scopeProvinceName: provName || 'JAWA BARAT',
+        scopeRegencyId: 'ALL',
+        scopeRegencyName: 'Seluruh Kabupaten/Kota',
+        scopeDistrictId: 'ALL',
+        scopeDistrictName: 'Seluruh Kecamatan',
+        scopePangkalanId: 'ALL',
+        scopePangkalanName: 'Seluruh Pangkalan',
+      });
+      return;
+    }
+
+    if (perspective === 'ADMIN_KWARCAB') {
+      set({
+        qaPerspective: perspective,
+        actingLevel: 'WILAYAH',
+        actingRole: 'ADMIN_WILAYAH',
+        simulatedScope: 'ADMIN_WILAYAH',
+        scopeProvinceId: provId === 'ALL' ? '32' : provId,
+        scopeProvinceName: provName || 'JAWA BARAT',
+        scopeRegencyId: regId,
+        scopeRegencyName: regName,
+        scopeDistrictId: 'ALL',
+        scopeDistrictName: 'Seluruh Kecamatan',
+        scopePangkalanId: 'ALL',
+        scopePangkalanName: 'Seluruh Pangkalan',
+      });
+      return;
+    }
+
+    set({
+      qaPerspective: perspective,
+      actingLevel: 'PAMONG_SAKA',
+      actingRole: 'MEMBER',
+      simulatedScope: 'MEMBER',
+      scopeProvinceId: provId === 'ALL' ? '32' : provId,
+      scopeProvinceName: provName || 'JAWA BARAT',
+      scopeRegencyId: regId,
+      scopeRegencyName: regName,
       scopeDistrictId: distId,
       scopeDistrictName: distName,
       scopePangkalanId: pangkalanId,
