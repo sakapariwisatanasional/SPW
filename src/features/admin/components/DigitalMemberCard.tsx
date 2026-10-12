@@ -597,127 +597,190 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     const frozenBack = cloneWithFrozenStyles(backSource);
 
     // -------------------------------------------------------------------
-    // STEP 2: buat root khusus print berisi snapshot DOM yang sudah dibekukan.
+    // STEP 2: cetak melalui iframe terisolasi.
+    // Ini mencegah global CSS aplikasi / Tailwind / browser layout
+    // memecah FRONT dan BACK menjadi dua halaman.
     // -------------------------------------------------------------------
-    const printRoot = document.createElement('div');
-    printRoot.id = 'kta-print-root-runtime';
-    printRoot.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(printRoot);
+    const existingFrame = document.getElementById(
+      'kta-print-iframe-runtime'
+    ) as HTMLIFrameElement | null;
 
-    const makePrintSheet = (sideName: 'FRONT' | 'BACK', frozenCard: HTMLElement) => {
-      const sheet = document.createElement('section');
-      sheet.className = 'kta-print-sheet';
-      sheet.setAttribute('data-kta-print-side', sideName);
+    if (existingFrame) {
+      existingFrame.remove();
+    }
 
-      const canvas = document.createElement('div');
-      canvas.className = 'kta-print-frozen-canvas';
-      canvas.style.width = `${designWidthPx}px`;
-      canvas.style.height = `${designHeightPx}px`;
-      canvas.style.transform = `scale(${printScale})`;
-      canvas.style.transformOrigin = 'top left';
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'kta-print-iframe-runtime';
+    printFrame.setAttribute('aria-hidden', 'true');
 
-      // Hilangkan ID yang berulang dari clone agar tidak mengganggu selector aplikasi.
-      frozenCard.removeAttribute('id');
-      frozenCard.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+    Object.assign(printFrame.style, {
+      position: 'fixed',
+      right: '0',
+      bottom: '0',
+      width: '1px',
+      height: '1px',
+      border: '0',
+      opacity: '0',
+      pointerEvents: 'none',
+      zIndex: '-99999',
+    });
 
-      canvas.appendChild(frozenCard);
-      sheet.appendChild(canvas);
-      printRoot.appendChild(sheet);
-    };
+    document.body.appendChild(printFrame);
 
-    makePrintSheet('FRONT', frozenFront);
-    makePrintSheet('BACK', frozenBack);
+    const frameDocument =
+      printFrame.contentDocument ||
+      printFrame.contentWindow?.document;
 
-    const style = document.createElement('style');
-    style.id = 'kta-print-runtime-style';
-    style.textContent = `
-      /*
-       * SATU HALAMAN A4, DUA SISI KTA, UKURAN FISIK 1:1.
-       * @page margin 0 juga mencegah header/footer browser mengambil ruang cetak.
-       */
-      @page {
-        size: A4 portrait;
-        margin: 0;
+    if (!frameDocument) {
+      try {
+        runtimeRoot.unmount();
+      } catch {
+        // no-op
       }
+      sourceRoot.remove();
+      printFrame.remove();
+      return;
+    }
 
-      #kta-print-root-runtime {
-        display: none;
+    frameDocument.open();
+    frameDocument.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>KTA Digital SPWN</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    width: 210mm;
+    height: 297mm;
+    background: #ffffff;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #kta-print-page {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    page-break-after: avoid;
+    break-after: avoid-page;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .kta-slot {
+    position: absolute;
+    left: 50%;
+    width: ${widthMm}mm;
+    height: ${heightMm}mm;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    page-break-before: avoid;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+    break-before: avoid-page;
+    break-after: avoid-page;
+    break-inside: avoid-page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #kta-front {
+    top: 25mm;
+  }
+
+  #kta-back {
+    top: ${25 + heightMm + 10}mm;
+  }
+
+  .kta-frozen-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: ${designWidthPx}px;
+    height: ${designHeightPx}px;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    transform: scale(${printScale});
+    transform-origin: top left;
+  }
+
+  @media print {
+    html,
+    body,
+    #kta-print-page {
+      width: 210mm !important;
+      height: 297mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <main id="kta-print-page">
+    <section id="kta-front" class="kta-slot"></section>
+    <section id="kta-back" class="kta-slot"></section>
+  </main>
+</body>
+</html>`);
+    frameDocument.close();
+
+    const frontSlot = frameDocument.getElementById('kta-front');
+    const backSlot = frameDocument.getElementById('kta-back');
+
+    if (!frontSlot || !backSlot) {
+      try {
+        runtimeRoot.unmount();
+      } catch {
+        // no-op
       }
+      sourceRoot.remove();
+      printFrame.remove();
+      return;
+    }
 
-      @media print {
-        html,
-        body {
-          width: 210mm !important;
-          height: 297mm !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-          background: #FFFFFF !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+    const frontCanvas = frameDocument.createElement('div');
+    frontCanvas.className = 'kta-frozen-canvas';
 
-        body > *:not(#kta-print-root-runtime) {
-          display: none !important;
-        }
+    const backCanvas = frameDocument.createElement('div');
+    backCanvas.className = 'kta-frozen-canvas';
 
-        #kta-print-root-runtime {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: flex-start !important;
-          gap: 10mm !important;
+    // Hilangkan ID berulang sebelum dipindahkan ke dokumen cetak.
+    frozenFront.removeAttribute('id');
+    frozenFront.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
 
-          box-sizing: border-box !important;
-          width: 210mm !important;
-          height: 297mm !important;
-          margin: 0 !important;
-          padding: 25mm 0 0 0 !important;
+    frozenBack.removeAttribute('id');
+    frozenBack.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
 
-          overflow: hidden !important;
-          break-inside: avoid !important;
-          page-break-inside: avoid !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+    frontCanvas.appendChild(frameDocument.importNode(frozenFront, true));
+    backCanvas.appendChild(frameDocument.importNode(frozenBack, true));
 
-        #kta-print-root-runtime .kta-print-sheet {
-          position: relative !important;
-          flex: 0 0 auto !important;
+    frontSlot.appendChild(frontCanvas);
+    backSlot.appendChild(backCanvas);
 
-          width: ${widthMm}mm !important;
-          height: ${heightMm}mm !important;
-
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-
-          break-before: auto !important;
-          break-after: auto !important;
-          break-inside: avoid !important;
-
-          page-break-before: auto !important;
-          page-break-after: auto !important;
-          page-break-inside: avoid !important;
-
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-
-        #kta-print-root-runtime .kta-print-frozen-canvas {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: visible !important;
-          transform-origin: top left !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Source React sudah tidak dibutuhkan; frozen clone berdiri sendiri.
+    // Source React sudah tidak dibutuhkan.
     try {
       runtimeRoot.unmount();
     } catch {
@@ -725,25 +788,69 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     }
     sourceRoot.remove();
 
+    // Tunggu seluruh asset di iframe siap.
+    const iframeImages = Array.from(
+      frameDocument.querySelectorAll('img')
+    ) as HTMLImageElement[];
+
+    await Promise.all(
+      iframeImages.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+
+            img.addEventListener('load', () => resolve(), { once: true });
+            img.addEventListener('error', () => resolve(), { once: true });
+          })
+      )
+    );
+
+    try {
+      if (frameDocument.fonts?.ready) {
+        await frameDocument.fonts.ready;
+      }
+    } catch {
+      // no-op
+    }
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => resolve())
+      )
+    );
+
+    const frameWindow = printFrame.contentWindow;
+
+    if (!frameWindow) {
+      printFrame.remove();
+      return;
+    }
+
     let cleaned = false;
-    const cleanup = () => {
+
+    const cleanupPrintFrame = () => {
       if (cleaned) return;
       cleaned = true;
-      printRoot.remove();
-      style.remove();
-      window.removeEventListener('afterprint', cleanup);
+      printFrame.remove();
     };
 
-    window.addEventListener('afterprint', cleanup, { once: true });
+    frameWindow.addEventListener(
+      'afterprint',
+      cleanupPrintFrame,
+      { once: true }
+    );
 
-    // Pastikan DOM frozen ter-layout sebelum print dialog dibuka.
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    frameWindow.focus();
 
     window.setTimeout(() => {
-      window.print();
-      // Fallback browser yang tidak mengirim afterprint.
-      window.setTimeout(cleanup, 60000);
-    }, 100);
+      frameWindow.print();
+
+      // Fallback browser yang tidak menembakkan afterprint.
+      window.setTimeout(cleanupPrintFrame, 60000);
+    }, 150);
   };
 
   return (
