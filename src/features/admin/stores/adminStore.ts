@@ -58,6 +58,9 @@ interface AdminState {
   members: AdminMemberRecord[];
   membersLoading: boolean;
   membersError: string | null;
+  dashboardLoading: boolean;
+  dashboardError: string | null;
+  dashboardLastSyncedAt: string | null;
   adminAppointments: AdminAppointmentRecord[];
   ktaLogs: KtaGenerationLogEntry[];
   approvals: MemberApprovalEntry[];
@@ -95,6 +98,7 @@ interface AdminState {
   runRegionSeed: (force?: boolean) => Promise<void>;
   batchGenerateKta: (memberIds: string[], reason: string, sessionUserName: string) => void;
   loadMembers: () => Promise<AdminMemberRecord[]>;
+  loadDashboardData: () => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -158,6 +162,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   members: [],
   membersLoading: false,
   membersError: null,
+  dashboardLoading: false,
+  dashboardError: null,
+  dashboardLastSyncedAt: null,
   adminAppointments: [],
   ktaLogs: [],
   approvals: [],
@@ -963,6 +970,77 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       });
 
       return [];
+    }
+  },
+
+  /**
+   * Load seluruh read-model Dashboard dari GAS.
+   * members tetap dibaca dari admin.member.list.
+   * KTA logs / approval / audit dibaca dari admin.dashboard.summary.
+   */
+  loadDashboardData: async () => {
+    set({
+      dashboardLoading: true,
+      dashboardError: null,
+    });
+
+    try {
+      const [members, dashboardResponse] = await Promise.all([
+        get().loadMembers(),
+        apiClient.get<any>('admin.dashboard.summary'),
+      ]);
+
+      const envelope =
+        dashboardResponse?.data?.data ||
+        dashboardResponse?.data ||
+        dashboardResponse ||
+        {};
+
+      const ktaLogs =
+        Array.isArray(envelope?.ktaLogs)
+          ? envelope.ktaLogs
+          : [];
+
+      const approvals =
+        Array.isArray(envelope?.approvals)
+          ? envelope.approvals
+          : [];
+
+      const changeHistory =
+        Array.isArray(envelope?.changeHistory)
+          ? envelope.changeHistory
+          : [];
+
+      set({
+        members,
+        ktaLogs,
+        approvals,
+        changeHistory,
+        dashboardLoading: false,
+        dashboardError: null,
+        dashboardLastSyncedAt:
+          envelope?.meta?.generated_at ||
+          new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        'Tidak dapat memuat data dashboard dari GAS';
+
+      console.error(
+        'Gagal memuat admin.dashboard.summary:',
+        error
+      );
+
+      // Tidak fallback ke dummy/local.
+      set({
+        ktaLogs: [],
+        approvals: [],
+        changeHistory: [],
+        dashboardLoading: false,
+        dashboardError: message,
+      });
     }
   },
 
