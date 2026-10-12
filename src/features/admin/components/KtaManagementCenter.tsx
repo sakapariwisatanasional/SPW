@@ -9,7 +9,7 @@
  * - Log Riwayat Penerbitan KTA (KTA_Generation_Log)
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   CreditCard,
   Printer,
@@ -28,11 +28,10 @@ import {
 import { useAdminStore } from '../stores/adminStore';
 import { AdminMemberRecord } from '../types/admin.types';
 import { DigitalMemberCard } from './DigitalMemberCard';
-import { LegacyKtaPreview, LegacyKtaMemberData } from '../../../components/display/LegacyKtaPreview';
 import { KtaCardCustomizerModal } from './KtaCardCustomizerModal';
-import { storage } from '../../../services/storage';
-import { resolveProvinsiName, resolveKabupatenName, resolveKecamatanName } from '../../../services/wilayahService';
-import { KtaMemberBindingData } from '../../../types/kta.types';
+import { KtaCardSettings } from '../../../types/kta.types';
+import { spreadsheetService } from '../../../services/spreadsheetService';
+import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
 
@@ -72,6 +71,40 @@ export const KtaManagementCenter: React.FC = () => {
 
   // KTA Template Designer Modal
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
+  const [templateSettings, setTemplateSettings] = useState<KtaCardSettings | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(true);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const loadTemplateSettings = async () => {
+    setTemplateLoading(true);
+    setTemplateError(null);
+
+    try {
+      const template = await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+
+      if (!template) {
+        setTemplateSettings(null);
+        setTemplateError('Template TMPL_DEFAULT belum tersedia di GAS.');
+        return;
+      }
+
+      setTemplateSettings(template);
+    } catch (error: any) {
+      console.error('KTA Management gagal memuat template GAS:', error);
+      setTemplateSettings(null);
+      setTemplateError(
+        error?.message ||
+        'Template KTA gagal dimuat dari GAS.'
+      );
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTemplateSettings();
+  }, []);
+
 
   // Filter members based on regional scope
   const scopedMembers = useMemo(() => {
@@ -134,58 +167,6 @@ export const KtaManagementCenter: React.FC = () => {
       });
     }
   };
-
-  // Convert AdminMemberRecord to KtaMemberBindingData with dynamic district resolution
-  const toBindingFormat = (m: AdminMemberRecord): KtaMemberBindingData => {
-    const provName = resolveProvinsiName(m.provinsi_id) || m.provinsi_nama || 'Kwartir Nasional';
-    const regName = resolveKabupatenName(m.kabupaten_id) || m.kabupaten_nama || 'Kabupaten Bogor';
-    const distName =
-      resolveKecamatanName(m.kecamatan_id || m.wilayah_kecamatan_id, m.kabupaten_id) ||
-      m.wilayah_kecamatan_nama ||
-      m.kwartir_ranting ||
-      '';
-
-    return {
-      id: getBackendMemberId(m),
-      fullName: m.nama_lengkap,
-      nationalMemberNumber: m.nomor_kta || '00.000000',
-      membershipLevel: m.tingkat_keanggotaan,
-      currentPosition: m.tingkat_keanggotaan,
-      provinceName: provName,
-      provinsi_id: m.provinsi_id,
-      regencyName: regName,
-      kabupaten_id: m.kabupaten_id,
-      districtName: distName,
-      kecamatan_id: m.kecamatan_id || m.wilayah_kecamatan_id,
-      wilayah_kecamatan_id: m.wilayah_kecamatan_id,
-      kwartirName: m.provinsi_nama ? `Kwarda ${provName}` : 'Kwartir Nasional',
-      kwartirHierarchy: m.provinsi_nama ? `Kwarda ${provName} • Kwarcab ${regName}` : 'Kwartir Nasional Gerakan Pramuka',
-      branchName: m.pangkalan_gudep || 'Pangkalan Saka Pariwisata',
-      gugusDepan: m.pangkalan_gudep || 'Pangkalan Saka Pariwisata',
-      krida: m.krida_nama || 'KRIDA PEMANDU',
-      phone: m.nomor_telepon || '-',
-      email: m.email || '-',
-      joinYear: m.tanggal_bergabung ? String(m.tanggal_bergabung).substring(0, 4) : '2024',
-      photoUrl: m.foto_url,
-      qrToken: m.qr_token,
-      qrUrl: m.qr_url,
-      status: m.status_anggota,
-    };
-  };
-
-  // Convert AdminMemberRecord to LegacyKtaMemberData (Fallback Locked)
-  const toLegacyFormat = (m: AdminMemberRecord): LegacyKtaMemberData => ({
-    fullName: m.nama_lengkap,
-    noKta: m.nomor_kta || '00.000000',
-    membershipLevel: m.tingkat_keanggotaan,
-    kridaName: m.krida_nama || 'Krida SAKA Pariwisata',
-    province: m.provinsi_nama,
-    city: m.kabupaten_nama,
-    joinedDate: m.tanggal_aktivasi || m.tanggal_bergabung,
-    photoUrl: m.foto_url,
-    verificationToken: m.qr_token || 'SPWN-QR-PREVIEW',
-    status: m.status_anggota,
-  });
 
   return (
     <div className="space-y-6">
@@ -550,13 +531,21 @@ export const KtaManagementCenter: React.FC = () => {
               <h3 className="text-lg font-bold text-slate-900 mt-0.5">{previewMember.nama_lengkap}</h3>
             </div>
 
-            {/* Render DigitalMemberCard with user-defined Designer settings */}
+            {/* Semua preview memakai template GAS + DigitalMemberCard yang sama */}
             <div className="flex justify-center">
-              <DigitalMemberCard
-                member={toBindingFormat(previewMember)}
-                previewSettings={storage.getKtaSettings()}
-                showControls={true}
-              />
+              {templateLoading ? (
+                <div className="w-full max-w-md aspect-[1.586/1] rounded-2xl bg-slate-100 animate-pulse" />
+              ) : templateSettings ? (
+                <DigitalMemberCard
+                  member={mapMemberToKtaBinding(previewMember)}
+                  previewSettings={templateSettings}
+                  showControls={true}
+                />
+              ) : (
+                <div className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-xs font-semibold text-rose-700">
+                  {templateError || 'Template KTA tidak tersedia dari GAS.'}
+                </div>
+              )}
             </div>
 
             <div className="pt-2 text-center text-xs text-slate-500">
@@ -682,11 +671,19 @@ export const KtaManagementCenter: React.FC = () => {
                 .filter((m) => selectedIds.includes(getBackendMemberId(m)))
                 .map((m) => (
                   <div key={getBackendMemberId(m)} className="flex justify-center bg-white p-4 rounded-2xl shadow-xs border border-slate-200">
-                    <DigitalMemberCard
-                      member={toBindingFormat(m)}
-                      previewSettings={storage.getKtaSettings()}
-                      showControls={false}
-                    />
+                    {templateSettings ? (
+                      <DigitalMemberCard
+                        member={mapMemberToKtaBinding(m)}
+                        previewSettings={templateSettings}
+                        showControls={false}
+                      />
+                    ) : (
+                      <div className="w-full aspect-[1.586/1] rounded-xl border border-rose-200 bg-rose-50 flex items-center justify-center px-3 text-center text-xs font-semibold text-rose-700">
+                        {templateLoading
+                          ? 'Memuat template KTA dari GAS...'
+                          : templateError || 'Template KTA tidak tersedia.'}
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -700,6 +697,10 @@ export const KtaManagementCenter: React.FC = () => {
         onClose={() => setIsCustomizerOpen(false)}
         sessionUserName={simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator (Kwarnas)' : 'Admin Pusat'}
         userRole={simulatedScope}
+        onSaved={(savedSettings) => {
+          setTemplateSettings(savedSettings);
+          setTemplateError(null);
+        }}
       />
     </div>
   );
