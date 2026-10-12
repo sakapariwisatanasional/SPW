@@ -19,6 +19,67 @@ import {
 import { ROLES, UserRole } from '../../../config/constants';
 import { apiClient } from '../../../services/api/apiClient';
 
+
+const normalizeKridaIdentity = (rawId?: string, rawName?: string) => {
+  const id = String(rawId || '').trim().toUpperCase();
+  const name = String(rawName || '').trim().toUpperCase();
+
+  if (
+    id === 'KRIDA_PEMANDU' ||
+    name === 'KRIDA PEMANDU' ||
+    name === 'PEMANDU' ||
+    name === 'PEMANDU WISATA'
+  ) {
+    return {
+      krida_id: 'KRIDA_PEMANDU',
+      krida_nama: 'KRIDA PEMANDU',
+    };
+  }
+
+  if (
+    id === 'KRIDA_PENYULUH' ||
+    name === 'KRIDA PENYULUH' ||
+    name === 'PENYULUH' ||
+    name === 'PENYULUH WISATA'
+  ) {
+    return {
+      krida_id: 'KRIDA_PENYULUH',
+      krida_nama: 'KRIDA PENYULUH',
+    };
+  }
+
+  if (
+    id === 'KRIDA_MICE_EVENT' ||
+    name === 'KRIDA MICE & EVENT' ||
+    name === 'KRIDA MICE EVENT' ||
+    name === 'MICE & EVENT' ||
+    name === 'MICE EVENT'
+  ) {
+    return {
+      krida_id: 'KRIDA_MICE_EVENT',
+      krida_nama: 'KRIDA MICE & EVENT',
+    };
+  }
+
+  if (
+    id === 'KRIDA_KULINER_CINDERAMATA' ||
+    name === 'KRIDA KULINER & CINDERAMATA' ||
+    name === 'KRIDA KULINER DAN CINDERAMATA' ||
+    name === 'KULINER & CINDERAMATA' ||
+    name === 'KULINER DAN CINDERAMATA'
+  ) {
+    return {
+      krida_id: 'KRIDA_KULINER_CINDERAMATA',
+      krida_nama: 'KRIDA KULINER & CINDERAMATA',
+    };
+  }
+
+  return {
+    krida_id: id,
+    krida_nama: name,
+  };
+};
+
 interface AdminState {
   activeTab: AdminActiveTab;
   setActiveTab: (tab: AdminActiveTab) => void;
@@ -843,6 +904,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           member.status ||
           'PENDING';
 
+        const normalizedKrida = normalizeKridaIdentity(
+          member.krida_id,
+          member.krida_nama || member.krida
+        );
+
         return {
           ...member,
 
@@ -921,10 +987,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             member.kode_kecamatan ||
             '',
 
+          krida_id:
+            normalizedKrida.krida_id,
+
           krida_nama:
-            member.krida_nama ||
-            member.krida ||
-            '',
+            normalizedKrida.krida_nama,
+
+          krida:
+            normalizedKrida.krida_nama,
 
           tingkat_keanggotaan:
             member.tingkat_keanggotaan ||
