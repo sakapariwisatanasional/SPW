@@ -54,6 +54,7 @@ export const AdminDashboardOverview: React.FC = () => {
     dashboardError,
     dashboardLastSyncedAt,
     loadDashboardData,
+    syncMemberUserStatuses,
     simulatedScope,
     actingLevel,
     actingRole,
@@ -75,6 +76,34 @@ export const AdminDashboardOverview: React.FC = () => {
   // Global Search Admin State
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [timelineFilter, setTimelineFilter] = useState<'ALL' | 'APPROVAL' | 'KTA' | 'AUDIT'>('ALL');
+  const [syncingUserStatus, setSyncingUserStatus] = useState(false);
+  const [userStatusSyncMessage, setUserStatusSyncMessage] = useState<string | null>(null);
+
+  const handleSyncUserStatus = async () => {
+    const confirmed = window.confirm(
+      'Sinkronkan akun login sekarang? Anggota berstatus ACTIVE atau KTA_GENERATED akan dipastikan memiliki USERS.status = ACTIVE.'
+    );
+
+    if (!confirmed) return;
+
+    setSyncingUserStatus(true);
+    setUserStatusSyncMessage(null);
+
+    try {
+      const result = await syncMemberUserStatuses();
+
+      setUserStatusSyncMessage(
+        `Selesai: ${result.activated} akun diaktifkan, ${result.already_active} sudah aktif, ${result.user_not_found} akun USERS tidak ditemukan, ${result.failed} gagal.`
+      );
+    } catch (error: any) {
+      setUserStatusSyncMessage(
+        error?.message ||
+        'Sinkronisasi status akun gagal.'
+      );
+    } finally {
+      setSyncingUserStatus(false);
+    }
+  };
 
   // Filter members based on regional scope
   const scopedMembers = useMemo(() => {
@@ -501,7 +530,7 @@ export const AdminDashboardOverview: React.FC = () => {
           <span className="text-[11px] text-slate-500">Pintasan Operasional Langsung</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mt-3.5">
           <button
             type="button"
             onClick={() => setActiveTab('members')}
@@ -561,7 +590,25 @@ export const AdminDashboardOverview: React.FC = () => {
             <p className="text-xs font-bold text-slate-800">Reset Kredensial</p>
             <p className="text-[10px] text-slate-500 mt-0.5">Otoritas Pusat</p>
           </button>
+          {(simulatedScope === 'SUPER_ADMIN' || actingRole === 'SUPER_ADMIN') && (
+            <button
+              type="button"
+              onClick={() => void handleSyncUserStatus()}
+              disabled={syncingUserStatus}
+              className="p-3 rounded-xl border border-cyan-200 hover:border-cyan-500 hover:bg-cyan-50/50 text-left transition-all group cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 text-cyan-700 group-hover:scale-110 transition-transform mb-2 ${syncingUserStatus ? 'animate-spin' : ''}`} />
+              <p className="text-xs font-bold text-slate-800">Sinkron Akun Login</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Repair Anggota ↔ Users</p>
+            </button>
+          )}
         </div>
+
+        {userStatusSyncMessage && (
+          <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-900">
+            {userStatusSyncMessage}
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
