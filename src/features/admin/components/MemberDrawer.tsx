@@ -100,6 +100,8 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
     changeHistory,
     approvals,
   } = useAdminStore();
+  const { currentUser: authUser } = useAuthStore();
+  const isQaSuperAdminSession = authUser?.role === 'SUPER_ADMIN';
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<MemberDrawerTab>(initialTab);
@@ -294,7 +296,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   const hasKta = isKtaGenerated;
 
   // Authority Check for Password Reset (SUPER_ADMIN or ADMIN_PUSAT)
-  const canResetPassword = simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT';
+  const canResetPassword = isQaSuperAdminSession || simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT';
 
   // Handle Save Profile / Wilayah
   const handleSaveData = async (type: 'profil' | 'wilayah') => {
@@ -514,7 +516,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
         currentMember.id,
         undefined,
         resetReason,
-        simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Kwarnas',
+        isQaSuperAdminSession ? 'Super Administrator' : 'Admin Kwarnas',
         simulatedScope
       );
 
@@ -554,7 +556,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
       const res = await regenerateKta(
         currentMember.id,
         regenerateReason,
-        simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator' : 'Admin Kwarnas'
+        isQaSuperAdminSession ? 'Super Administrator' : 'Admin Kwarnas'
       );
       if (!res?.nomorKta) throw new Error('Backend tidak mengembalikan nomor KTA hasil regenerasi. Tidak ada keberhasilan yang dapat dikonfirmasi.');
       await useAdminStore.getState().loadMembers();
@@ -919,7 +921,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       {/* Aksi saat REVIEWED_VERIFIED */}
                       {isReviewed && (
                         <>
-                          {simulatedScope === 'ADMIN_WILAYAH' ? (
+                          {!isQaSuperAdminSession && simulatedScope === 'ADMIN_WILAYAH' ? (
                             <span className="px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-semibold flex items-center gap-1.5">
                               <CheckCircle2 className="w-4 h-4 text-sky-600" />
                               Lolos Verifikasi Wilayah • Menunggu Final Approval Kwarnas
@@ -954,7 +956,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                             Minta Revisi
                           </button>
-                          {simulatedScope !== 'ADMIN_WILAYAH' && (
+                          {(isQaSuperAdminSession || simulatedScope !== 'ADMIN_WILAYAH') && (
                             <button
                               type="button"
                               onClick={() =>
@@ -1016,7 +1018,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       {/* Aksi saat ACTIVE tapi belum KTA */}
                       {isActive && !hasKta && (
                         <>
-                          {simulatedScope === 'ADMIN_WILAYAH' ? (
+                          {!isQaSuperAdminSession && simulatedScope === 'ADMIN_WILAYAH' ? (
                             <span className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs font-semibold flex items-center gap-1.5">
                               <ShieldCheck className="w-4 h-4 text-purple-600" />
                               Disahkan Kwarnas • Menunggu Penerbitan KTA oleh Pusat
@@ -1047,7 +1049,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             KTA Aktif: {currentMember.nomor_kta}
                           </span>
-                          {(simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT') && (
+                          {(isQaSuperAdminSession || simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT') && (
                             <button
                               type="button"
                               onClick={() => setShowRegenerateModal(true)}
@@ -1551,6 +1553,7 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
                       className="w-full bg-slate-50 disabled:bg-slate-100/80 border border-slate-200 rounded-xl p-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-[#0066B3]"
                     >
                       <option value="Anggota">Anggota</option>
+                      <option value="Dewan Saka">Dewan Saka</option>
                       <option value="Pamong Saka">Pamong Saka</option>
                       <option value="Pimpinan Saka">Pimpinan Saka</option>
                       <option value="Mabisaka">Mabisaka</option>
