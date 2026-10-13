@@ -11,7 +11,7 @@
  * 6. Card 5: Portfolio Summary (Verifikasi Pembina, Zero-Blob Media)
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   CreditCard,
   Award,
@@ -30,14 +30,29 @@ import {
   MapPin,
   Flame,
   ArrowUpRight,
+  Phone,
+  UserRoundCheck,
+  BookOpen,
+  Upload,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { useAchievementStore } from '../../../stores/achievementStore';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
+import { apiClient } from '../../../services/api/apiClient';
 
 interface MemberDashboardViewProps {
   onNavigateTab: (tabId: string) => void;
+}
+
+interface PamongContact {
+  full_name: string;
+  phone?: string;
+  email?: string;
+  pangkalan?: string;
+  district?: string;
+  city?: string;
+  province?: string;
 }
 
 export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavigateTab }) => {
@@ -55,30 +70,133 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     );
   }, [members, currentUser]);
 
-  const ktaNumber = linkedMember?.nomor_kta || currentUser.nomor_kta || '00.3201.010.000089';
-  const qrToken = linkedMember?.qr_token || 'SPWN-QR-WIL-3201-99812A';
-  const ktaStatus = linkedMember?.kta_status || 'ACTIVE';
-  const qrVerificationUrl = `${window.location.origin}/verifikasi/${qrToken}`;
+  const ktaNumber =
+    linkedMember?.nomor_kta ||
+    currentUser.nomor_kta ||
+    'Belum Terbit';
 
-  // Krida stats
-  const kridaList = useMemo(() => {
-    return [
-      { id: 'KRIDA_PEMANDU', name: 'Pemandu Wisata', color: '#0066B3', icon: '🧭', totalSkk: 6, completed: 3 },
-      { id: 'KRIDA_PENYULUH', name: 'Penyuluh Wisata', color: '#009B4D', icon: '📢', totalSkk: 6, completed: 2 },
-      { id: 'KRIDA_MICE_EVENT', name: 'MICE & Event', color: '#F7941D', icon: '🎪', totalSkk: 6, completed: 1 },
-      { id: 'KRIDA_KULINER_CINDERAMATA', name: 'Kuliner & Cinderamata', color: '#782B90', icon: '🍲', totalSkk: 5, completed: 0 },
-    ];
-  }, []);
+  const qrToken = linkedMember?.qr_token || '';
 
-  // SKK Summary calculations (23 SKK Nasional)
+  const ktaStatus =
+    linkedMember?.kta_status ||
+    linkedMember?.status_anggota ||
+    'BELUM TERBIT';
+
+  const qrVerificationUrl =
+    qrToken
+      ? `${window.location.origin}/verifikasi?token=${encodeURIComponent(qrToken)}`
+      : '';
+
+  const [pamongContact, setPamongContact] =
+    useState<PamongContact | null>(null);
+
+  const [pamongLoading, setPamongLoading] =
+    useState(false);
+
+  const memberIdentity = String(
+    linkedMember?.id ||
+    linkedMember?.member_id ||
+    linkedMember?.nomor_kta ||
+    linkedMember?.no_kta ||
+    currentUser.memberId ||
+    currentUser.nomor_kta ||
+    currentUser.no_kta ||
+    currentUser.email ||
+    currentUser.username ||
+    currentUser.id ||
+    ''
+  ).trim();
+
+  useEffect(() => {
+    if (!memberIdentity) return;
+
+    let cancelled = false;
+
+    const loadPamong = async () => {
+      setPamongLoading(true);
+
+      try {
+        const response = await apiClient.get<any>(
+          'member.pamong.available',
+          { member_id: memberIdentity }
+        );
+
+        if (cancelled) return;
+
+        const contacts = Array.isArray(response?.data?.contacts)
+          ? response.data.contacts
+          : [];
+
+        setPamongContact(contacts.length > 0 ? contacts[0] : null);
+      } catch {
+        if (!cancelled) setPamongContact(null);
+      } finally {
+        if (!cancelled) setPamongLoading(false);
+      }
+    };
+
+    void loadPamong();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [memberIdentity]);
+
   const skkSummary = useMemo(() => {
-    const total = 23;
-    const completed = skkItems.filter((s) => s.status === 'COMPLETED').length || 6;
-    const inProgress = skkItems.filter((s) => s.status === 'IN_PROGRESS').length || 4;
-    const notStarted = total - completed - inProgress;
-    const percentage = Math.round((completed / total) * 100);
+    const source = Array.isArray(skkItems) ? skkItems : [];
+
+    const completed = source.filter((item: any) => {
+      const status = String(item?.status || '').toUpperCase();
+      return status === 'VERIFIED' || status === 'COMPLETED';
+    }).length;
+
+    const inProgress = source.filter((item: any) => {
+      const status = String(item?.status || '').toUpperCase();
+      return [
+        'SELECTED',
+        'IN_PROGRESS',
+        'SUBMITTED',
+        'REVISION_REQUIRED',
+        'RESUBMITTED',
+      ].includes(status);
+    }).length;
+
+    const total = Number(
+      (profile as any)?.summary?.totalSkkAvailable ||
+      source.length ||
+      0
+    );
+
+    const notStarted = Math.max(0, total - completed - inProgress);
+    const percentage = total > 0
+      ? Math.round((completed / total) * 100)
+      : 0;
+
     return { total, completed, inProgress, notStarted, percentage };
-  }, [skkItems]);
+  }, [skkItems, profile]);
+
+  const hasStartedAchievement =
+    skkSummary.completed > 0 ||
+    skkSummary.inProgress > 0;
+
+  const selectedKrida = String(
+    (profile as any)?.member?.kridaUtamaNama ||
+    linkedMember?.krida_nama ||
+    linkedMember?.krida ||
+    currentUser.kridaName ||
+    ''
+  ).trim();
+
+  const waNumber = String(pamongContact?.phone || '')
+    .replace(/[^\d+]/g, '')
+    .replace(/^0/, '62')
+    .replace(/^\+/, '');
+
+  const waText = encodeURIComponent(
+    `Salam Pramuka, saya ${currentUser.fullName}, anggota SAKA Pariwisata${
+      selectedKrida ? ` dengan peminatan ${selectedKrida}` : ''
+    }. Saya ingin menindaklanjuti pencapaian Krida dan mengikuti SKK/pengujian SKK. Mohon arahan dan pendampingannya.`
+  );
 
   return (
     <div id="member-command-center" className="space-y-6">
@@ -171,6 +289,108 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
         </div>
       </div>
 
+      {!hasStartedAchievement && (
+        <div className="rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-blue-50 p-5 sm:p-6 shadow-sm">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-5">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-amber-700">
+                <Sparkles className="w-5 h-5" />
+                <span className="text-[11px] font-black uppercase tracking-wider">
+                  Tindak Lanjut Keanggotaan
+                </span>
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
+                KTA sudah aktif? Sekarang mulai perjalanan Krida & SKK Anda.
+              </h3>
+
+              <p className="text-sm text-slate-600 mt-1 max-w-3xl">
+                Anggota SAKA Pariwisata perlu menghubungi Pamong Saka di wilayah/pangkalan,
+                memilih SKK sesuai Krida, mengikuti pembinaan dan pengujian, lalu mengunggah bukti
+                untuk diverifikasi.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onNavigateTab('achievement')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0066B3] text-white text-xs font-bold hover:bg-[#005290]"
+              >
+                <Award className="w-4 h-4" />
+                Lihat Langkah Pencapaian
+              </button>
+
+              {waNumber ? (
+                <a
+                  href={`https://wa.me/${waNumber}?text=${waText}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
+                >
+                  <Phone className="w-4 h-4" />
+                  Hubungi Pamong Saka
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('achievement')}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 text-xs font-bold"
+                >
+                  <UserRoundCheck className="w-4 h-4" />
+                  {pamongLoading ? 'Mencari Pamong...' : 'Cari Pamong Wilayah'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 mt-5">
+            {[
+              {
+                step: '1',
+                title: selectedKrida ? 'Krida Terpilih' : 'Pilih Krida',
+                text: selectedKrida || 'Tentukan bidang peminatan Anda.',
+                icon: Compass,
+              },
+              {
+                step: '2',
+                title: 'Hubungi Pamong',
+                text: pamongContact?.full_name || 'Minta pendampingan Pamong Saka wilayah.',
+                icon: UserRoundCheck,
+              },
+              {
+                step: '3',
+                title: 'Pilih & Ikuti SKK',
+                text: 'Pelajari syarat, latihan, dan ikuti pengujian.',
+                icon: BookOpen,
+              },
+              {
+                step: '4',
+                title: 'Upload Bukti',
+                text: 'Kirim portofolio dan tunggu verifikasi Pamong.',
+                icon: Upload,
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div key={item.step} className="rounded-xl border border-slate-200 bg-white/90 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
+                      {item.step}
+                    </span>
+                    <Icon className="w-4 h-4 text-[#0066B3]" />
+                  </div>
+
+                  <p className="text-xs font-bold text-slate-900 mt-2">{item.title}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.text}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ============================================================== */}
       {/* 2. COMMAND CENTER GRID (Bento Layout)                          */}
       {/* ============================================================== */}
@@ -241,15 +461,17 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               <CreditCard className="w-3.5 h-3.5" />
               <span>Buka & Putar Kartu</span>
             </button>
-            <a
-              href={`/verifikasi/${qrToken}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
-              title="Cek URL Verifikasi Publik"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            {qrVerificationUrl && (
+              <a
+                href={qrVerificationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                title="Cek URL Verifikasi Publik"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -263,11 +485,13 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 leading-none">Pencapaian SKK</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">23 Syarat Kecakapan Khusus Nasional</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Progres SKK sesuai Krida & read-model GAS</p>
                 </div>
               </div>
               <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                Tingkat Madya
+                {skkSummary.completed > 0
+                  ? ((profile as any)?.member?.level || 'Purwa')
+                  : 'Belum Mulai'}
               </span>
             </div>
 
@@ -327,7 +551,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               onClick={() => onNavigateTab('achievement')}
               className="w-full inline-flex items-center justify-between py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors"
             >
-              <span>Lihat Detail Matriks 23 SKK</span>
+              <span>Lihat Detail Pencapaian & SKK</span>
               <ChevronRight className="w-4 h-4 text-slate-500" />
             </button>
           </div>
