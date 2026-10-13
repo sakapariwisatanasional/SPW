@@ -34,6 +34,7 @@ import { spreadsheetService } from '../../../services/spreadsheetService';
 import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
+import { useAuthStore } from '../../../stores/authStore';
 
 const getBackendMemberId = (member: AdminMemberRecord) =>
   member.id ||
@@ -52,6 +53,8 @@ export const KtaManagementCenter: React.FC = () => {
     scopeRegencyId,
     loadMembers,
   } = useAdminStore();
+  const { currentUser: authUser } = useAuthStore();
+  const isQaSuperAdminSession = authUser?.role === 'SUPER_ADMIN';
 
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'batch' | 'logs'>('queue');
   const [searchKta, setSearchKta] = useState('');
@@ -213,7 +216,7 @@ export const KtaManagementCenter: React.FC = () => {
           </button>
 
           {/* KTA Template Designer (Super Admin / Admin Pusat) */}
-          {(simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT') && (
+          {(isQaSuperAdminSession || simulatedScope === 'SUPER_ADMIN' || simulatedScope === 'ADMIN_PUSAT') && (
             <button
               type="button"
               onClick={() => setIsCustomizerOpen(true)}
@@ -695,7 +698,7 @@ export const KtaManagementCenter: React.FC = () => {
       <KtaCardCustomizerModal
         isOpen={isCustomizerOpen}
         onClose={() => setIsCustomizerOpen(false)}
-        sessionUserName={simulatedScope === 'SUPER_ADMIN' ? 'Super Administrator (Kwarnas)' : 'Admin Pusat'}
+        sessionUserName={isQaSuperAdminSession ? 'Super Administrator (Kwarnas)' : 'Admin Pusat'}
         userRole={simulatedScope}
         onSaved={(savedSettings) => {
           setTemplateSettings(savedSettings);
