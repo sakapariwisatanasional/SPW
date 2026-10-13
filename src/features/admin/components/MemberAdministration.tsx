@@ -9,6 +9,7 @@ import {
   Search,
   Filter,
   CheckCircle2,
+  ShieldCheck,
   XCircle,
   Clock,
   Award,
@@ -86,6 +87,8 @@ export const MemberAdministration: React.FC = () => {
     selectedMemberId,
     setSelectedMemberId,
   } = useAdminStore();
+  const { currentUser: authUser } = useAuthStore();
+  const isQaSuperAdminSession = authUser?.role === 'SUPER_ADMIN';
 
   const refreshMembersFromApi = async () => {
     try {
@@ -495,7 +498,7 @@ export const MemberAdministration: React.FC = () => {
             {/* Provinsi Filter (if not Wilayah scope) */}
             <div>
               <select
-                disabled={simulatedScope === 'ADMIN_WILAYAH'}
+                disabled={!isQaSuperAdminSession && simulatedScope === 'ADMIN_WILAYAH'}
                 value={simulatedScope === 'ADMIN_WILAYAH' ? scopeProvinceId : filterProvince}
                 onChange={(e) => setFilterProvince(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-hidden focus:ring-2 focus:ring-[#0066B3] disabled:opacity-60"
@@ -891,7 +894,7 @@ export const MemberAdministration: React.FC = () => {
                           Berkas Lolos Verifikasi Wilayah
                         </span>
 
-                        {simulatedScope === 'ADMIN_WILAYAH' ? (
+                        {!isQaSuperAdminSession && simulatedScope === 'ADMIN_WILAYAH' ? (
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
