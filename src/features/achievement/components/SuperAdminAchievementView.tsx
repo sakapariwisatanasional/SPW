@@ -47,6 +47,31 @@ import {
 import { MemberLevel, SkkStatusType } from '../../../types/achievement';
 import { Badge, Button } from '../../../components/ui';
 
+
+const normalizeMemberPhotoUrl = (rawUrl?: string) => {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+
+  // Already renderable Googleusercontent URL.
+  if (/^https:\/\/lh3\.googleusercontent\.com\/d\//i.test(value)) {
+    return value;
+  }
+
+  // Google Drive share URL: /file/d/FILE_ID/view
+  const fileMatch = value.match(/\/file\/d\/([^/]+)/i);
+  if (fileMatch?.[1]) {
+    return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w500`;
+  }
+
+  // Drive URLs with ?id=FILE_ID
+  const idMatch = value.match(/[?&]id=([^&]+)/i);
+  if (idMatch?.[1]) {
+    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w500`;
+  }
+
+  return value;
+};
+
 interface SuperAdminAchievementViewProps {
   onSwitchToPersonal?: () => void;
 }
@@ -88,6 +113,20 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
 
       return {
         ...member,
+        fotoUrl: normalizeMemberPhotoUrl(
+          member?.fotoUrl ||
+          member?.photoUrl ||
+          member?.photo_url ||
+          member?.foto_url ||
+          ''
+        ),
+        photoUrl: normalizeMemberPhotoUrl(
+          member?.photoUrl ||
+          member?.fotoUrl ||
+          member?.photo_url ||
+          member?.foto_url ||
+          ''
+        ),
         level:
           member?.level ||
           (completed > 0 ? 'PURWA' : 'BELUM_ADA'),
@@ -485,11 +524,49 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                     {/* Anggota & KTA */}
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={member.fotoUrl}
-                          alt={member.full_name || member.nama}
-                          className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-[#0066B3] shrink-0"
-                        />
+                        {member.fotoUrl || member.photoUrl ? (
+                          <img
+                            src={member.fotoUrl || member.photoUrl}
+                            alt={member.full_name || member.nama}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 group-hover:ring-[#0066B3] shrink-0 bg-slate-100"
+                            referrerPolicy="no-referrer"
+                            onError={(event) => {
+                              const img = event.currentTarget;
+                              img.style.display = 'none';
+
+                              const fallback = img.nextElementSibling as HTMLElement | null;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+
+                        <div
+                          className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100 items-center justify-center text-[10px] font-bold text-slate-600 shrink-0"
+                          style={{
+                            display:
+                              member.fotoUrl || member.photoUrl
+                                ? 'none'
+                                : 'flex',
+                          }}
+                          title={
+                            member.fotoUrl || member.photoUrl
+                              ? 'Foto gagal dimuat'
+                              : 'Foto belum tersedia'
+                          }
+                        >
+                          {String(
+                            member.full_name ||
+                            member.nama ||
+                            '?'
+                          )
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((part) => part.charAt(0).toUpperCase())
+                            .join('')}
+                        </div>
                         <div className="min-w-0">
                           <p className="font-bold text-slate-900 group-hover:text-[#0066B3] transition-colors truncate">
                             {member.full_name || member.nama}
