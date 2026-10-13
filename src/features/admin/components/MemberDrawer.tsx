@@ -55,6 +55,8 @@ import { AdminMemberRecord, MemberAdminStatus } from '../types/admin.types';
 import { PROVINCES, getRegenciesByProvince } from '../../../data/wilayahData';
 import { getKecamatanByKabupaten } from '../../../services/wilayahService';
 import { KRIDA_MASTER, ROLES } from '../../../config/constants';
+import { achievementApi } from '../../../services/api/achievement.api';
+import { MemberAchievementProfile, MemberSkkItem } from '../../../types/achievement';
 
 export type MemberDrawerTab =
   | 'overview'
@@ -214,6 +216,162 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
   // KTA Regenerate Modal
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [regenerateReason, setRegenerateReason] = useState('Pembaruan data identitas nasional dan penerbitan KTA baru');
+
+  // Achievement - GAS Rule of Truth
+  const [achievementProfile, setAchievementProfile] =
+    useState<MemberAchievementProfile | null>(null);
+  const [achievementSkk, setAchievementSkk] =
+    useState<MemberSkkItem[]>([]);
+  const [achievementLoading, setAchievementLoading] =
+    useState(false);
+  const [achievementError, setAchievementError] =
+    useState<string | null>(null);
+
+  // Load Achievement hanya ketika tab dibuka.
+  // Tidak ada fallback dummy/hardcoded.
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'achievement' || !currentMember) {
+      return;
+    }
+
+    const rawMember = currentMember as AdminMemberRecord & Record<string, any>;
+    const memberId = String(
+      rawMember.id ||
+      rawMember.member_id ||
+      rawMember.nomor_kta ||
+      rawMember.no_kta ||
+      ''
+    ).trim();
+
+    if (!memberId) {
+      setAchievementProfile(null);
+      setAchievementSkk([]);
+      setAchievementError('ID anggota GAS tidak tersedia.');
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAchievementFromGas = async () => {
+      setAchievementLoading(true);
+      setAchievementError(null);
+
+      try {
+        const [profileResponse, skkResponse] = await Promise.all([
+          achievementApi.getAchievement(memberId),
+          achievementApi.getSkkStatus(memberId, 'all'),
+        ]);
+
+        if (cancelled) return;
+
+        setAchievementProfile(profileResponse?.data || null);
+        setAchievementSkk(
+          Array.isArray(skkResponse?.data)
+            ? skkResponse.data
+            : []
+        );
+      } catch (error: any) {
+        if (cancelled) return;
+
+        setAchievementProfile(null);
+        setAchievementSkk([]);
+        setAchievementError(
+          error?.message ||
+          'Data pencapaian gagal dimuat dari GAS.'
+        );
+      } finally {
+        if (!cancelled) {
+          setAchievementLoading(false);
+        }
+      }
+    };
+
+    void loadAchievementFromGas();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeTab, currentMember]);
+
+  const verifiedSkk = useMemo(() => {
+    return achievementSkk.filter((item: any) => {
+      const status = String(
+        item?.status ||
+        item?.verification_status ||
+        ''
+      ).trim().toUpperCase();
+
+      return status === 'VERIFIED' || status === 'COMPLETED';
+    });
+  }, [achievementSkk]);
+
+  const getSkkValue = (item: any, ...keys: string[]) => {
+    for (const key of keys) {
+      const value = item?.[key];
+      if (
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== ''
+      ) {
+        return String(value);
+      }
+    }
+    return '';
+  };
+
+  const formatAchievementDate = (rawValue: unknown) => {
+    if (!rawValue) return 'Tanggal tidak tersedia';
+
+    const raw = String(rawValue).trim();
+    const date = new Date(raw);
+
+    if (Number.isNaN(date.getTime())) {
+      return raw;
+    }
+
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  const achievementTku = useMemo(() => {
+    const raw = (currentMember || {}) as Record<string, any>;
+
+    const first = (...values: unknown[]) =>
+      values.find(
+        (value) =>
+          value !== undefined &&
+          value !== null &&
+          String(value).trim() !== ''
+      );
+
+    return {
+      name: String(
+        first(
+          raw.tku_level,
+          raw.tingkat_tku,
+          raw.tku,
+          raw.tingkat_kecakapan_umum
+        ) || ''
+      ),
+      approvedBy: String(
+        first(
+          raw.tku_verified_by,
+          raw.tku_approved_by,
+          raw.tku_pengesah
+        ) || ''
+      ),
+      approvedAt: String(
+        first(
+          raw.tku_verified_at,
+          raw.tku_approved_at,
+          raw.tku_date
+        ) || ''
+      ),
+    };
+  }, [currentMember]);
 
   // Reset local state when member changes
   useEffect(() => {
@@ -1741,89 +1899,261 @@ export const MemberDrawer: React.FC<MemberDrawerProps> = ({
             )}
 
             {/* ========================================================= */}
-            {/* TAB 5: ACHIEVEMENT (SKK KRIDA, TKU, PIAGAM)              */}
+            {/* TAB 5: ACHIEVEMENT - GAS RULE OF TRUTH                    */}
             {/* ========================================================= */}
             {activeTab === 'achievement' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900">Pencapaian & Kecakapan Khusus (SKK)</h4>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Pencapaian & Kecakapan Khusus (SKK)
+                    </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Rekam jejak Tanda Kecakapan Umum (TKU) dan TKK 4 Krida Saka Pariwisata
+                      Data TKU dan SKK ditampilkan dari Google Apps Script. Tidak ada data contoh lokal.
                     </p>
                   </div>
-                  <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
-                    23 SKK Saka Pariwisata
-                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rawMember = currentMember as any;
+                      const memberId = String(
+                        rawMember?.id ||
+                        rawMember?.member_id ||
+                        rawMember?.nomor_kta ||
+                        rawMember?.no_kta ||
+                        ''
+                      ).trim();
+
+                      if (!memberId) return;
+
+                      setAchievementLoading(true);
+                      setAchievementError(null);
+
+                      Promise.all([
+                        achievementApi.getAchievement(memberId),
+                        achievementApi.getSkkStatus(memberId, 'all'),
+                      ])
+                        .then(([profileResponse, skkResponse]) => {
+                          setAchievementProfile(profileResponse?.data || null);
+                          setAchievementSkk(
+                            Array.isArray(skkResponse?.data)
+                              ? skkResponse.data
+                              : []
+                          );
+                        })
+                        .catch((error: any) => {
+                          setAchievementProfile(null);
+                          setAchievementSkk([]);
+                          setAchievementError(
+                            error?.message ||
+                            'Data pencapaian gagal dimuat dari GAS.'
+                          );
+                        })
+                        .finally(() => {
+                          setAchievementLoading(false);
+                        });
+                    }}
+                    disabled={achievementLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${
+                        achievementLoading ? 'animate-spin' : ''
+                      }`}
+                    />
+                    Muat Ulang GAS
+                  </button>
                 </div>
 
-                {/* TKU Card */}
-                <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl border border-purple-200">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800">
-                    Tingkat Kecakapan Umum (TKU)
-                  </span>
-                  <div className="flex items-center gap-3 mt-2">
-                    <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black">
-                      <Award className="w-5 h-5" />
-                    </div>
+                {achievementError && (
+                  <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <div>
-                      <h5 className="font-bold text-slate-900 text-sm">Penegak Bantara</h5>
-                      <p className="text-xs text-slate-600">Disahkan oleh Pangkalan Gudep pada 14 Agustus 2024</p>
+                      <p className="font-bold">Data Achievement belum dapat dimuat</p>
+                      <p className="mt-0.5">{achievementError}</p>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* SKK List */}
-                <div className="space-y-3">
-                  <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Daftar SKK Krida Terverifikasi
-                  </h5>
+                {achievementLoading ? (
+                  <div className="py-10 text-center text-sm text-slate-500">
+                    <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin text-[#0066B3]" />
+                    Mengambil TKU dan SKK dari GAS...
+                  </div>
+                ) : (
+                  <>
+                    {/* TKU - hanya tampil jika memang ada data GAS/member */}
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl border border-purple-200">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800">
+                        Tingkat Kecakapan Umum (TKU)
+                      </span>
 
-                  {[
-                    {
-                      name: 'SKK Pemandu Wisata Budaya',
-                      tingkat: 'Tingkat Madya',
-                      date: '10 Januari 2025',
-                      krida: 'Krida Pemandu Wisata',
-                      color: 'bg-blue-50 text-[#0066B3] border-blue-200',
-                    },
-                    {
-                      name: 'SKK Sadar Wisata & Sapta Pesona',
-                      tingkat: 'Tingkat Utama',
-                      date: '28 November 2024',
-                      krida: 'Krida Penyuluh Pariwisata',
-                      color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                    },
-                    {
-                      name: 'SKK Kuliner Nusantara',
-                      tingkat: 'Tingkat Purwa',
-                      date: '15 September 2024',
-                      krida: 'Krida Kuliner Wisata',
-                      color: 'bg-amber-50 text-amber-800 border-amber-200',
-                    },
-                  ].map((skk, i) => (
-                    <div
-                      key={i}
-                      className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between text-xs hover:border-slate-300 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold">
-                          {i + 1}
+                      {achievementTku.name ? (
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black">
+                            <Award className="w-5 h-5" />
+                          </div>
+
+                          <div>
+                            <h5 className="font-bold text-slate-900 text-sm">
+                              {achievementTku.name}
+                            </h5>
+                            <p className="text-xs text-slate-600">
+                              {achievementTku.approvedBy
+                                ? `Disahkan oleh ${achievementTku.approvedBy}`
+                                : 'Pengesah belum tercatat'}
+                              {achievementTku.approvedAt
+                                ? ` • ${formatAchievementDate(achievementTku.approvedAt)}`
+                                : ''}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h6 className="font-bold text-slate-900">{skk.name}</h6>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            {skk.krida} • Lulus Uji: {skk.date}
-                          </p>
+                      ) : (
+                        <div className="mt-2 rounded-xl border border-purple-100 bg-white/70 px-3 py-3 text-xs text-slate-600">
+                          Belum ada data TKU yang tercatat di GAS untuk anggota ini.
                         </div>
+                      )}
+                    </div>
+
+                    {/* Summary dari GAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+                        <p className="text-[10px] uppercase font-bold text-slate-500">
+                          Target SKK
+                        </p>
+                        <p className="text-lg font-black text-slate-900 mt-1">
+                          {Number(
+                            (achievementProfile as any)?.summary?.totalSkkAvailable || 0
+                          )}
+                        </p>
                       </div>
 
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${skk.color}`}>
-                        {skk.tingkat}
-                      </span>
+                      <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50">
+                        <p className="text-[10px] uppercase font-bold text-emerald-700">
+                          Terverifikasi
+                        </p>
+                        <p className="text-lg font-black text-emerald-800 mt-1">
+                          {verifiedSkk.length}
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50">
+                        <p className="text-[10px] uppercase font-bold text-blue-700">
+                          Dalam Proses
+                        </p>
+                        <p className="text-lg font-black text-blue-800 mt-1">
+                          {achievementSkk.filter((item: any) => {
+                            const status = String(item?.status || '').toUpperCase();
+                            return !['VERIFIED', 'COMPLETED', 'NOT_STARTED', 'AVAILABLE', ''].includes(status);
+                          }).length}
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                </div>
+
+                    {/* SKK List */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          Daftar SKK Krida Terverifikasi
+                        </h5>
+
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          Sumber: member.skk.status
+                        </span>
+                      </div>
+
+                      {verifiedSkk.length === 0 ? (
+                        <div className="p-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center">
+                          <Award className="w-7 h-7 mx-auto text-slate-300" />
+                          <p className="mt-2 text-sm font-bold text-slate-700">
+                            Belum ada SKK terverifikasi
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            SKK akan muncul setelah proses penyelesaian dan verifikasi tercatat di GAS.
+                          </p>
+                        </div>
+                      ) : (
+                        verifiedSkk.map((rawItem: any, i) => {
+                          const name =
+                            getSkkValue(
+                              rawItem,
+                              'nama',
+                              'skk_name',
+                              'nama_skk',
+                              'skkCode',
+                              'skk_code'
+                            ) || 'SKK';
+
+                          const krida =
+                            getSkkValue(
+                              rawItem,
+                              'kridaNama',
+                              'krida_nama',
+                              'krida',
+                              'kridaId',
+                              'krida_id'
+                            ) || 'Krida belum tercatat';
+
+                          const level =
+                            getSkkValue(
+                              rawItem,
+                              'levelAchieved',
+                              'level_achieved',
+                              'tingkat',
+                              'level'
+                            ) || 'Terverifikasi';
+
+                          const completedAt =
+                            getSkkValue(
+                              rawItem,
+                              'completedAt',
+                              'completed_at',
+                              'verified_at',
+                              'updated_at'
+                            );
+
+                          return (
+                            <div
+                              key={
+                                getSkkValue(
+                                  rawItem,
+                                  'id',
+                                  'member_skk_id',
+                                  'skkCode',
+                                  'skk_code'
+                                ) || i
+                              }
+                              className="p-3.5 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs hover:border-slate-300 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold shrink-0">
+                                  {i + 1}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <h6 className="font-bold text-slate-900 truncate">
+                                    {name}
+                                  </h6>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">
+                                    {krida}
+                                    {completedAt
+                                      ? ` • Lulus/Verifikasi: ${formatAchievementDate(completedAt)}`
+                                      : ' • Tanggal verifikasi belum tercatat'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-emerald-50 text-emerald-800 border-emerald-200 shrink-0">
+                                {level}
+                              </span>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
