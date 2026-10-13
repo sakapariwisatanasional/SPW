@@ -38,6 +38,7 @@ import { AdminPortalPage } from './features/admin/pages/AdminPortalPage';
 import { CodeManagerPage } from './features/developer/pages/CodeManagerPage';
 import { MemberLayout } from './layouts/MemberLayout';
 import { PublicLayout } from './layouts/PublicLayout';
+import { useAdminStore } from './features/admin/stores/adminStore';
 
 export default function App() {
   const {
@@ -50,6 +51,7 @@ export default function App() {
     isSidebarCollapsed,
   } = useUIStore();
   const { currentUser, isAuthenticated } = useAuthStore();
+  const { qaPerspective } = useAdminStore();
 
   const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
@@ -212,8 +214,15 @@ export default function App() {
     );
   }
 
-  // Mode Anggota: Gunakan Member Application Shell (MemberLayout.tsx)
-  if (currentUser.role === ROLES.MEMBER) {
+  // Mode QA SuperAdmin untuk memeriksa portal member/pamong/pinsaka/mabisaka.
+  // Session dan token TETAP SUPER_ADMIN sehingga seluruh fitur dapat diuji tanpa
+  // dibatasi role/jabatan simulasi.
+  const qaMemberLikeMode =
+    currentUser.role === ROLES.SUPER_ADMIN &&
+    ['ANGGOTA', 'PAMONG_SAKA', 'PINSAKA', 'MABISAKA'].includes(qaPerspective);
+
+  // Mode Anggota atau QA member-like: Gunakan Member Application Shell.
+  if (currentUser.role === ROLES.MEMBER || qaMemberLikeMode) {
     return (
       <>
         <MemberLayout
