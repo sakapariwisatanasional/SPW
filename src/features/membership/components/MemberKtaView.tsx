@@ -1,11 +1,10 @@
 /**
  * SPWN Apps 2.0
- * Member KTA View - Identity Safe v3
+ * Member KTA View - LIST RESOLVER v4
  *
- * - memakai member.detail GAS
- * - multi-identity
- * - tidak memakai ID akun Users sebagai satu-satunya sumber
- * - render aman jika KTA belum terbit
+ * Tidak memakai member.detail.
+ * KTA di-resolve dari member.list (GAS Rule of Truth),
+ * sehingga tidak tergantung konflik/duplikasi MemberAdminService.detail().
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -17,10 +16,18 @@ import {
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
 import { KtaCardSide, KtaMemberBindingData } from '../../../types/kta.types';
 import { useAuthStore } from '../../../stores/authStore';
+import { useAdminStore } from '../../admin/stores/adminStore';
 import { memberApi } from '../../../services/api/member.api';
+
+const norm = (value: unknown) =>
+  String(value ?? '').trim().toLowerCase();
 
 export const MemberKtaView: React.FC = () => {
   const { currentUser } = useAuthStore();
+  const {
+    selectedMemberId,
+    qaPerspective,
+  } = useAdminStore();
 
   const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
   const [ktaData, setKtaData] = useState<any>(null);
@@ -34,57 +41,72 @@ export const MemberKtaView: React.FC = () => {
     try {
       const user: any = currentUser || {};
 
-      const identity =
-        user?.memberProfile?.member_id ||
-        user?.memberProfile?.id ||
-        user?.memberId ||
-        user?.nomor_kta ||
-        user?.no_kta ||
-        user?.email ||
-        user?.id ||
-        '';
+      const response = await memberApi.list({
+        limit: 500,
+      });
 
-      if (!identity) {
-        throw new Error('Identitas anggota tidak tersedia');
+      const rows: any[] =
+        Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+      if (!rows.length) {
+        throw new Error('Daftar anggota dari GAS kosong.');
       }
 
-      const response = await memberApi.detail(
-        String(identity),
-        {
-          member_id:
-            user?.memberProfile?.member_id ||
-            user?.memberId ||
-            '',
-          nomor_kta:
-            user?.nomor_kta ||
-            user?.memberProfile?.nomor_kta ||
-            '',
-          no_kta:
-            user?.no_kta ||
-            user?.memberProfile?.no_kta ||
-            '',
-          email:
-            user?.email ||
-            '',
-          user_id:
-            user?.id ||
-            '',
-        }
-      );
+      const preferredIdentities = [
+        selectedMemberId,
+        user?.memberProfile?.member_id,
+        user?.memberProfile?.id,
+        user?.memberId,
+        user?.nomor_kta,
+        user?.no_kta,
+        user?.email,
+      ]
+        .map(norm)
+        .filter(Boolean);
 
-      const member =
-        response?.data || null;
+      const userName = norm(user?.fullName);
 
-      if (!member) {
-        throw new Error('Data anggota tidak ditemukan');
+      const matched =
+        rows.find((member: any) => {
+          const identities = [
+            member?.id,
+            member?.member_id,
+            member?.nomor_kta,
+            member?.no_kta,
+            member?.email,
+          ]
+            .map(norm)
+            .filter(Boolean);
+
+          return preferredIdentities.some((identity) =>
+            identities.includes(identity)
+          );
+        }) ||
+        rows.find((member: any) => {
+          const name = norm(
+            member?.full_name ||
+            member?.nama_lengkap ||
+            member?.fullName
+          );
+
+          return Boolean(userName) && name === userName;
+        }) ||
+        null;
+
+      if (!matched) {
+        throw new Error(
+          'Record anggota tidak ditemukan pada member.list GAS.'
+        );
       }
 
-      setKtaData(member);
+      setKtaData(matched);
     } catch (e: any) {
       setKtaData(null);
       setError(
         e?.message ||
-        'Data KTA gagal dimuat dari GAS'
+        'Data KTA gagal dimuat dari GAS.'
       );
     } finally {
       setLoading(false);
@@ -93,112 +115,108 @@ export const MemberKtaView: React.FC = () => {
 
   useEffect(() => {
     void loadKta();
-  }, [currentUser]);
+  }, [
+    currentUser,
+    selectedMemberId,
+    qaPerspective,
+  ]);
 
   const memberBinding: KtaMemberBindingData | null =
     useMemo(() => {
       if (!ktaData) return null;
 
       const noKta =
-        ktaData.nomor_kta ||
-        ktaData.no_kta ||
-        ktaData.nationalMemberNumber ||
+        ktaData?.nomor_kta ||
+        ktaData?.no_kta ||
+        ktaData?.nationalMemberNumber ||
         '';
 
       const fullName =
-        ktaData.full_name ||
-        ktaData.nama_lengkap ||
-        ktaData.fullName ||
+        ktaData?.full_name ||
+        ktaData?.nama_lengkap ||
+        ktaData?.fullName ||
         '';
 
       const photo =
-        ktaData.foto_url ||
-        ktaData.photo_url ||
-        ktaData.foto ||
-        ktaData.photoUrl ||
+        ktaData?.foto_url ||
+        ktaData?.photo_url ||
+        ktaData?.foto ||
+        ktaData?.photoUrl ||
         '';
 
       const position =
-        ktaData.tingkat_keanggotaan ||
-        ktaData.position ||
-        ktaData.jabatan ||
+        ktaData?.tingkat_keanggotaan ||
+        ktaData?.position ||
+        ktaData?.jabatan ||
         'Anggota';
 
       return {
         id:
-          ktaData.id ||
-          ktaData.member_id ||
+          ktaData?.id ||
+          ktaData?.member_id ||
           '',
 
-        nationalMemberNumber:
-          noKta,
-
-        fullName:
-          fullName,
-
-        membershipLevel:
-          position,
-
-        currentPosition:
-          position,
+        nationalMemberNumber: noKta,
+        fullName,
+        membershipLevel: position,
+        currentPosition: position,
 
         provinceName:
-          ktaData.provinsi_nama ||
-          ktaData.province ||
-          ktaData.provinsi ||
+          ktaData?.provinsi_nama ||
+          ktaData?.province ||
+          ktaData?.provinsi ||
           '',
 
         regencyName:
-          ktaData.kabupaten_kota_nama ||
-          ktaData.kabupaten_nama ||
-          ktaData.city ||
-          ktaData.kabupaten ||
+          ktaData?.kabupaten_kota_nama ||
+          ktaData?.kabupaten_nama ||
+          ktaData?.city ||
+          ktaData?.kabupaten ||
           '',
 
         districtName:
-          ktaData.kecamatan_nama ||
-          ktaData.district ||
-          ktaData.kecamatan ||
+          ktaData?.kecamatan_nama ||
+          ktaData?.district ||
+          ktaData?.kecamatan ||
           '',
 
         kwartirName:
-          ktaData.kwartir ||
-          ktaData.kwartir_name ||
+          ktaData?.kwartir ||
+          ktaData?.kwartir_name ||
           '',
 
         kwartirHierarchy:
-          ktaData.kwartir_hierarchy ||
+          ktaData?.kwartir_hierarchy ||
           '',
 
         krida:
-          ktaData.krida_nama ||
-          ktaData.krida ||
+          ktaData?.krida_nama ||
+          ktaData?.krida ||
           '',
 
         phone:
-          ktaData.phone ||
-          ktaData.no_hp ||
+          ktaData?.phone ||
+          ktaData?.no_hp ||
           '',
 
         email:
-          ktaData.email ||
+          ktaData?.email ||
           '',
 
         status:
-          ktaData.kta_status ||
-          ktaData.status_anggota ||
-          ktaData.status ||
+          ktaData?.kta_status ||
+          ktaData?.status_anggota ||
+          ktaData?.status ||
           '',
 
-        photoUrl:
-          photo,
+        photoUrl: photo,
 
         qrToken:
-          ktaData.qr_token ||
+          ktaData?.qr_token ||
           '',
 
         verificationUrl:
-          ktaData.verification_url ||
+          ktaData?.verification_url ||
           '',
       } as KtaMemberBindingData;
     }, [ktaData]);
@@ -208,7 +226,9 @@ export const MemberKtaView: React.FC = () => {
       <div className="min-h-[50vh] flex items-center justify-center">
         <div className="text-center text-slate-500">
           <RefreshCw className="w-6 h-6 mx-auto animate-spin text-[#0066B3]" />
-          <p className="text-sm mt-2">Memuat KTA dari GAS...</p>
+          <p className="text-sm mt-2">
+            Memuat KTA dari GAS...
+          </p>
         </div>
       </div>
     );
@@ -220,9 +240,12 @@ export const MemberKtaView: React.FC = () => {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold text-red-900">KTA tidak dapat dimuat</p>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
-
+            <p className="font-bold text-red-900">
+              KTA tidak dapat dimuat
+            </p>
+            <p className="text-sm text-red-700 mt-1">
+              {error}
+            </p>
             <button
               type="button"
               onClick={() => void loadKta()}
@@ -246,10 +269,7 @@ export const MemberKtaView: React.FC = () => {
     ktaData?.qr_token ||
     '';
 
-  const ktaIssued =
-    Boolean(noKta && qrToken);
-
-  if (!memberBinding || !ktaIssued) {
+  if (!memberBinding || !noKta || !qrToken) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
         <div className="flex items-start gap-3">
@@ -259,8 +279,7 @@ export const MemberKtaView: React.FC = () => {
               KTA belum diterbitkan
             </p>
             <p className="text-sm text-amber-800 mt-1">
-              Data anggota ditemukan, tetapi nomor KTA atau QR resmi belum tersedia.
-              Hubungi administrator atau tunggu proses penerbitan KTA selesai.
+              Record anggota ditemukan di GAS, tetapi nomor KTA atau QR resmi belum tersedia.
             </p>
           </div>
         </div>
