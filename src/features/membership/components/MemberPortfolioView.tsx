@@ -12,10 +12,40 @@ import {
 } from 'lucide-react';
 import { Card } from '../../../components/ui';
 import { useAuthStore } from '../../../stores/authStore';
-import {
-  portfolioApi,
-  MemberEvidenceRecord,
-} from '../../../services/api/portfolio.api';
+import { apiClient } from '../../../services/api/apiClient';
+
+interface MemberEvidenceRecord {
+  id: string;
+  evidence_id?: string;
+  member_id: string;
+  skk_code: string;
+  evidence_type: string;
+  title: string;
+  description?: string;
+  url?: string;
+  file_url?: string;
+  drive_file_id?: string;
+  platform?: string;
+  verification_status:
+    | 'PENDING'
+    | 'VERIFIED'
+    | 'REVISION_REQUIRED'
+    | 'REJECTED'
+    | string;
+  verified_by?: string;
+  verified_at?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+const unwrapApiData = <T,>(response: any): T => {
+  return (
+    response?.data?.data ??
+    response?.data ??
+    response
+  ) as T;
+};
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -92,8 +122,21 @@ export const MemberPortfolioView: React.FC = () => {
     setError(null);
 
     try {
+      const response = await apiClient.get<any>(
+        'member.evidence.list',
+        {
+          member_id: memberId,
+        }
+      );
+
+      const raw = unwrapApiData<any>(response);
+
       const data =
-        await portfolioApi.list(memberId);
+        Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.items)
+          ? raw.items
+          : [];
 
       setItems(data);
     } catch (err: any) {
@@ -175,23 +218,26 @@ export const MemberPortfolioView: React.FC = () => {
           await readFileAsDataUrl(file);
       }
 
-      await portfolioApi.add({
-        member_id: memberId,
-        skk_code: skkCode.trim(),
-        evidence_type:
-          file
-            ? 'FILE'
-            : 'URL',
-        title: title.trim(),
-        description:
-          description.trim(),
-        url:
-          externalUrl.trim(),
-        file_data_url:
-          fileDataUrl,
-        file_name:
-          file?.name || '',
-      });
+      await apiClient.post<any>(
+        'member.evidence.add',
+        {
+          member_id: memberId,
+          skk_code: skkCode.trim(),
+          evidence_type:
+            file
+              ? 'FILE'
+              : 'URL',
+          title: title.trim(),
+          description:
+            description.trim(),
+          url:
+            externalUrl.trim(),
+          file_data_url:
+            fileDataUrl,
+          file_name:
+            file?.name || '',
+        }
+      );
 
       setSkkCode('');
       setTitle('');
