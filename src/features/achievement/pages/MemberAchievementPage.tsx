@@ -32,6 +32,8 @@ export const MemberAchievementPage: React.FC = () => {
   const {
     members: adminMembers,
     selectedMemberId,
+    setSelectedMemberId,
+    loadMembers,
     qaPerspective,
     scopeProvinceId,
     scopeRegencyId,
@@ -59,54 +61,42 @@ export const MemberAchievementPage: React.FC = () => {
 
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      setViewMode('superadmin');
-    } else {
+    if (!isSuperAdmin) {
       setViewMode('personal');
+      return;
     }
-  }, [isSuperAdmin]);
+
+    // SuperAdmin session tetap SUPER_ADMIN untuk QA.
+    // Perspektif selain SUPER_ADMIN harus membuka UI role yang sedang diuji.
+    if (qaPerspective && qaPerspective !== 'SUPER_ADMIN') {
+      setViewMode('personal');
+    } else {
+      setViewMode('superadmin');
+    }
+  }, [isSuperAdmin, qaPerspective]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    if (Array.isArray(adminMembers) && adminMembers.length > 0) return;
+
+    void loadMembers();
+  }, [isSuperAdmin, adminMembers, loadMembers]);
 
   const qaMember = React.useMemo(() => {
     const list = Array.isArray(adminMembers) ? adminMembers : [];
 
-    // Saat benar-benar berada pada Member Shell, jangan biarkan selectedMemberId
-    // lama dari Portal Admin mengambil alih identitas profil.
-    if (currentUser?.role === ROLES.MEMBER) {
-      const currentIdentity =
-        (currentUser as any)?.memberProfile?.id ||
-        (currentUser as any)?.memberProfile?.member_id ||
-        (currentUser as any)?.memberId ||
-        (currentUser as any)?.id ||
-        '';
+    const normalizePosition = (member: any) =>
+      String(
+        member?.position ||
+        member?.jabatan ||
+        member?.tingkat_keanggotaan ||
+        ''
+      )
+        .trim()
+        .toUpperCase()
+        .replace(/_/g, ' ');
 
-      if (currentIdentity) {
-        const ownMember = list.find((m: any) =>
-          [
-            m.id,
-            m.member_id,
-            m.nomor_kta,
-            m.no_kta,
-          ].some((value) =>
-            String(value || '') === String(currentIdentity)
-          )
-        );
-
-        if (ownMember) return ownMember;
-      }
-
-      return null;
-    }
-
-    if (selectedMemberId) {
-      const selected = list.find((m: any) =>
-        String(m.id || m.member_id || '') === String(selectedMemberId)
-      );
-      if (selected) return selected;
-    }
-
-    if (qaPerspective !== 'ANGGOTA') return null;
-
-    return list.find((m: any) => {
+    const inScope = (m: any) => {
       if (
         scopeProvinceId !== 'ALL' &&
         String(m.provinsi_id || '') !== String(scopeProvinceId)
@@ -128,7 +118,89 @@ export const MemberAchievementPage: React.FC = () => {
       ) return false;
 
       return true;
-    }) || null;
+    };
+
+    const matchesIdentity = (m: any, identity: unknown) =>
+      [
+        m.member_id,
+        m.nomor_kta,
+        m.no_kta,
+        m.email,
+        m.id,
+      ].some((value) =>
+        String(value || '').trim().toLowerCase() ===
+        String(identity || '').trim().toLowerCase()
+      );
+
+    // Login MEMBER: profil dirinya sendiri.
+    if (currentUser?.role === ROLES.MEMBER) {
+      const identities = [
+        (currentUser as any)?.memberProfile?.member_id,
+        (currentUser as any)?.memberProfile?.id,
+        (currentUser as any)?.nomor_kta,
+        (currentUser as any)?.no_kta,
+        (currentUser as any)?.email,
+        (currentUser as any)?.memberId,
+      ].filter(Boolean);
+
+      for (const identity of identities) {
+        const ownMember = list.find((m: any) =>
+          matchesIdentity(m, identity)
+        );
+        if (ownMember) return ownMember;
+      }
+
+      return null;
+    }
+
+    // Pilihan anggota nyata selalu menang.
+    if (selectedMemberId) {
+      const selected = list.find((m: any) =>
+        matchesIdentity(m, selectedMemberId)
+      );
+      if (selected) return selected;
+    }
+
+    // QA SuperAdmin: pilih record nyata sesuai perspektif jabatan.
+    const perspective = String(qaPerspective || '').toUpperCase();
+
+    const desiredPositions: Record<string, string[]> = {
+      ANGGOTA: ['ANGGOTA', 'DEWAN SAKA'],
+      PAMONG_SAKA: ['PAMONG SAKA'],
+      PINSAKA: ['PIMPINAN SAKA', 'PINSAKA'],
+      MABISAKA: ['MABISAKA'],
+    };
+
+    const wanted = desiredPositions[perspective];
+
+    if (wanted) {
+      const scoped = list.filter(inScope);
+
+      const exact = scoped.find((m: any) =>
+        wanted.includes(normalizePosition(m))
+      );
+
+      if (exact) return exact;
+
+      return null;
+    }
+
+    // Tombol "Uji Profil Anggota" dari mode SuperAdmin:
+    // gunakan peserta nyata pertama, bukan identitas akun SuperAdmin.
+    if (isSuperAdmin && viewMode === 'personal') {
+      return (
+        list.find((m: any) => {
+          const p = normalizePosition(m);
+          return inScope(m) && (
+            p === 'ANGGOTA' ||
+            p === 'DEWAN SAKA' ||
+            p === ''
+          );
+        }) || null
+      );
+    }
+
+    return null;
   }, [
     adminMembers,
     selectedMemberId,
@@ -137,31 +209,32 @@ export const MemberAchievementPage: React.FC = () => {
     scopeRegencyId,
     scopeDistrictId,
     scopePangkalanId,
+    currentUser,
+    isSuperAdmin,
+    viewMode,
   ]);
 
   const targetMemberId =
     currentUser?.role === ROLES.MEMBER
       ? (
-          (currentUser as any)?.memberProfile?.id ||
-          (currentUser as any)?.memberProfile?.member_id ||
-          (currentUser as any)?.memberId ||
-          (currentUser as any)?.nomor_kta ||
-          (currentUser as any)?.no_kta ||
-          (currentUser as any)?.email ||
-          (currentUser as any)?.username ||
-          (currentUser as any)?.id ||
-          ''
-        )
-      : (
-          qaMember?.id ||
           qaMember?.member_id ||
           qaMember?.nomor_kta ||
           qaMember?.no_kta ||
           qaMember?.email ||
-          (currentUser as any)?.memberProfile?.id ||
           (currentUser as any)?.memberProfile?.member_id ||
-          (currentUser as any)?.memberId ||
+          (currentUser as any)?.memberProfile?.id ||
+          (currentUser as any)?.nomor_kta ||
+          (currentUser as any)?.no_kta ||
           (currentUser as any)?.email ||
+          (currentUser as any)?.memberId ||
+          ''
+        )
+      : (
+          qaMember?.member_id ||
+          qaMember?.nomor_kta ||
+          qaMember?.no_kta ||
+          qaMember?.email ||
+          qaMember?.id ||
           ''
         );
 
@@ -189,7 +262,28 @@ export const MemberAchievementPage: React.FC = () => {
       try {
         const response = await apiClient.get<any>(
           'member.pamong.available',
-          { member_id: String(targetMemberId) }
+          {
+            member_id: String(targetMemberId),
+            nomor_kta:
+              String(
+                qaMember?.nomor_kta ||
+                qaMember?.no_kta ||
+                (currentUser as any)?.nomor_kta ||
+                (currentUser as any)?.no_kta ||
+                ''
+              ),
+            email:
+              String(
+                qaMember?.email ||
+                (currentUser as any)?.email ||
+                ''
+              ),
+            user_id:
+              String(
+                (currentUser as any)?.id ||
+                ''
+              ),
+          }
         );
 
         if (cancelled) return;
@@ -303,6 +397,53 @@ export const MemberAchievementPage: React.FC = () => {
     }
   }, [profile, currentUser]);
 
+  const handleSuperAdminTestMember = async () => {
+    let list = Array.isArray(adminMembers) ? adminMembers : [];
+
+    if (!list.length) {
+      try {
+        const loaded = await loadMembers();
+        list = Array.isArray(loaded) ? loaded : [];
+      } catch {
+        list = [];
+      }
+    }
+
+    const normalizePosition = (member: any) =>
+      String(
+        member?.position ||
+        member?.jabatan ||
+        member?.tingkat_keanggotaan ||
+        ''
+      )
+        .trim()
+        .toUpperCase()
+        .replace(/_/g, ' ');
+
+    const participant =
+      list.find((member: any) => {
+        const position = normalizePosition(member);
+        return position === 'ANGGOTA' || position === 'DEWAN SAKA';
+      }) ||
+      list[0] ||
+      null;
+
+    if (participant) {
+      setSelectedMemberId(
+        String(
+          participant.member_id ||
+          participant.nomor_kta ||
+          participant.no_kta ||
+          participant.email ||
+          participant.id ||
+          ''
+        )
+      );
+    }
+
+    setViewMode('personal');
+  };
+
   const hasNoAchievements =
     profile &&
     profile.summary.completedSkk === 0 &&
@@ -342,7 +483,7 @@ export const MemberAchievementPage: React.FC = () => {
   if (isSuperAdmin && viewMode === 'superadmin') {
     return (
       <div id="member-achievement-page" className="min-h-screen bg-slate-50/50 py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
-        <SuperAdminAchievementView onSwitchToPersonal={() => setViewMode('personal')} />
+        <SuperAdminAchievementView onSwitchToPersonal={handleSuperAdminTestMember} />
       </div>
     );
   }
@@ -359,10 +500,10 @@ export const MemberAchievementPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-900">
-                  Mode: Pencapaian Pribadi (Super Administrator)
+                  Mode Uji Profil Anggota (Super Administrator)
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Anda sedang melihat profil pencapaian anggota dari GAS. Tidak ada profil demo atau ID fallback.
+                  Session tetap SUPER_ADMIN, tetapi data yang diuji harus berasal dari record anggota nyata di GAS.
                 </p>
               </div>
             </div>
@@ -423,6 +564,21 @@ export const MemberAchievementPage: React.FC = () => {
               <p className="text-xs text-amber-800 mt-0.5">
                 Halaman tidak lagi memakai ID anggota contoh. Pilih anggota nyata dari data GAS
                 atau kembali ke Pantauan Seluruh Wilayah.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isSuperAdmin && viewMode === 'personal' && !targetMemberId && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                Belum ada anggota nyata yang dipilih untuk mode QA
+              </p>
+              <p className="text-xs text-amber-800 mt-1">
+                Sistem tidak akan memakai email/ID akun SuperAdmin sebagai member_id.
+                Pilih anggota dari Pantauan Seluruh Wilayah atau gunakan perspektif Anggota/Pamong/Pinsaka/Mabisaka.
               </p>
             </div>
           </div>
