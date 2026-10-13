@@ -1,5 +1,192 @@
 import { KtaMemberBindingData } from '../types/kta.types';
 
+
+const normalizeUpper = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, ' ');
+
+const STRUCTURAL_POSITIONS = new Set([
+  'PAMONG SAKA',
+  'PIMPINAN SAKA',
+  'PINSAKA',
+  'MABISAKA',
+]);
+
+const AGE_GROUP_VALUES = new Set([
+  'PENEGAK',
+  'PANDEGA',
+  'ANGGOTA DEWASA',
+]);
+
+const normalizePosition = (value: unknown) => {
+  const raw = normalizeUpper(value);
+
+  if (raw === 'PIN SAKA') return 'PIMPINAN SAKA';
+  if (raw === 'PINSAKA') return 'PIMPINAN SAKA';
+  if (raw === 'PAMONG') return 'PAMONG SAKA';
+  if (raw === 'MABI SAKA') return 'MABISAKA';
+  if (raw === 'DEWANSAKA') return 'DEWAN SAKA';
+
+  return raw;
+};
+
+const sanitizeOrganizationLevel = (value: unknown) => {
+  const raw = normalizeUpper(value);
+
+  // Golongan usia bukan tingkat organisasi.
+  if (!raw || AGE_GROUP_VALUES.has(raw)) {
+    return '';
+  }
+
+  if (
+    raw === 'NASIONAL' ||
+    raw === 'KWARTIR NASIONAL' ||
+    raw === 'KWARNAS'
+  ) {
+    return 'KWARNAS';
+  }
+
+  if (
+    raw === 'DAERAH' ||
+    raw === 'KWARTIR DAERAH' ||
+    raw === 'KWARDA'
+  ) {
+    return 'KWARDA';
+  }
+
+  if (
+    raw === 'CABANG' ||
+    raw === 'KWARTIR CABANG' ||
+    raw === 'KWARCAB'
+  ) {
+    return 'KWARCAB';
+  }
+
+  if (
+    raw === 'RANTING' ||
+    raw === 'KWARTIR RANTING' ||
+    raw === 'KWARRAN'
+  ) {
+    return 'KWARRAN';
+  }
+
+  if (
+    raw === 'PANGKALAN' ||
+    raw === 'GUDEP' ||
+    raw === 'GUGUS DEPAN'
+  ) {
+    return 'PANGKALAN';
+  }
+
+  return raw;
+};
+
+const parseBirthDate = (source: any): Date | null => {
+  const raw =
+    source?.tanggal_lahir ||
+    source?.birthDate ||
+    source?.birth_date ||
+    source?.date_of_birth ||
+    source?.dob ||
+    '';
+
+  if (!raw) return null;
+
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const calculateAge = (source: any): number | null => {
+  const explicit =
+    source?.umur ??
+    source?.age;
+
+  if (
+    explicit !== null &&
+    explicit !== undefined &&
+    String(explicit).trim() !== ''
+  ) {
+    const parsed = Number(explicit);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  const birthDate = parseBirthDate(source);
+  if (!birthDate) return null;
+
+  const today = new Date();
+  let age =
+    today.getFullYear() -
+    birthDate.getFullYear();
+
+  const monthDiff =
+    today.getMonth() -
+    birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 &&
+      today.getDate() < birthDate.getDate())
+  ) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+};
+
+export const resolvePramukaAgeGroup = (member: any): string => {
+  const source = member || {};
+
+  const position = normalizePosition(
+    source.position ||
+    source.currentPosition ||
+    source.jabatan ||
+    source.jabatan_khusus ||
+    source.tingkat_keanggotaan ||
+    source.role ||
+    ''
+  );
+
+  // Jabatan struktural tidak boleh dilabeli Penegak/Pandega/Anggota Dewasa.
+  if (STRUCTURAL_POSITIONS.has(position)) {
+    return '';
+  }
+
+  const age = calculateAge(source);
+
+  if (age === null) {
+    const explicit = normalizeUpper(
+      source.golongan_pramuka ||
+      source.golongan ||
+      source.age_group ||
+      source.kelompok_usia ||
+      ''
+    );
+
+    return AGE_GROUP_VALUES.has(explicit)
+      ? explicit
+      : '';
+  }
+
+  if (age >= 16 && age <= 20) {
+    return 'PENEGAK';
+  }
+
+  if (age >= 21 && age <= 25) {
+    return 'PANDEGA';
+  }
+
+  if (age >= 26) {
+    return 'ANGGOTA DEWASA';
+  }
+
+  return '';
+};
+
+
 /**
  * Satu-satunya mapper data anggota -> data KTA.
  * Semua preview/Designer/Dashboard/Member KTA/Admin Preview harus memakai ini
@@ -23,21 +210,27 @@ export const mapMemberToKtaBinding = (member: any): KtaMemberBindingData => {
     '';
 
   const position =
-    source.position ||
-    source.currentPosition ||
-    source.jabatan ||
-    source.jabatan_khusus ||
-    source.tingkat_keanggotaan ||
-    source.tingkatan ||
-    source.role ||
-    'Anggota';
+    normalizePosition(
+      source.position ||
+      source.currentPosition ||
+      source.jabatan ||
+      source.jabatan_khusus ||
+      source.tingkat_keanggotaan ||
+      source.tingkatan ||
+      source.role ||
+      'Anggota'
+    ) || 'ANGGOTA';
 
   const organizationLevel =
-    source.level_organisasi ||
-    source.tingkat_organisasi ||
-    source.tingkat ||
-    source.membershipLevel ||
-    '';
+    sanitizeOrganizationLevel(
+      source.level_organisasi ||
+      source.tingkat_organisasi ||
+      source.organizationLevel ||
+      source.organization_level ||
+      source.kwartir_level ||
+      source.tingkat ||
+      ''
+    );
 
   const provinceName =
     source.provinsi_nama ||
@@ -103,6 +296,10 @@ export const mapMemberToKtaBinding = (member: any): KtaMemberBindingData => {
 
     fullName,
     nationalMemberNumber: noKta,
+    // Legacy `membershipLevel` tidak lagi boleh fallback ke PENEGAK.
+    // Untuk pejabat struktural: tampilkan tingkat organisasi/jabatan.
+    // Untuk peserta: golongan usia dihitung terpisah dan tidak menggantikan
+    // field `tingkat` (Tingkat Organisasi).
     membershipLevel: organizationLevel || position,
     currentPosition: position,
 
