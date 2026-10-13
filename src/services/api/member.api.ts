@@ -261,6 +261,22 @@ export const memberApi = {
     return apiClient.post<SpwnUser>('member.update', payload as unknown as Record<string, unknown>);
   },
 
+
+
+  /**
+   * Edit profil sendiri berdasarkan session GAS.
+   * Jabatan/tingkat_keanggotaan tidak diubah dari halaman profil pribadi.
+   */
+  updateSelfProfile: async (
+    memberId: string,
+    data: Record<string, unknown>
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('member.profile.updateSelf', {
+      member_id: memberId,
+      data,
+    });
+  },
+
   /**
    * Menonaktifkan anggota (Super Admin / Admin Pusat)
    */
