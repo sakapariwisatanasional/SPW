@@ -25,6 +25,7 @@ import { ActivityHistory } from '../components/ActivityHistory';
 import { AchievementEmptyState, PamongContact } from '../components/AchievementEmptyState';
 import { apiClient } from '../../../services/api/apiClient';
 import { SuperAdminAchievementView } from '../components/SuperAdminAchievementView';
+import { OfficialAchievementMonitoringView } from '../components/OfficialAchievementMonitoringView';
 import { Button } from '../../../components/ui';
 
 export const MemberAchievementPage: React.FC = () => {
@@ -614,36 +615,9 @@ export const MemberAchievementPage: React.FC = () => {
               onTogglePrivacyView={togglePrivacyView}
             />
 
-            {/* Jabatan struktural/pembina tidak menjadi peserta Krida/SKK */}
+            {/* Jabatan struktural/pembina: monitoring hierarkis sesuai Kwartir */}
             {!isAchievementParticipant && (isPamong || isPinsaka || isMabisaka) ? (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                    <Users className="w-5 h-5" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-lg font-extrabold text-slate-900">
-                      Mode Monitoring Pencapaian Anggota
-                    </h2>
-
-                    <p className="text-sm text-slate-700">
-                      Jabatan <strong>{memberPosition}</strong> tidak mengikuti penyelesaian
-                      Krida dan SKK sebagai peserta.
-                    </p>
-
-                    <p className="text-sm text-slate-600">
-                      {isPamong
-                        ? 'Pamong Saka bertugas mendampingi anggota, meninjau bukti/portofolio, serta melakukan verifikasi SKK anggota binaan sesuai kewenangannya.'
-                        : 'Jabatan ini dapat melihat dan meninjau perkembangan pencapaian anggota sesuai wilayah kewenangannya, tanpa memiliki progres Krida/SKK pribadi.'}
-                    </p>
-
-                    <div className="pt-2 text-xs font-semibold text-blue-800">
-                      Pencapaian pribadi dinonaktifkan oleh Rule of Truth GAS berdasarkan jabatan anggota.
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <OfficialAchievementMonitoringView />
             ) : hasNoAchievements ? (
               <div className="space-y-6">
                 <AchievementEmptyState
