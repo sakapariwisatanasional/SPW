@@ -49,6 +49,7 @@ import { MemberAchievementPage } from '../features/achievement/pages/MemberAchie
 import { MemberPortfolioView } from '../features/membership/components/MemberPortfolioView';
 import { MemberActivityView } from '../features/membership/components/MemberActivityView';
 import { MemberProfileView } from '../features/membership/components/MemberProfileView';
+import { useAdminStore } from '../features/admin/stores/adminStore';
 
 export interface MemberLayoutProps {
   children?: React.ReactNode;
@@ -63,6 +64,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
 }) => {
   const { currentUser, switchRole } = useAuthStore();
   const { addToast, setActiveView } = useUIStore();
+  const { qaPerspective } = useAdminStore();
 
   const [internalTab, setInternalTab] = useState<string>('dashboard');
   const activeTab = controlledTab || internalTab;
@@ -143,7 +145,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-slate-900 tracking-tight text-sm">SPWN 2.0</span>
                 <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-blue-50 text-[#0066B3] border border-blue-200">
-                  ANGGOTA
+                  {currentUser.role === ROLES.SUPER_ADMIN && qaPerspective !== 'SUPER_ADMIN' ? qaPerspective : (currentUser.membershipLevel || 'ANGGOTA')}
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 font-medium">Member Identity Center</p>
@@ -183,6 +185,14 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => handleTabClick('profil')}
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
+          >
+            <User className="w-3.5 h-3.5" />
+            Edit Profil
+          </button>
         </div>
 
         {/* Navigation Items List */}
@@ -238,12 +248,11 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
 
         {/* Bottom Actions & Logout */}
         <div className="p-3 border-t border-slate-100 space-y-2">
-          {sessionStorage.getItem('spwn_simulated_from_superadmin') === 'true' && (
+          {currentUser.role === ROLES.SUPER_ADMIN && qaPerspective !== 'SUPER_ADMIN' && (
             <button
               onClick={() => {
-                sessionStorage.removeItem('spwn_simulated_from_superadmin');
-                switchRole(ROLES.SUPER_ADMIN);
-                setActiveView('admin_portal');
+                useAdminStore.getState().setQaPerspective('SUPER_ADMIN');
+                setActiveView('admin-portal');
               }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-[#0066B3] text-white hover:bg-white hover:text-[#0066B3] border-2 border-[#0066B3] transition-colors shadow-2xs cursor-pointer"
             >
@@ -269,19 +278,18 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
       {/* MAIN CONTENT WORKSPACE                                         */}
       {/* ============================================================== */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-64 pb-20 lg:pb-8 transition-all overflow-x-hidden w-full max-w-full">
-        {sessionStorage.getItem('spwn_simulated_from_superadmin') === 'true' && (
+        {currentUser.role === ROLES.SUPER_ADMIN && qaPerspective !== 'SUPER_ADMIN' && (
           <div className="bg-[#0B1F33] text-white px-4 py-2 text-xs flex items-center justify-between gap-3 shadow-md z-30">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="truncate">
-                Mode Simulasi: Sedang melihat portal sebagai <strong>Demo Anggota SAKA ({currentUser.fullName})</strong>
+                Mode QA SuperAdmin: Perspektif <strong>{qaPerspective}</strong>. Hak akses backend tetap SUPER_ADMIN.
               </span>
             </div>
             <button
               onClick={() => {
-                sessionStorage.removeItem('spwn_simulated_from_superadmin');
-                switchRole(ROLES.SUPER_ADMIN);
-                setActiveView('admin_portal');
+                useAdminStore.getState().setQaPerspective('SUPER_ADMIN');
+                setActiveView('admin-portal');
               }}
               className="px-3 py-1 rounded-lg text-xs font-bold bg-white text-[#0B1F33] border-2 border-white hover:bg-[#0066B3] hover:text-white hover:border-[#0066B3] transition-colors cursor-pointer shrink-0"
             >
