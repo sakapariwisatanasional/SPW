@@ -45,9 +45,16 @@ export const MemberKtaView: React.FC = () => {
         limit: 500,
       });
 
+      const rawMemberList: any =
+        response?.data;
+
       const rows: any[] =
-        Array.isArray(response?.data)
-          ? response.data
+        Array.isArray(rawMemberList)
+          ? rawMemberList
+          : Array.isArray(rawMemberList?.data)
+          ? rawMemberList.data
+          : Array.isArray(rawMemberList?.members)
+          ? rawMemberList.members
           : [];
 
       if (!rows.length) {
