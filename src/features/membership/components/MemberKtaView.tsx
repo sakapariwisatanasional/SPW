@@ -1,119 +1,299 @@
 /**
  * SPWN Apps 2.0
- * Member KTA View - LIST RESOLVER v4
+ * Member KTA View v5
  *
- * Tidak memakai member.detail.
- * KTA di-resolve dari member.list (GAS Rule of Truth),
- * sehingga tidak tergantung konflik/duplikasi MemberAdminService.detail().
+ * Rule of Truth:
+ * - Data anggota: GAS member.list
+ * - Template KTA: GAS admin.kta.template.get / TMPL_DEFAULT
+ * - Render: DigitalMemberCard + previewSettings dari GAS
+ *
+ * Mendukung QA SuperAdmin tanpa mengganti session/token.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  CreditCard,
-  RefreshCw,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
-import { KtaCardSide, KtaMemberBindingData } from '../../../types/kta.types';
+import {
+  KtaCardSide,
+  KtaCardSettings,
+  KtaMemberBindingData,
+} from '../../../types/kta.types';
+
 import { useAuthStore } from '../../../stores/authStore';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import { memberApi } from '../../../services/api/member.api';
+import { spreadsheetService } from '../../../services/spreadsheetService';
+import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 
 const norm = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
 
+const normalizePosition = (member: any) =>
+  String(
+    member?.position ||
+    member?.jabatan ||
+    member?.tingkat_keanggotaan ||
+    ''
+  )
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, ' ');
+
 export const MemberKtaView: React.FC = () => {
   const { currentUser } = useAuthStore();
+
   const {
     selectedMemberId,
     qaPerspective,
   } = useAdminStore();
 
-  const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
-  const [ktaData, setKtaData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [cardSide, setCardSide] =
+    useState<KtaCardSide>('FRONT');
 
-  const loadKta = async () => {
-    setLoading(true);
-    setError(null);
+  const [ktaData, setKtaData] =
+    useState<any>(null);
 
-    try {
-      const user: any = currentUser || {};
+  const [templateSettings, setTemplateSettings] =
+    useState<KtaCardSettings | null>(null);
 
-      const response = await memberApi.list({
-        limit: 500,
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [templateError, setTemplateError] =
+    useState<string | null>(null);
+
+  const resolveMemberFromList = (
+    rows: any[],
+    user: any
+  ) => {
+    const list =
+      Array.isArray(rows)
+        ? rows
+        : [];
+
+    const matchesIdentity = (
+      member: any,
+      identity: unknown
+    ) => {
+      const target = norm(identity);
+
+      if (!target) return false;
+
+      return [
+        member?.id,
+        member?.member_id,
+        member?.nomor_kta,
+        member?.no_kta,
+        member?.email,
+      ]
+        .map(norm)
+        .filter(Boolean)
+        .includes(target);
+    };
+
+    // 1. Record nyata yang dipilih oleh SuperAdmin QA.
+    if (selectedMemberId) {
+      const selected = list.find(
+        (member: any) =>
+          matchesIdentity(
+            member,
+            selectedMemberId
+          )
+      );
+
+      if (selected) {
+        return selected;
+      }
+    }
+
+    // 2. QA perspective harus memakai record nyata sesuai jabatan.
+    const perspective =
+      String(
+        qaPerspective || ''
+      ).toUpperCase();
+
+    const desiredPositions:
+      Record<string, string[]> = {
+        ANGGOTA: [
+          'ANGGOTA',
+          'DEWAN SAKA',
+        ],
+        PAMONG_SAKA: [
+          'PAMONG SAKA',
+        ],
+        PINSAKA: [
+          'PIMPINAN SAKA',
+          'PINSAKA',
+        ],
+        MABISAKA: [
+          'MABISAKA',
+        ],
+      };
+
+    const wanted =
+      desiredPositions[perspective];
+
+    if (
+      user?.role === 'SUPER_ADMIN' &&
+      wanted
+    ) {
+      const roleMatch =
+        list.find(
+          (member: any) =>
+            wanted.includes(
+              normalizePosition(member)
+            )
+        );
+
+      if (roleMatch) {
+        return roleMatch;
+      }
+    }
+
+    // 3. Login anggota normal.
+    const identities = [
+      user?.memberProfile?.member_id,
+      user?.memberProfile?.id,
+      user?.memberId,
+      user?.nomor_kta,
+      user?.no_kta,
+      user?.email,
+    ]
+      .map(norm)
+      .filter(Boolean);
+
+    const exact =
+      list.find((member: any) => {
+        const memberIdentities = [
+          member?.id,
+          member?.member_id,
+          member?.nomor_kta,
+          member?.no_kta,
+          member?.email,
+        ]
+          .map(norm)
+          .filter(Boolean);
+
+        return identities.some(
+          (identity) =>
+            memberIdentities.includes(
+              identity
+            )
+        );
       });
 
+    if (exact) {
+      return exact;
+    }
+
+    // 4. Nama hanya fallback terakhir.
+    const userName =
+      norm(user?.fullName);
+
+    if (userName) {
+      return (
+        list.find((member: any) => {
+          const name =
+            norm(
+              member?.full_name ||
+              member?.nama_lengkap ||
+              member?.fullName
+            );
+
+          return name === userName;
+        }) || null
+      );
+    }
+
+    return null;
+  };
+
+  const loadAll = async () => {
+    setLoading(true);
+    setError(null);
+    setTemplateError(null);
+
+    try {
+      const user: any =
+        currentUser || {};
+
+      /*
+       * Kedua sumber dibaca langsung dari GAS:
+       * member.list + admin.kta.template.get
+       */
+      const [
+        memberResponse,
+        gasTemplate,
+      ] = await Promise.all([
+        memberApi.list({
+          limit: 500,
+        }),
+        spreadsheetService
+          .refreshKtaSettings(
+            'TMPL_DEFAULT'
+          ),
+      ]);
+
       const rawMemberList: any =
-        response?.data;
+        memberResponse?.data;
 
       const rows: any[] =
         Array.isArray(rawMemberList)
           ? rawMemberList
-          : Array.isArray(rawMemberList?.data)
+          : Array.isArray(
+              rawMemberList?.data
+            )
           ? rawMemberList.data
-          : Array.isArray(rawMemberList?.members)
+          : Array.isArray(
+              rawMemberList?.members
+            )
           ? rawMemberList.members
           : [];
 
       if (!rows.length) {
-        throw new Error('Daftar anggota dari GAS kosong.');
+        throw new Error(
+          'Daftar anggota dari GAS kosong.'
+        );
       }
 
-      const preferredIdentities = [
-        selectedMemberId,
-        user?.memberProfile?.member_id,
-        user?.memberProfile?.id,
-        user?.memberId,
-        user?.nomor_kta,
-        user?.no_kta,
-        user?.email,
-      ]
-        .map(norm)
-        .filter(Boolean);
-
-      const userName = norm(user?.fullName);
-
       const matched =
-        rows.find((member: any) => {
-          const identities = [
-            member?.id,
-            member?.member_id,
-            member?.nomor_kta,
-            member?.no_kta,
-            member?.email,
-          ]
-            .map(norm)
-            .filter(Boolean);
-
-          return preferredIdentities.some((identity) =>
-            identities.includes(identity)
-          );
-        }) ||
-        rows.find((member: any) => {
-          const name = norm(
-            member?.full_name ||
-            member?.nama_lengkap ||
-            member?.fullName
-          );
-
-          return Boolean(userName) && name === userName;
-        }) ||
-        null;
+        resolveMemberFromList(
+          rows,
+          user
+        );
 
       if (!matched) {
         throw new Error(
-          'Record anggota tidak ditemukan pada member.list GAS.'
+          'Record anggota untuk mode ini tidak ditemukan pada member.list GAS.'
         );
       }
 
       setKtaData(matched);
+
+      if (!gasTemplate) {
+        setTemplateSettings(null);
+        setTemplateError(
+          'Template TMPL_DEFAULT tidak berhasil dimuat dari GAS.'
+        );
+        return;
+      }
+
+      setTemplateSettings(
+        gasTemplate
+      );
     } catch (e: any) {
       setKtaData(null);
+
       setError(
         e?.message ||
-        'Data KTA gagal dimuat dari GAS.'
+        'KTA gagal dimuat dari GAS.'
       );
     } finally {
       setLoading(false);
@@ -121,111 +301,27 @@ export const MemberKtaView: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadKta();
+    void loadAll();
   }, [
     currentUser,
     selectedMemberId,
     qaPerspective,
   ]);
 
-  const memberBinding: KtaMemberBindingData | null =
+  const memberBinding:
+    KtaMemberBindingData | null =
     useMemo(() => {
-      if (!ktaData) return null;
+      if (!ktaData) {
+        return null;
+      }
 
-      const noKta =
-        ktaData?.nomor_kta ||
-        ktaData?.no_kta ||
-        ktaData?.nationalMemberNumber ||
-        '';
-
-      const fullName =
-        ktaData?.full_name ||
-        ktaData?.nama_lengkap ||
-        ktaData?.fullName ||
-        '';
-
-      const photo =
-        ktaData?.foto_url ||
-        ktaData?.photo_url ||
-        ktaData?.foto ||
-        ktaData?.photoUrl ||
-        '';
-
-      const position =
-        ktaData?.tingkat_keanggotaan ||
-        ktaData?.position ||
-        ktaData?.jabatan ||
-        'Anggota';
-
-      return {
-        id:
-          ktaData?.id ||
-          ktaData?.member_id ||
-          '',
-
-        nationalMemberNumber: noKta,
-        fullName,
-        membershipLevel: position,
-        currentPosition: position,
-
-        provinceName:
-          ktaData?.provinsi_nama ||
-          ktaData?.province ||
-          ktaData?.provinsi ||
-          '',
-
-        regencyName:
-          ktaData?.kabupaten_kota_nama ||
-          ktaData?.kabupaten_nama ||
-          ktaData?.city ||
-          ktaData?.kabupaten ||
-          '',
-
-        districtName:
-          ktaData?.kecamatan_nama ||
-          ktaData?.district ||
-          ktaData?.kecamatan ||
-          '',
-
-        kwartirName:
-          ktaData?.kwartir ||
-          ktaData?.kwartir_name ||
-          '',
-
-        kwartirHierarchy:
-          ktaData?.kwartir_hierarchy ||
-          '',
-
-        krida:
-          ktaData?.krida_nama ||
-          ktaData?.krida ||
-          '',
-
-        phone:
-          ktaData?.phone ||
-          ktaData?.no_hp ||
-          '',
-
-        email:
-          ktaData?.email ||
-          '',
-
-        status:
-          ktaData?.kta_status ||
-          ktaData?.status_anggota ||
-          ktaData?.status ||
-          '',
-
-        photoUrl: photo,
-
-        qrToken:
-          ktaData?.qr_token ||
-          '',
-
-        verificationUrl:
-          ktaData?.verification_url ||
-          '',
-      } as KtaMemberBindingData;
+      /*
+       * Gunakan mapper yang sama dengan
+       * Designer & KTA Management.
+       */
+      return mapMemberToKtaBinding(
+        ktaData
+      );
     }, [ktaData]);
 
   if (loading) {
@@ -234,7 +330,7 @@ export const MemberKtaView: React.FC = () => {
         <div className="text-center text-slate-500">
           <RefreshCw className="w-6 h-6 mx-auto animate-spin text-[#0066B3]" />
           <p className="text-sm mt-2">
-            Memuat KTA dari GAS...
+            Memuat anggota dan template KTA dari GAS...
           </p>
         </div>
       </div>
@@ -246,16 +342,21 @@ export const MemberKtaView: React.FC = () => {
       <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+
           <div>
             <p className="font-bold text-red-900">
               KTA tidak dapat dimuat
             </p>
+
             <p className="text-sm text-red-700 mt-1">
               {error}
             </p>
+
             <button
               type="button"
-              onClick={() => void loadKta()}
+              onClick={() =>
+                void loadAll()
+              }
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white border border-red-200 px-3 py-2 text-xs font-bold text-red-700"
             >
               <RefreshCw className="w-4 h-4" />
@@ -267,27 +368,44 @@ export const MemberKtaView: React.FC = () => {
     );
   }
 
-  const noKta =
-    ktaData?.nomor_kta ||
-    ktaData?.no_kta ||
-    '';
-
-  const qrToken =
-    ktaData?.qr_token ||
-    '';
-
-  if (!memberBinding || !noKta || !qrToken) {
+  if (
+    !memberBinding
+  ) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+        Data anggota KTA tidak tersedia.
+      </div>
+    );
+  }
+
+  if (
+    !templateSettings
+  ) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
         <div className="flex items-start gap-3">
-          <CreditCard className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+
           <div>
             <p className="font-bold text-amber-900">
-              KTA belum diterbitkan
+              Template KTA GAS belum tersedia
             </p>
+
             <p className="text-sm text-amber-800 mt-1">
-              Record anggota ditemukan di GAS, tetapi nomor KTA atau QR resmi belum tersedia.
+              {templateError ||
+                'TMPL_DEFAULT tidak berhasil dimuat.'}
             </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                void loadAll()
+              }
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Muat Ulang Template GAS
+            </button>
           </div>
         </div>
       </div>
@@ -301,14 +419,21 @@ export const MemberKtaView: React.FC = () => {
           <p className="text-xs font-bold uppercase tracking-wider text-[#0066B3]">
             KTA DIGITAL ANDA
           </p>
+
           <h2 className="text-xl font-black text-slate-900 mt-1">
             Kartu Tanda Anggota
           </h2>
+
+          <p className="text-xs text-emerald-700 font-semibold mt-1">
+            Template aktif: {templateSettings.name || 'TMPL_DEFAULT'} • GAS
+          </p>
         </div>
 
         <button
           type="button"
-          onClick={() => void loadKta()}
+          onClick={() =>
+            void loadAll()
+          }
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
         >
           <RefreshCw className="w-4 h-4" />
@@ -319,34 +444,15 @@ export const MemberKtaView: React.FC = () => {
       <div className="flex justify-center">
         <DigitalMemberCard
           member={memberBinding}
+          previewSettings={
+            templateSettings
+          }
           side={cardSide}
+          onSideChange={
+            setCardSide
+          }
+          showControls={true}
         />
-      </div>
-
-      <div className="flex justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => setCardSide('FRONT')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold ${
-            cardSide === 'FRONT'
-              ? 'bg-[#0066B3] text-white'
-              : 'bg-white border border-slate-200 text-slate-700'
-          }`}
-        >
-          Sisi Depan
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setCardSide('BACK')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold ${
-            cardSide === 'BACK'
-              ? 'bg-[#0066B3] text-white'
-              : 'bg-white border border-slate-200 text-slate-700'
-          }`}
-        >
-          Sisi Belakang
-        </button>
       </div>
     </div>
   );
