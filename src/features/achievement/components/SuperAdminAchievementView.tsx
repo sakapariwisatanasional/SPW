@@ -4,7 +4,7 @@ import { useAdminAchievementStore } from "@/store/adminAchievementStore";
  * SPWN Apps 2.0 - SuperAdmin National Achievement & Progress Center
  * Location: src/features/achievement/components/SuperAdminAchievementView.tsx
  * -------------------------------------------------------------------------
- * Tampilan khusus SuperAdmin pada menu "Pencapaian Saya":
+ * Tampilan khusus SuperAdmin pada pusat monitoring pencapaian:
  * - Daftar anggota dari seluruh wilayah Indonesia
  * - Data statistik kemajuan (SKK, Level Purwa/Madya/Utama, Badges, Rata-rata Skor)
  * - Matrix 23 SKK 4 Krida interaktif untuk masing-masing anggota
@@ -284,7 +284,7 @@ export const SuperAdminAchievementView: React.FC<SuperAdminAchievementViewProps>
                 leftIcon={<User className="w-4 h-4 text-white" />}
                 className="bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs font-semibold rounded-2xl cursor-pointer"
               >
-                Lihat Pencapaian Pribadi Saya
+                Uji Profil Anggota
               </Button>
             </div>
           )}
