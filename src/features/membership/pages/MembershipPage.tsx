@@ -46,11 +46,12 @@ import {
   getRegencyByCode,
   resolveDistrictName,
 } from '../../../data/wilayahData';
+import { ktaService } from '../../../services/ktaService';
+import { memberApi } from '../../../services/api/member.api';
 import { spreadsheetService } from '../../../services/spreadsheetService';
 import { KtaCardSettings } from '../../../types/kta.types';
 import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
-import { ktaService } from '../../../services/ktaService';
-import { memberApi } from '../../../services/api/member.api';
+import { canonicalKtaFieldKey } from '../../admin/components/ktaDesigner/ktaFieldRegistry';
 
 export const MembershipPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('directory');
@@ -62,9 +63,6 @@ export const MembershipPage: React.FC = () => {
   const [selectedProvince, setSelectedProvince] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState<'ALL' | OrganizationLevelType>('ALL');
   const [selectedMemberForKTA, setSelectedMemberForKTA] = useState<MemberRecord | null>(null);
-  const [ktaTemplateSettings, setKtaTemplateSettings] = useState<KtaCardSettings | null>(null);
-  const [ktaTemplateLoading, setKtaTemplateLoading] = useState(true);
-  const [ktaTemplateError, setKtaTemplateError] = useState<string | null>(null);
 
   // Modal Pendaftaran & Generator KTA Interaktif
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -85,84 +83,171 @@ export const MembershipPage: React.FC = () => {
   // 1. Kwartir Nasional: 00.NNNNNN
   // 2. Wilayah: 00.PPKK.CCC.NNNNNN (Tanpa kode provinsi pada nomor KTA, namun kode provinsi, kab, kec tetap tersimpan di database)
   const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [templateSettings, setTemplateSettings] = useState<KtaCardSettings | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(true);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadKtaTemplate() {
-      setKtaTemplateLoading(true);
-      setKtaTemplateError(null);
-
-      try {
-        const template =
-          await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
-
-        if (!mounted) return;
-
-        if (!template) {
-          setKtaTemplateSettings(null);
-          setKtaTemplateError(
-            'Template TMPL_DEFAULT belum tersedia di GAS.'
-          );
-          return;
-        }
-
-        setKtaTemplateSettings(template);
-      } catch (error: any) {
-        if (!mounted) return;
-
-        console.error(
-          'MembershipPage gagal memuat template KTA dari GAS:',
-          error
-        );
-
-        setKtaTemplateSettings(null);
-        setKtaTemplateError(
-          error?.message ||
-          'Template KTA gagal dimuat dari GAS.'
-        );
-      } finally {
-        if (mounted) {
-          setKtaTemplateLoading(false);
-        }
-      }
-    }
-
-    void loadKtaTemplate();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    async function loadMembers() {
+    async function loadDirectoryAndTemplate() {
       try {
         setLoadingMembers(true);
-        const response = await memberApi.list();
-        const rawData = response.data as unknown;
-        const items = Array.isArray(rawData)
-          ? rawData
-          : (rawData as { items?: any[] })?.items || [];
+        setTemplateLoading(true);
+        setTemplateError(null);
+
+        const [response, gasTemplate] = await Promise.all([
+          memberApi.list(),
+          spreadsheetService.refreshKtaSettings('TMPL_DEFAULT'),
+        ]);
+
+        const rawData: any = response?.data;
+        const items: any[] =
+          Array.isArray(rawData)
+            ? rawData
+            : Array.isArray(rawData?.data)
+            ? rawData.data
+            : Array.isArray(rawData?.items)
+            ? rawData.items
+            : Array.isArray(rawData?.members)
+            ? rawData.members
+            : [];
 
         const mapped: MemberRecord[] = items.map((item: any, idx: number) => {
-          const id = item.id || item.ID || item['ID'] || `MEM-${idx + 1}`;
-          const noKta = item.no_kta || item.noKta || item.nomor_kta || item.nomorKTA || item['Nomor KTA'] || item['No. KTA'] || item['No KTA'] || item['no_kta'] || item['KTA'] || '';
-          const fullName = item.full_name || item.fullName || item.nama_lengkap || item.nama || item['Nama Lengkap'] || item['Nama'] || item['Nama Anggota'] || item['full_name'] || 'Anggota SAKA';
-          const gender = (item.gender || item.jenis_kelamin || item.Gender || item['Jenis Kelamin'] || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L';
-          const province = item.province || item.provinsi || item.provinsi_nama || item['Provinsi'] || '';
-          const city = item.city || item.kabupaten_kota || item.kabupaten_nama || item.kota || item['Kabupaten/Kota'] || item['Kabupaten'] || item['Kota'] || '';
-          const kecamatan = item.kecamatan || item.wilayah_kecamatan_nama || item['Kecamatan'] || '';
-          const kridaName = item.krida || item.kridaName || item.krida_nama || item['Krida'] || item['Nama Krida'] || 'KRIDA PEMANDU';
-          const membershipLevel = item.tingkat_keanggotaan || item.tingkatan || item.membershipLevel || item.tingkat || item['Tingkat'] || item['Tingkatan'] || item['Jabatan'] || 'Penegak';
-          const photoUrl = item.foto_url || item.foto || item.photoUrl || item['Foto URL'] || item['Foto'] || item['Foto Profil'] || '';
-          const status = item.status || item.status_anggota || item['Status'] || 'ACTIVE';
-          const verificationToken = item.verificationToken || item.qr_token || item['QR Token'] || '';
-          const joinedDate = item.joinedDate || item.tanggal_bergabung || item['Tanggal Bergabung'] || item['Tanggal Daftar'] || new Date().toISOString().slice(0, 10);
-          const createdAt = item.createdAt || item.created_at || item['Created At'] || new Date().toISOString();
+          const id =
+            item.id ||
+            item.member_id ||
+            item.ID ||
+            item['ID'] ||
+            `MEM-${idx + 1}`;
+
+          const noKta =
+            item.no_kta ||
+            item.noKta ||
+            item.nomor_kta ||
+            item.nomorKTA ||
+            item['Nomor KTA'] ||
+            item['No. KTA'] ||
+            item['No KTA'] ||
+            item['KTA'] ||
+            '';
+
+          const fullName =
+            item.full_name ||
+            item.fullName ||
+            item.nama_lengkap ||
+            item.nama ||
+            item['Nama Lengkap'] ||
+            item['Nama'] ||
+            item['Nama Anggota'] ||
+            'Anggota SAKA';
+
+          const gender =
+            (
+              item.gender ||
+              item.jenis_kelamin ||
+              item.Gender ||
+              item['Jenis Kelamin'] ||
+              'L'
+            )
+              .toString()
+              .toUpperCase()
+              .startsWith('P')
+              ? 'P'
+              : 'L';
+
+          const province =
+            item.province ||
+            item.provinsi ||
+            item.provinsi_nama ||
+            item['Provinsi'] ||
+            '';
+
+          const city =
+            item.city ||
+            item.kabupaten_kota ||
+            item.kabupaten_kota_nama ||
+            item.kabupaten_nama ||
+            item.kota ||
+            item['Kabupaten/Kota'] ||
+            item['Kabupaten'] ||
+            item['Kota'] ||
+            '';
+
+          const kecamatan =
+            item.kecamatan ||
+            item.kecamatan_nama ||
+            item.wilayah_kecamatan_nama ||
+            item['Kecamatan'] ||
+            '';
+
+          const kridaName =
+            item.krida ||
+            item.kridaName ||
+            item.krida_nama ||
+            item['Krida'] ||
+            item['Nama Krida'] ||
+            '';
+
+          /*
+           * PENTING:
+           * Jangan fallback ke "Penegak".
+           * Jabatan SAKA harus berasal dari data jabatan aktual.
+           */
+          const membershipLevel =
+            item.position ||
+            item.jabatan ||
+            item.jabatan_khusus ||
+            item.currentPosition ||
+            item.tingkat_keanggotaan ||
+            item.tingkatan ||
+            item['Jabatan'] ||
+            'ANGGOTA';
+
+          const organizationLevel =
+            item.level_organisasi ||
+            item.tingkat_organisasi ||
+            item.organization_level ||
+            item.kwartir_level ||
+            item.levelOrganisasi ||
+            '';
+
+          const photoUrl =
+            item.photo_url ||
+            item.foto_url ||
+            item.foto ||
+            item.photoUrl ||
+            item['Foto URL'] ||
+            item['Foto'] ||
+            item['Foto Profil'] ||
+            '';
+
+          const status =
+            item.status_anggota ||
+            item.status ||
+            item['Status'] ||
+            'ACTIVE';
+
+          const verificationToken =
+            item.verificationToken ||
+            item.qr_token ||
+            item['QR Token'] ||
+            '';
+
+          const joinedDate =
+            item.joinedDate ||
+            item.tanggal_bergabung ||
+            item['Tanggal Bergabung'] ||
+            item['Tanggal Daftar'] ||
+            '';
+
+          const createdAt =
+            item.createdAt ||
+            item.created_at ||
+            item['Created At'] ||
+            '';
 
           return {
+            ...item,
             id,
             noKta,
             no_kta: noKta,
@@ -173,38 +258,89 @@ export const MembershipPage: React.FC = () => {
             nama_lengkap: fullName,
             nama: fullName,
             gender,
-            birthPlace: item.birthPlace || item.tempat_lahir || '',
-            birthDate: item.birthDate || item.tanggal_lahir || '',
-            levelOrganisasi: (item.levelOrganisasi || item.level_organisasi || 'WILAYAH') as OrganizationLevelType,
-            kodeProvinsi: item.kodeProvinsi || item.provinsi_id || '',
-            kodeKabupaten: item.kodeKabupaten || item.kabupaten_id || '',
-            kodeKecamatan: item.kodeKecamatan || item.kecamatan_id || '',
+            birthPlace:
+              item.birthPlace ||
+              item.tempat_lahir ||
+              '',
+            birthDate:
+              item.birthDate ||
+              item.tanggal_lahir ||
+              '',
+            levelOrganisasi:
+              organizationLevel as OrganizationLevelType,
+            level_organisasi: organizationLevel,
+            tingkat_organisasi: organizationLevel,
+            kodeProvinsi:
+              item.kodeProvinsi ||
+              item.provinsi_id ||
+              '',
+            kodeKabupaten:
+              item.kodeKabupaten ||
+              item.kabupaten_kota_id ||
+              item.kabupaten_id ||
+              '',
+            kodeKecamatan:
+              item.kodeKecamatan ||
+              item.kecamatan_id ||
+              '',
             province,
             city,
             kecamatan,
-            address: item.address || item.alamat_domisili || '',
-            kridaId: item.kridaId || item.krida_id || 'KRIDA_PEMANDU',
+            address:
+              item.address ||
+              item.alamat_domisili ||
+              '',
+            kridaId:
+              item.kridaId ||
+              item.krida_id ||
+              '',
             kridaName,
             membershipLevel,
+            position:
+              item.position ||
+              item.jabatan ||
+              item.jabatan_khusus ||
+              membershipLevel,
+            jabatan:
+              item.jabatan ||
+              item.position ||
+              membershipLevel,
             photoUrl,
             status: status as any,
             verificationToken,
             joinedDate,
             createdAt,
-          };
+          } as MemberRecord;
         });
 
         setMembers(mapped);
-      } catch (error) {
-        console.error('Gagal mengambil data anggota dari spreadsheet', error);
+
+        if (gasTemplate) {
+          setTemplateSettings(gasTemplate);
+        } else {
+          setTemplateSettings(null);
+          setTemplateError(
+            'Template TMPL_DEFAULT belum tersedia di GAS.'
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          'Gagal mengambil direktori anggota / template KTA dari GAS',
+          error
+        );
+        setTemplateSettings(null);
+        setTemplateError(
+          error?.message ||
+          'Template KTA gagal dimuat dari GAS.'
+        );
       } finally {
         setLoadingMembers(false);
+        setTemplateLoading(false);
       }
     }
 
-    loadMembers();
+    void loadDirectoryAndTemplate();
   }, []);
-
 
   // List opsi Kabupaten berdasarkan Provinsi terpilih di formulir
   const availableRegencies = useMemo(() => {
@@ -226,6 +362,91 @@ export const MembershipPage: React.FC = () => {
       sequence: regSequence || 1,
     });
   }, [regLevel, regKabCode, regKecCode, regSequence]);
+
+  const frontTemplateFields = useMemo(() => {
+    if (!templateSettings) return [];
+
+    return (templateSettings.dataFields || [])
+      .filter((field) => field.side === 'FRONT' && field.visible)
+      .map((field, index) => ({
+        ...field,
+        field: canonicalKtaFieldKey(field.field),
+        order: field.order || index + 1,
+      }))
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [templateSettings]);
+
+  const getTemplateFieldValue = (member: MemberRecord, rawField: string) => {
+    const binding: any = mapMemberToKtaBinding(member);
+    const field = canonicalKtaFieldKey(rawField as any);
+
+    switch (field) {
+      case 'full_name':
+        return binding.full_name || binding.fullName || '';
+      case 'no_kta':
+        return binding.no_kta || binding.nationalMemberNumber || '';
+      case 'position':
+        return String(
+          binding.position ||
+          binding.currentPosition ||
+          ''
+        )
+          .trim()
+          .toUpperCase();
+      case 'tingkat':
+        return String(
+          binding.tingkat ||
+          binding.level_organisasi ||
+          binding.membershipLevel ||
+          ''
+        )
+          .trim()
+          .toUpperCase();
+      case 'krida':
+        return binding.krida || '';
+      case 'provinsi_nama':
+        return binding.provinsi_nama || binding.provinceName || '';
+      case 'kabupaten_kota_nama':
+        return binding.kabupaten_kota_nama || binding.regencyName || '';
+      case 'kecamatan_nama':
+        return binding.kecamatan_nama || binding.districtName || '';
+      case 'kwartir':
+        return binding.kwartirName || binding.kwartirHierarchy || '';
+      case 'pangkalan_gudep':
+        return binding.pangkalan_gudep || binding.gugusDepan || '';
+      case 'status':
+        return binding.status || '';
+      case 'valid_until':
+        return binding.valid_until || '';
+      default:
+        return '';
+    }
+  };
+
+  const getCardIdentityRows = (member: MemberRecord) => {
+    /*
+     * Zona identitas pada Kartu Modern mengikuti URUTAN + VISIBILITY
+     * template KTA sisi depan.
+     *
+     * full_name / photo_url / no_kta ditampilkan pada area struktural
+     * kartu sendiri, sehingga tidak diulang pada baris identitas.
+     */
+    return frontTemplateFields
+      .filter((field) => ![
+        'photo_url',
+        'full_name',
+        'no_kta',
+        'custom_text',
+      ].includes(String(field.field)))
+      .map((field) => ({
+        id: field.id,
+        field: String(field.field),
+        label: field.label || String(field.field),
+        value: getTemplateFieldValue(member, String(field.field)),
+      }))
+      .filter((row) => String(row.value || '').trim())
+      .slice(0, 4);
+  };
 
   // Filter Direktori
   const filteredMembers = members.filter((m) => {
@@ -800,22 +1021,61 @@ export const MembershipPage: React.FC = () => {
                         </Badge>
                       </div>
 
-                      {/* Member Info */}
-                      <div className="flex items-center gap-3">
+                      {/* Member Info - mengikuti susunan FRONT KTA Template GAS */}
+                      <div className="flex items-start gap-3">
                         <img
                           src={m.photoUrl}
                           alt={m.full_name || m.fullName}
-                          className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs"
+                          className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0"
                           referrerPolicy="no-referrer"
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <h4 className="font-bold text-slate-900 text-sm truncate group-hover:text-[#0066B3] transition-colors">
                             {m.full_name || m.fullName}
                           </h4>
-                          <p className="text-xs text-slate-500 truncate">{m.membershipLevel}</p>
-                          <span className="text-[10px] font-semibold text-[#009B4D] inline-block mt-0.5">
-                            {m.kridaName}
-                          </span>
+
+                          {templateLoading ? (
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              Memuat susunan identitas KTA...
+                            </p>
+                          ) : templateSettings ? (
+                            <div className="mt-1 space-y-0.5">
+                              {getCardIdentityRows(m).map((row, rowIndex) => (
+                                <div
+                                  key={row.id || `${row.field}-${rowIndex}`}
+                                  className="flex items-baseline gap-1.5 min-w-0"
+                                >
+                                  {row.label && (
+                                    <span className="text-[9px] uppercase tracking-wide text-slate-400 shrink-0">
+                                      {row.label}:
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`truncate ${
+                                      row.field === 'krida'
+                                        ? 'text-[10px] font-semibold text-[#009B4D]'
+                                        : 'text-[10px] font-semibold text-slate-600'
+                                    }`}
+                                  >
+                                    {row.value}
+                                  </span>
+                                </div>
+                              ))}
+
+                              {getCardIdentityRows(m).length === 0 && (
+                                <p className="text-[10px] text-slate-400">
+                                  Tidak ada field identitas aktif pada template sisi depan.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p
+                              className="text-[10px] text-rose-500 mt-1"
+                              title={templateError || undefined}
+                            >
+                              Template KTA GAS belum tersedia
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -919,61 +1179,38 @@ export const MembershipPage: React.FC = () => {
         size="lg"
       >
         {selectedMemberForKTA && (() => {
-          const bindingMember = mapMemberToKtaBinding({
-            ...selectedMemberForKTA,
+          const bindingMember = {
             id: selectedMemberForKTA.id,
-            full_name: selectedMemberForKTA.fullName,
-            no_kta: selectedMemberForKTA.noKta,
-            position: selectedMemberForKTA.membershipLevel,
+            fullName: selectedMemberForKTA.fullName,
+            nama_lengkap: selectedMemberForKTA.fullName,
+            nationalMemberNumber: selectedMemberForKTA.noKta,
+            nomor_kta: selectedMemberForKTA.noKta,
+            membershipLevel: selectedMemberForKTA.membershipLevel,
             tingkat_keanggotaan: selectedMemberForKTA.membershipLevel,
+            currentPosition: selectedMemberForKTA.membershipLevel,
+            provinceName: (selectedMemberForKTA.kodeProvinsi && getProvinceByCode(selectedMemberForKTA.kodeProvinsi)?.name) || selectedMemberForKTA.province,
             provinsi_id: selectedMemberForKTA.kodeProvinsi,
-            provinsi_nama:
-              (selectedMemberForKTA.kodeProvinsi &&
-                getProvinceByCode(selectedMemberForKTA.kodeProvinsi)?.name) ||
-              selectedMemberForKTA.province,
+            regencyName: (selectedMemberForKTA.kodeKabupaten && getRegencyByCode(selectedMemberForKTA.kodeKabupaten)?.name) || selectedMemberForKTA.city,
             kabupaten_id: selectedMemberForKTA.kodeKabupaten,
-            kabupaten_kota_nama:
-              (selectedMemberForKTA.kodeKabupaten &&
-                getRegencyByCode(selectedMemberForKTA.kodeKabupaten)?.name) ||
-              selectedMemberForKTA.city,
-            kecamatan_id: selectedMemberForKTA.kodeKecamatan,
-            kecamatan_nama:
-              (selectedMemberForKTA.kodeKabupaten &&
-                selectedMemberForKTA.kodeKecamatan &&
-                resolveDistrictName(
-                  selectedMemberForKTA.kodeKabupaten,
-                  selectedMemberForKTA.kodeKecamatan
-                )) ||
-              selectedMemberForKTA.kecamatan,
+            districtName: (selectedMemberForKTA.kodeKabupaten && selectedMemberForKTA.kodeKecamatan && resolveDistrictName(selectedMemberForKTA.kodeKabupaten, selectedMemberForKTA.kodeKecamatan)) || selectedMemberForKTA.kecamatan,
+            wilayah_kecamatan_id: selectedMemberForKTA.kodeKecamatan,
             krida: selectedMemberForKTA.kridaName || 'KRIDA PEMANDU',
-            pangkalan_gudep:
-              (selectedMemberForKTA as any).pangkalan ||
-              (selectedMemberForKTA as any).gugusDepan ||
-              'Pangkalan Saka Pariwisata',
-            photo_url: selectedMemberForKTA.photoUrl,
+            branchName: 'Pangkalan Saka Pariwisata',
+            gugusDepan: 'Pangkalan Saka Pariwisata',
+            photoUrl: selectedMemberForKTA.photoUrl,
             status: selectedMemberForKTA.status,
-            qr_token: selectedMemberForKTA.verificationToken,
-            verification_url:
-              (selectedMemberForKTA as any).verificationUrl ||
-              (selectedMemberForKTA as any).verification_url ||
-              '',
-          });
+            qrToken: selectedMemberForKTA.verificationToken,
+            phone: '0812-3456-7890',
+            email: 'anggota@spwn.id',
+          };
 
           return (
             <div className="py-2 flex flex-col items-center gap-4">
-              {ktaTemplateLoading ? (
-                <div className="w-full max-w-md aspect-[1.586/1] rounded-2xl bg-slate-100 animate-pulse" />
-              ) : ktaTemplateSettings ? (
-                <DigitalMemberCard
-                  member={bindingMember}
-                  previewSettings={ktaTemplateSettings}
-                  showControls={true}
-                />
-              ) : (
-                <div className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-xs font-semibold text-rose-700">
-                  {ktaTemplateError || 'Template KTA tidak tersedia dari GAS.'}
-                </div>
-              )}
+              <DigitalMemberCard
+                member={bindingMember}
+                previewSettings={templateSettings || undefined}
+                showControls={true}
+              />
               
               {/* Technical Database Metadata */}
               <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1 font-mono">
