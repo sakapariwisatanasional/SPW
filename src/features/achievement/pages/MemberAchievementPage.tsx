@@ -22,7 +22,8 @@ import { AchievementSummaryCard } from '../components/AchievementSummaryCard';
 import { KridaProgressCard } from '../components/KridaProgressCard';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { ActivityHistory } from '../components/ActivityHistory';
-import { AchievementEmptyState } from '../components/AchievementEmptyState';
+import { AchievementEmptyState, PamongContact } from '../components/AchievementEmptyState';
+import { apiClient } from '../../../services/api/apiClient';
 import { SuperAdminAchievementView } from '../components/SuperAdminAchievementView';
 import { Button } from '../../../components/ui';
 
@@ -53,6 +54,8 @@ export const MemberAchievementPage: React.FC = () => {
 
   const isSuperAdmin = currentUser?.role === ROLES.SUPER_ADMIN || currentUser?.role === ROLES.ADMIN_PUSAT;
   const [viewMode, setViewMode] = useState<'superadmin' | 'personal'>(isSuperAdmin ? 'superadmin' : 'personal');
+  const [pamongContact, setPamongContact] = useState<PamongContact | null>(null);
+  const [pamongLoading, setPamongLoading] = useState(false);
 
 
   useEffect(() => {
@@ -142,9 +145,11 @@ export const MemberAchievementPage: React.FC = () => {
           (currentUser as any)?.memberProfile?.id ||
           (currentUser as any)?.memberProfile?.member_id ||
           (currentUser as any)?.memberId ||
-          (currentUser as any)?.id ||
           (currentUser as any)?.nomor_kta ||
           (currentUser as any)?.no_kta ||
+          (currentUser as any)?.email ||
+          (currentUser as any)?.username ||
+          (currentUser as any)?.id ||
           ''
         )
       : (
@@ -152,9 +157,11 @@ export const MemberAchievementPage: React.FC = () => {
           qaMember?.member_id ||
           qaMember?.nomor_kta ||
           qaMember?.no_kta ||
+          qaMember?.email ||
           (currentUser as any)?.memberProfile?.id ||
           (currentUser as any)?.memberProfile?.member_id ||
           (currentUser as any)?.memberId ||
+          (currentUser as any)?.email ||
           ''
         );
 
@@ -167,6 +174,44 @@ export const MemberAchievementPage: React.FC = () => {
       (currentUser as any)?.memberId
     );
   }, [targetMemberId, currentUser?.role, loadAchievement]);
+
+  useEffect(() => {
+    if (!targetMemberId || viewMode !== 'personal') {
+      setPamongContact(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPamong = async () => {
+      setPamongLoading(true);
+
+      try {
+        const response = await apiClient.get<any>(
+          'member.pamong.available',
+          { member_id: String(targetMemberId) }
+        );
+
+        if (cancelled) return;
+
+        const contacts = Array.isArray(response?.data?.contacts)
+          ? response.data.contacts
+          : [];
+
+        setPamongContact(contacts.length > 0 ? contacts[0] : null);
+      } catch {
+        if (!cancelled) setPamongContact(null);
+      } finally {
+        if (!cancelled) setPamongLoading(false);
+      }
+    };
+
+    void loadPamong();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetMemberId, viewMode]);
 
   // Sinkronkan identitas yang tampil di Member Shell dengan read-model GAS.
   // Ini hanya memperbarui state/session browser dengan data hasil baca GAS;
@@ -447,8 +492,22 @@ export const MemberAchievementPage: React.FC = () => {
               <div className="space-y-6">
                 <AchievementEmptyState
                   memberNama={profile.member.nama}
+                  memberKrida={
+                    (profile.member as any)?.kridaUtamaNama ||
+                    (profile.member as any)?.krida ||
+                    ''
+                  }
+                  pamong={pamongContact}
+                  pamongLoading={pamongLoading}
                   onExploreCatalog={() => setSelectedKrida('pemandu')}
-                  onContactPembina={() => {}}
+                  onExploreKrida={() => setSelectedKrida('pemandu')}
+                  onOpenPortfolio={() => {
+                    window.dispatchEvent(
+                      new CustomEvent('spwn-member-navigate', {
+                        detail: { tab: 'portfolio' },
+                      })
+                    );
+                  }}
                 />
 
                 {/* Tetap tampilkan preview silabus SKK agar anggota tahu apa yang dapat dipelajari */}
