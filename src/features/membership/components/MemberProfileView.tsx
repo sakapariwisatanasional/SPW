@@ -35,12 +35,17 @@ import {
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { KRIDA_MASTER } from '../../../config/constants';
+import { memberApi } from '../../../services/api/member.api';
+import { useAdminStore } from '../../admin/stores/adminStore';
 
 export const MemberProfileView: React.FC = () => {
   const { currentUser, updateCurrentUserProfile, resetCurrentUserPassword } = useAuthStore();
   const { addToast } = useUIStore();
+  const { qaPerspective, selectedMemberId } = useAdminStore();
 
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'security' | 'session'>('profile');
+  const membershipLevel = String(currentUser.membershipLevel || qaPerspective || 'Anggota');
+  const isParticipantMembership = ['ANGGOTA', 'DEWAN SAKA'].includes(membershipLevel.toUpperCase().replace('_', ' '));
 
   // Form State for Profile
   const [fullName, setFullName] = useState(currentUser.fullName || '');
@@ -69,39 +74,85 @@ export const MemberProfileView: React.FC = () => {
   const activityLogs: any[] = [];
 
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
       addToast({ type: 'error', title: 'Validasi', message: 'Nama lengkap wajib diisi!' });
       return;
     }
 
+    const memberId = String(
+      (currentUser as any)?.memberProfile?.id ||
+      (currentUser as any)?.memberProfile?.member_id ||
+      (currentUser.role === 'SUPER_ADMIN' ? selectedMemberId : '') ||
+      currentUser.memberId ||
+      currentUser.id ||
+      ''
+    ).trim();
+
+    if (!memberId) {
+      addToast({ type: 'error', title: 'Profil Gagal Disimpan', message: 'Member ID GAS tidak ditemukan.' });
+      return;
+    }
+
     setIsSavingProfile(true);
-    const selectedKrida = KRIDA_MASTER.find((k) => k.id === kridaId);
+    try {
+      const selectedKrida = KRIDA_MASTER.find((k) => k.id === kridaId);
+      const payload = {
+        full_name: fullName.trim(),
+        nama_lengkap: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        nomor_telepon: phone.trim(),
+        jenis_kelamin: gender,
+        tempat_lahir: birthPlace.trim(),
+        tanggal_lahir: birthDate,
+        golongan_darah: bloodType,
+        alamat_domisili: address.trim(),
+        photo_url: avatarUrl.trim(),
+        foto_url: avatarUrl.trim(),
+        pangkalan_gudep: pangkalan.trim(),
+        ...(isParticipantMembership ? {
+          krida_id: kridaId,
+          krida_nama: selectedKrida?.name || currentUser.kridaName || '',
+          krida: selectedKrida?.name || currentUser.kridaName || '',
+        } : {}),
+      };
 
-    updateCurrentUserProfile({
-      fullName: fullName.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      gender: gender as 'L' | 'P',
-      birthPlace: birthPlace.trim(),
-      birthDate: birthDate,
-      bloodType: bloodType,
-      address: address.trim(),
-      avatarUrl: avatarUrl.trim(),
-      pangkalan: pangkalan.trim(),
-      kridaId: kridaId,
-      kridaName: selectedKrida ? selectedKrida.name : currentUser.kridaName,
-    });
+      await memberApi.updateSelfProfile(memberId, payload);
 
-    setTimeout(() => {
-      setIsSavingProfile(false);
+      // Sinkronkan session tampilan setelah GAS berhasil menulis.
+      updateCurrentUserProfile({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        gender: gender as 'L' | 'P',
+        birthPlace: birthPlace.trim(),
+        birthDate,
+        bloodType,
+        address: address.trim(),
+        avatarUrl: avatarUrl.trim(),
+        pangkalan: pangkalan.trim(),
+        ...(isParticipantMembership ? {
+          kridaId,
+          kridaName: selectedKrida?.name || currentUser.kridaName,
+        } : {}),
+      });
+
       addToast({
         type: 'success',
         title: 'Profil Diperbarui',
-        message: 'Data identitas dan organisasi berhasil disimpan.',
+        message: 'Data profil berhasil disimpan ke GAS.',
       });
-    }, 600);
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Profil Gagal Disimpan',
+        message: err?.message || 'Gagal menyimpan profil ke GAS.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -189,7 +240,7 @@ export const MemberProfileView: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              {currentUser.membershipLevel || 'Anggota'} • {currentUser.kridaName || 'Krida Pemandu'} • {currentUser.cityName}
+              {membershipLevel} • {isParticipantMembership ? (currentUser.kridaName || 'Krida belum dipilih') : 'Struktural/Pembina'} • {currentUser.cityName}
             </p>
           </div>
         </div>
@@ -349,17 +400,23 @@ export const MemberProfileView: React.FC = () => {
 
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700">Spesialisasi Krida SAKA</label>
-                  <select
-                    value={kridaId}
-                    onChange={(e) => setKridaId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#009B4D] outline-hidden font-medium"
-                  >
-                    {KRIDA_MASTER.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.name}
-                      </option>
-                    ))}
-                  </select>
+                  {isParticipantMembership ? (
+                    <select
+                      value={kridaId}
+                      onChange={(e) => setKridaId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#009B4D] outline-hidden font-medium"
+                    >
+                      {KRIDA_MASTER.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-medium">
+                      Tidak berlaku untuk {membershipLevel}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">
