@@ -16,8 +16,6 @@ import {
 } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { useUIStore } from '../../../stores/uiStore';
-import { useAuthStore } from '../../../stores/authStore';
-import { ROLES } from '../../../config/constants';
 
 type QaPerspective =
   | 'SUPER_ADMIN'
@@ -45,7 +43,6 @@ export const AdminScopeBar: React.FC = () => {
   } = useAdminStore();
 
   const { setActiveView } = useUIStore();
-  const { switchRole } = useAuthStore();
 
   const provinceOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -145,27 +142,6 @@ export const AdminScopeBar: React.FC = () => {
   }, [members, scopeDistrictId]);
 
   const applyPerspective = (perspective: QaPerspective) => {
-    if (perspective === 'ANGGOTA') {
-      setQaPerspective('ANGGOTA', {
-        provId: scopeProvinceId,
-        provName: scopeProvinceName,
-        regId: scopeRegencyId,
-        regName: scopeRegencyName,
-        distId: scopeDistrictId,
-        distName: scopeDistrictName,
-        pangkalanId: scopePangkalanId,
-        pangkalanName: scopePangkalanName,
-      });
-
-      sessionStorage.setItem(
-        'spwn_superadmin_role_qa_return',
-        'true'
-      );
-      switchRole(ROLES.MEMBER);
-      setActiveView('membership');
-      return;
-    }
-
     setQaPerspective(perspective, {
       provId: scopeProvinceId,
       provName: scopeProvinceName,
@@ -176,6 +152,14 @@ export const AdminScopeBar: React.FC = () => {
       pangkalanId: scopePangkalanId,
       pangkalanName: scopePangkalanName,
     });
+
+    // QA tidak pernah mengganti session/token SuperAdmin.
+    // Hanya shell/perspektif UI yang berubah.
+    if (['ANGGOTA', 'PAMONG_SAKA', 'PINSAKA', 'MABISAKA'].includes(perspective)) {
+      setActiveView('dashboard');
+    } else {
+      setActiveView('admin-portal');
+    }
   };
 
   const needsProvince = qaPerspective !== 'SUPER_ADMIN';
