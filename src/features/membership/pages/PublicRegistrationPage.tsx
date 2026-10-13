@@ -47,6 +47,8 @@ import { useUIStore } from '../../../stores/uiStore';
 import { memberApi, RegisterMemberPayload } from '../../../services/api/member.api';
 
 export const PublicRegistrationPage: React.FC = () => {
+  const isParticipantMembership = (role: string) => ['Anggota', 'Dewan Saka'].includes(role);
+
   const { addMember } = useAdminStore();
   const { setActiveView } = useUIStore();
 
@@ -215,7 +217,9 @@ export const PublicRegistrationPage: React.FC = () => {
 
     try {
       const selectedKrida = KRIDA_MASTER.find((k) => k.id === formData.krida_id);
-      const kridaName = selectedKrida ? selectedKrida.name : 'Krida Bina Wisata';
+      const kridaName = isParticipantMembership(formData.tingkat_keanggotaan)
+        ? (selectedKrida ? selectedKrida.name : '')
+        : '';
 
       // 1. Siapkan payload sesuai spesifikasi target database & alias lama
       const payload: RegisterMemberPayload = {
@@ -795,6 +799,7 @@ export const PublicRegistrationPage: React.FC = () => {
               </label>
               <select
                 value={formData.krida_id}
+                disabled={!isParticipantMembership(formData.tingkat_keanggotaan)}
                 onChange={(e) => setFormData({ ...formData, krida_id: e.target.value })}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 font-bold"
               >
@@ -805,7 +810,9 @@ export const PublicRegistrationPage: React.FC = () => {
                 ))}
               </select>
               <p className="text-[11px] text-slate-500 mt-1">
-                {KRIDA_MASTER.find((k) => k.id === formData.krida_id)?.description}
+                {isParticipantMembership(formData.tingkat_keanggotaan)
+                  ? KRIDA_MASTER.find((k) => k.id === formData.krida_id)?.description
+                  : 'Krida/SKK hanya berlaku untuk Anggota dan Dewan Saka.'}
               </p>
             </div>
 
@@ -816,7 +823,16 @@ export const PublicRegistrationPage: React.FC = () => {
               </label>
               <select
                 value={formData.tingkat_keanggotaan}
-                onChange={(e) => setFormData({ ...formData, tingkat_keanggotaan: e.target.value })}
+                onChange={(e) => {
+                  const nextRole = e.target.value;
+                  setFormData({
+                    ...formData,
+                    tingkat_keanggotaan: nextRole,
+                    krida_id: isParticipantMembership(nextRole)
+                      ? (formData.krida_id || 'KRIDA_PEMANDU')
+                      : '',
+                  });
+                }}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 font-semibold"
               >
                 {MASTER_TINGKATAN_SAKA.map((role) => (
