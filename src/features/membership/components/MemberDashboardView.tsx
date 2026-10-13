@@ -60,14 +60,55 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
   const { profile, skkItems, badges, activities } = useAchievementStore();
   const { members } = useAdminStore();
 
-  // Find linked member record from adminStore if available for live status & KTA
+  // Find linked member record from GAS/adminStore.
+  // Semua field dibuat null-safe agar Dashboard tidak crash menjadi layar putih.
   const linkedMember = useMemo(() => {
-    return members.find(
-      (m) =>
-        m.nomor_kta === currentUser.nomor_kta ||
-        m.id === currentUser.memberId ||
-        m.nama_lengkap.toLowerCase() === currentUser.fullName.toLowerCase()
-    );
+    const list = Array.isArray(members) ? members : [];
+
+    const currentIdentities = [
+      (currentUser as any)?.memberId,
+      (currentUser as any)?.memberProfile?.member_id,
+      (currentUser as any)?.memberProfile?.id,
+      (currentUser as any)?.nomor_kta,
+      (currentUser as any)?.no_kta,
+      (currentUser as any)?.email,
+    ]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+
+    const currentName = String(
+      (currentUser as any)?.fullName || ''
+    ).trim().toLowerCase();
+
+    return list.find((m: any) => {
+      const memberIdentities = [
+        m?.id,
+        m?.member_id,
+        m?.nomor_kta,
+        m?.no_kta,
+        m?.email,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+
+      const identityMatch = currentIdentities.some((identity) =>
+        memberIdentities.includes(identity)
+      );
+
+      const memberName = String(
+        m?.nama_lengkap ||
+        m?.full_name ||
+        m?.fullName ||
+        ''
+      ).trim().toLowerCase();
+
+      const nameMatch =
+        Boolean(currentName) &&
+        Boolean(memberName) &&
+        memberName === currentName;
+
+      return identityMatch || nameMatch;
+    });
   }, [members, currentUser]);
 
   const ktaNumber =
@@ -215,8 +256,8 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 border-white/40 shadow-xl bg-slate-900">
                 {currentUser.avatarUrl ? (
                   <img
-                    src={currentUser.avatarUrl}
-                    alt={currentUser.fullName}
+                    src={(currentUser as any)?.avatarUrl || (currentUser as any)?.photo_url || ''}
+                    alt={(currentUser as any)?.fullName || 'Anggota'}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
