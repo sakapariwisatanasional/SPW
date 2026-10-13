@@ -58,13 +58,79 @@ interface PamongContact {
 export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavigateTab }) => {
   const { currentUser } = useAuthStore();
   const { profile, skkItems, badges, activities } = useAchievementStore();
-  const { members } = useAdminStore();
+  const {
+    members,
+    selectedMemberId,
+    qaPerspective,
+  } = useAdminStore();
 
-  // Find linked member record from adminStore if available for live status & KTA
+  // Resolve anggota efektif.
+  // Pada login MEMBER -> dirinya sendiri.
+  // Pada QA SuperAdmin -> record anggota nyata sesuai selectedMemberId/perspektif.
   const linkedMember = useMemo(() => {
     const list = Array.isArray(members) ? members : [];
     const user: any = currentUser || {};
 
+    const norm = (value: unknown) =>
+      String(value ?? '').trim().toLowerCase();
+
+    const positionOf = (member: any) =>
+      String(
+        member?.position ||
+        member?.jabatan ||
+        member?.tingkat_keanggotaan ||
+        ''
+      )
+        .trim()
+        .toUpperCase()
+        .replace(/_/g, ' ');
+
+    const matchesIdentity = (member: any, identity: unknown) => {
+      const target = norm(identity);
+      if (!target) return false;
+
+      return [
+        member?.id,
+        member?.member_id,
+        member?.nomor_kta,
+        member?.no_kta,
+        member?.email,
+      ]
+        .map(norm)
+        .filter(Boolean)
+        .includes(target);
+    };
+
+    // 1. Pilihan QA nyata dari direktori admin selalu menang.
+    if (selectedMemberId) {
+      const selected = list.find((member: any) =>
+        matchesIdentity(member, selectedMemberId)
+      );
+
+      if (selected) return selected;
+    }
+
+    // 2. Untuk perspektif QA, pilih record nyata sesuai jabatan.
+    const perspective = String(qaPerspective || '').toUpperCase();
+
+    const desiredPositions: Record<string, string[]> = {
+      ANGGOTA: ['ANGGOTA', 'DEWAN SAKA'],
+      PAMONG_SAKA: ['PAMONG SAKA'],
+      PINSAKA: ['PIMPINAN SAKA', 'PINSAKA'],
+      MABISAKA: ['MABISAKA'],
+    };
+
+    const wanted = desiredPositions[perspective];
+
+    if (wanted) {
+      const matchedRole = list.find((member: any) =>
+        wanted.includes(positionOf(member))
+      );
+
+      if (matchedRole) return matchedRole;
+    }
+
+    // 3. Login MEMBER: cocokkan identitas session dengan Sheet Anggota.
     const userKeys = [
       user?.memberProfile?.member_id,
       user?.memberProfile?.id,
@@ -73,61 +139,61 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
       user?.no_kta,
       user?.email,
     ]
-      .map((value) => String(value || '').trim().toLowerCase())
+      .map(norm)
       .filter(Boolean);
 
-    const userName =
-      String(user?.fullName || '')
-        .trim()
-        .toLowerCase();
+    const userName = norm(user?.fullName);
 
-    return list.find((m: any) => {
-      const memberKeys = [
-        m?.id,
-        m?.member_id,
-        m?.nomor_kta,
-        m?.no_kta,
-        m?.email,
-      ]
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean);
+    return (
+      list.find((member: any) => {
+        const memberKeys = [
+          member?.id,
+          member?.member_id,
+          member?.nomor_kta,
+          member?.no_kta,
+          member?.email,
+        ]
+          .map(norm)
+          .filter(Boolean);
 
-      const identityMatch =
-        userKeys.some((value) =>
-          memberKeys.includes(value)
+        return userKeys.some((key) =>
+          memberKeys.includes(key)
+        );
+      }) ||
+      list.find((member: any) => {
+        const memberName = norm(
+          member?.nama_lengkap ||
+          member?.full_name ||
+          member?.fullName
         );
 
-      const memberName =
-        String(
-          m?.nama_lengkap ||
-          m?.full_name ||
-          m?.fullName ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
+        return Boolean(userName) && memberName === userName;
+      }) ||
+      null
+    );
+  }, [
+    members,
+    currentUser,
+    selectedMemberId,
+    qaPerspective,
+  ]);
 
-      return (
-        identityMatch ||
-        (
-          Boolean(userName) &&
-          Boolean(memberName) &&
-          userName === memberName
-        )
-      );
-    });
-  }, [members, currentUser]);
+  const effectiveMember: any =
+    linkedMember ||
+    currentUser ||
+    {};
 
   const ktaNumber =
-    linkedMember?.nomor_kta ||
-    (currentUser as any)?.nomor_kta ||
+    effectiveMember?.nomor_kta ||
+    effectiveMember?.no_kta ||
     'Belum Terbit';
 
-  const qrToken = linkedMember?.qr_token || '';
+  const qrToken = effectiveMember?.qr_token || '';
 
   const ktaStatus =
-    linkedMember?.kta_status ||
-    linkedMember?.status_anggota ||
+    effectiveMember?.kta_status ||
+    effectiveMember?.status_anggota ||
+    effectiveMember?.status ||
     'BELUM TERBIT';
 
   const qrVerificationUrl =
@@ -142,16 +208,11 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     useState(false);
 
   const memberIdentity = String(
-    linkedMember?.id ||
-    linkedMember?.member_id ||
-    linkedMember?.nomor_kta ||
-    linkedMember?.no_kta ||
-    (currentUser as any)?.memberId ||
-    (currentUser as any)?.nomor_kta ||
-    (currentUser as any)?.no_kta ||
-    (currentUser as any)?.email ||
-    (currentUser as any)?.username ||
-    (currentUser as any)?.id ||
+    effectiveMember?.member_id ||
+    effectiveMember?.id ||
+    effectiveMember?.nomor_kta ||
+    effectiveMember?.no_kta ||
+    effectiveMember?.email ||
     ''
   ).trim();
 
@@ -229,9 +290,9 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
 
   const selectedKrida = String(
     (profile as any)?.member?.kridaUtamaNama ||
-    linkedMember?.krida_nama ||
-    linkedMember?.krida ||
-    (currentUser as any)?.kridaName ||
+    effectiveMember?.krida_nama ||
+    effectiveMember?.krida ||
+    effectiveMember?.kridaName ||
     ''
   ).trim();
 
@@ -241,10 +302,82 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     .replace(/^\+/, '');
 
   const waText = encodeURIComponent(
-    `Salam Pramuka, saya ${((currentUser as any)?.fullName || 'Anggota')}, anggota SAKA Pariwisata${
+    `Salam Pramuka, saya ${
+      effectiveMember?.full_name ||
+      effectiveMember?.nama_lengkap ||
+      effectiveMember?.fullName ||
+      'Anggota'
+    }, anggota SAKA Pariwisata${
       selectedKrida ? ` dengan peminatan ${selectedKrida}` : ''
     }. Saya ingin menindaklanjuti pencapaian Krida dan mengikuti SKK/pengujian SKK. Mohon arahan dan pendampingannya.`
   );
+
+  // Daftar Krida sebelumnya terhapus saat refactor, tetapi masih dirender
+  // dengan kridaList.map(). Itu menyebabkan ReferenceError dan layar putih.
+  // Sekarang dibentuk ulang dari KRIDA_MASTER + data SKK GAS.
+  const kridaList = useMemo(() => {
+    const source = Array.isArray(skkItems)
+      ? skkItems
+      : [];
+
+    const iconMap: Record<string, string> = {
+      KRIDA_PEMANDU: '🧭',
+      KRIDA_PENYULUH: '📢',
+      KRIDA_MICE_EVENT: '🎪',
+      KRIDA_KULINER_CINDERAMATA: '🍲',
+    };
+
+    return KRIDA_MASTER.map((krida: any) => {
+      const aliases = [
+        String(krida.id || '').toUpperCase(),
+        String(krida.name || '').toUpperCase(),
+        String(krida.code || '').toUpperCase(),
+      ].filter(Boolean);
+
+      const related = source.filter((item: any) => {
+        const itemKrida = [
+          item?.kridaId,
+          item?.krida_id,
+          item?.kridaNama,
+          item?.krida_nama,
+          item?.krida,
+          item?.kridaCode,
+          item?.krida_code,
+        ]
+          .map((value) =>
+            String(value || '').trim().toUpperCase()
+          )
+          .filter(Boolean);
+
+        return itemKrida.some((value) =>
+          aliases.some((alias) =>
+            value === alias ||
+            value.includes(alias) ||
+            alias.includes(value)
+          )
+        );
+      });
+
+      const completed = related.filter((item: any) => {
+        const status = String(
+          item?.status ||
+          item?.verification_status ||
+          ''
+        ).toUpperCase();
+
+        return status === 'VERIFIED' || status === 'COMPLETED';
+      }).length;
+
+      return {
+        id: krida.id,
+        name: krida.name,
+        color: krida.color,
+        icon: iconMap[krida.id] || '🏅',
+        totalSkk: related.length,
+        completed,
+      };
+    });
+  }, [skkItems]);
 
   return (
     <div id="member-command-center" className="space-y-6">
@@ -261,16 +394,16 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0">
             <div className="relative shrink-0">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 border-white/40 shadow-xl bg-slate-900">
-                {(currentUser as any)?.avatarUrl ? (
+                {(effectiveMember?.foto_url || effectiveMember?.photo_url || effectiveMember?.avatarUrl) ? (
                   <img
-                    src={(currentUser as any)?.avatarUrl}
-                    alt={((currentUser as any)?.fullName || 'Anggota')}
+                    src={effectiveMember?.foto_url || effectiveMember?.photo_url || effectiveMember?.avatarUrl}
+                    alt={effectiveMember?.full_name || effectiveMember?.nama_lengkap || effectiveMember?.fullName || 'Anggota'}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-bold text-2xl text-white">
-                    {((currentUser as any)?.fullName || 'Anggota').charAt(0)}
+                    {String(effectiveMember?.full_name || effectiveMember?.nama_lengkap || effectiveMember?.fullName || 'A').charAt(0)}
                   </div>
                 )}
               </div>
@@ -285,7 +418,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
             <div className="space-y-1.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-white/20 backdrop-blur-xs text-white border border-white/30">
-                  {currentUser.membershipLevel || 'Anggota SAKA'}
+                  {effectiveMember?.tingkat_keanggotaan || effectiveMember?.position || effectiveMember?.membershipLevel || 'Anggota SAKA'}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-400 text-slate-950 shadow-xs">
                   ACTIVE
@@ -293,26 +426,26 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               </div>
 
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
-                {((currentUser as any)?.fullName || 'Anggota')}
+                {effectiveMember?.full_name || effectiveMember?.nama_lengkap || effectiveMember?.fullName || 'Anggota'}
               </h2>
 
               <p className="text-xs sm:text-sm text-slate-100/90 flex flex-wrap items-center gap-1.5 font-medium">
                 <MapPin className="w-3.5 h-3.5 text-[#F7941D] shrink-0" />
-                <span>Kwarda {currentUser.province || 'Jawa Barat'}</span>
+                <span>Kwarda {effectiveMember?.provinsi_nama || effectiveMember?.province || '-'}</span>
                 <span>•</span>
-                <span>Kwarcab {currentUser.cityName || 'Kabupaten Bandung'}</span>
-                {currentUser.districtName && (
+                <span>Kwarcab {effectiveMember?.kabupaten_kota_nama || effectiveMember?.kabupaten_nama || effectiveMember?.cityName || '-'}</span>
+                {(effectiveMember?.kecamatan_nama || effectiveMember?.districtName) && (
                   <>
                     <span>•</span>
-                    <span>Kwarran {currentUser.districtName}</span>
+                    <span>Kwarran {effectiveMember?.kecamatan_nama || effectiveMember?.districtName}</span>
                   </>
                 )}
               </p>
 
               <div className="text-[11px] text-white/80 pt-0.5 flex flex-wrap items-center gap-2 sm:gap-3">
-                <span>Pangkalan: <strong>{currentUser.pangkalan || 'Pangkalan Saka Pariwisata'}</strong></span>
+                <span>Pangkalan: <strong>{effectiveMember?.pangkalan_gudep || effectiveMember?.pangkalan || '-'}</strong></span>
                 <span className="hidden sm:inline">•</span>
-                <span>Krida: <strong>{(currentUser as any)?.kridaName || 'Krida Pemandu Wisata'}</strong></span>
+                <span>Krida: <strong>{selectedKrida || '-'}</strong></span>
               </div>
             </div>
           </div>
@@ -474,7 +607,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                     {ktaNumber}
                   </p>
                   <p className="text-xs font-semibold text-slate-200 mt-1 truncate max-w-[170px]">
-                    {((currentUser as any)?.fullName || 'Anggota')}
+                    {effectiveMember?.full_name || effectiveMember?.nama_lengkap || effectiveMember?.fullName || 'Anggota'}
                   </p>
                 </div>
                 <div className="w-14 h-14 bg-white p-1 rounded-xl shadow-xs shrink-0 flex items-center justify-center">
@@ -482,7 +615,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                 </div>
               </div>
               <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300">
-                <span>{(currentUser as any)?.kridaName || 'Krida Pemandu'}</span>
+                <span>{selectedKrida || 'Belum memilih Krida'}</span>
                 <span className="text-emerald-300 font-semibold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3" /> QR Terverifikasi
                 </span>
@@ -626,8 +759,8 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
             {/* 4 Krida List */}
             <div className="space-y-2.5">
               {kridaList.map((k) => {
-                const percent = Math.round((k.completed / k.totalSkk) * 100);
-                const isSelected = k.name.toLowerCase().includes((currentUser as any)?.kridaName?.toLowerCase() || 'pemandu');
+                const percent = k.totalSkk > 0 ? Math.round((k.completed / k.totalSkk) * 100) : 0;
+                const isSelected = selectedKrida ? k.name.toLowerCase().includes(selectedKrida.toLowerCase().replace(/^krida\s+/, '')) : false;
                 return (
                   <div
                     key={k.id}
