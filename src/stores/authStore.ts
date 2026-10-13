@@ -276,7 +276,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           province: gasUser.kwartir_daerah || 'Indonesia',
           provinceId: gasUser.provinsi_id || '00',
           kridaName: gasUser.krida,
-          membershipLevel: gasUser.tingkatan,
+          membershipLevel: gasUser.membershipLevel || gasUser.position || gasUser.tingkatan || 'Anggota',
           isActive: true,
           avatarUrl:
             gasUser.foto_url ||
