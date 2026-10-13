@@ -480,6 +480,68 @@ export const MemberAchievementPage: React.FC = () => {
   const isMabisaka =
     memberPosition === 'MABISAKA';
 
+  const authRole = String(
+    currentUser?.role || ''
+  ).trim().toUpperCase();
+
+  const sessionPosition = String(
+    (currentUser as any)?.position ||
+    (currentUser as any)?.jabatan ||
+    (currentUser as any)?.tingkat_keanggotaan ||
+    ''
+  )
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, ' ');
+
+  const qaUsesMonitoring =
+    isSuperAdmin &&
+    [
+      'ADMIN_KWARDA',
+      'ADMIN_KWARCAB',
+      'ADMIN_PANGKALAN',
+      'PAMONG_SAKA',
+      'PINSAKA',
+      'MABISAKA',
+    ].includes(String(qaPerspective || ''));
+
+  const realAdminUsesMonitoring = [
+    'ADMIN_WILAYAH',
+    'ADMIN_KWARDA',
+    'ADMIN_KWARCAB',
+    'ADMIN_KWARRAN',
+    'ADMIN_PANGKALAN',
+  ].includes(authRole);
+
+  const realStructuralUsesMonitoring =
+    [
+      'PAMONG SAKA',
+      'PIMPINAN SAKA',
+      'PINSAKA',
+      'MABISAKA',
+    ].includes(sessionPosition);
+
+  /*
+   * Monitoring wilayah tidak boleh menunggu profil pencapaian pribadi.
+   * Admin Wilayah/Pamong/Pinsaka/Mabisaka langsung masuk ke directory scope.
+   */
+  if (
+    qaUsesMonitoring ||
+    realAdminUsesMonitoring ||
+    realStructuralUsesMonitoring
+  ) {
+    return (
+      <div
+        id="member-achievement-page"
+        className="min-h-screen bg-slate-50/50 py-6 sm:py-8"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <OfficialAchievementMonitoringView />
+        </div>
+      </div>
+    );
+  }
+
   // Jika SuperAdmin dalam mode Pantauan Seluruh Wilayah
   if (isSuperAdmin && viewMode === 'superadmin') {
     return (
