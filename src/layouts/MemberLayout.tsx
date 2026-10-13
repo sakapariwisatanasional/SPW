@@ -67,7 +67,17 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
   const { qaPerspective } = useAdminStore();
 
   const [internalTab, setInternalTab] = useState<string>('dashboard');
-  const activeTab = controlledTab || internalTab;
+
+  const rawActiveTab = controlledTab || internalTab;
+
+  // Normalisasi alias App-level ke tab MemberLayout.
+  // Ini penting untuk QA SuperAdmin yang sebelumnya mengirim
+  // "member-achievement", sehingga MemberLayout jatuh ke default dashboard.
+  const activeTab =
+    rawActiveTab === 'member-achievement' ||
+    rawActiveTab === '/member/pencapaian'
+      ? 'achievement'
+      : rawActiveTab;
 
   const handleTabClick = (tabId: string) => {
     if (onTabChange) {
@@ -82,7 +92,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
   const desktopNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
     { id: 'kta', label: 'KTA Saya', icon: CreditCard, badge: 'Aktif' },
-    { id: 'achievement', label: 'Achievement', icon: Award, badge: '23 SKK' },
+    { id: 'achievement', label: 'Achievement', icon: Award, badge: null },
     { id: 'portfolio', label: 'Portfolio', icon: Briefcase, badge: null },
     { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, badge: null },
     { id: 'profil', label: 'Profil & Keamanan', icon: User, badge: null },
@@ -110,6 +120,8 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
         return <MemberKtaView />;
       case 'achievement':
       case 'pencapaian':
+      case 'member-achievement':
+      case '/member/pencapaian':
         return <MemberAchievementPage />;
       case 'portfolio':
         return <MemberPortfolioView />;
