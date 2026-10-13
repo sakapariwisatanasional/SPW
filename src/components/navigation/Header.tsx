@@ -223,14 +223,15 @@ export const Header: React.FC = () => {
                           onClick={() => {
                             setQaPerspective(item.id);
 
-                            if (item.id === 'ANGGOTA') {
-                              setActiveView('member-achievement');
-                            } else if (
+                            if (
+                              item.id === 'ANGGOTA' ||
                               item.id === 'PAMONG_SAKA' ||
                               item.id === 'PINSAKA' ||
                               item.id === 'MABISAKA'
                             ) {
-                              setActiveView('member-achievement');
+                              setActiveView('dashboard');
+                            } else {
+                              setActiveView('admin-portal');
                             }
 
                             setIsRoleDropdownOpen(false);
