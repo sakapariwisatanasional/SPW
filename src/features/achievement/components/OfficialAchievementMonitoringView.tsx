@@ -108,13 +108,30 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
             actingLevel:
               qaPerspective === 'SUPER_ADMIN'
                 ? 'KWARNAS'
-                : undefined,
+                : qaPerspective === 'ADMIN_KWARDA'
+                ? 'KWARDA'
+                : qaPerspective === 'ADMIN_KWARCAB'
+                ? 'KWARCAB'
+                : qaPerspective === 'ADMIN_PANGKALAN'
+                ? 'PANGKALAN'
+                : scopePangkalanId && scopePangkalanId !== 'ALL'
+                ? 'PANGKALAN'
+                : scopeDistrictId && scopeDistrictId !== 'ALL'
+                ? 'KWARRAN'
+                : scopeRegencyId && scopeRegencyId !== 'ALL'
+                ? 'KWARCAB'
+                : scopeProvinceId && scopeProvinceId !== 'ALL'
+                ? 'KWARDA'
+                : 'KWARNAS',
           }
         );
 
-      setData(
-        response?.data || null
-      );
+      const payload =
+        response?.data?.data ||
+        response?.data ||
+        null;
+
+      setData(payload);
     } catch (e: any) {
       setError(
         e?.message ||
