@@ -9,39 +9,27 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
-import { KtaCardSide, KtaMemberBindingData, KtaCardSettings } from '../../../types/kta.types';
+import { KtaCardSide, KtaMemberBindingData } from '../../../types/kta.types';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi } from '../../../services/api/member.api';
-import { spreadsheetService } from '../../../services/spreadsheetService';
-import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 
 
 export const MemberKtaView: React.FC = () => {
 
-  const { currentUser } = useAuthStore();
+  const { currentUser, getEffectiveUser } = useAuthStore();
   const { addToast } = useUIStore();
+
+  const effectiveUser = getEffectiveUser();
 
   const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
   const [ktaData, setKtaData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [templateSettings, setTemplateSettings] = useState<KtaCardSettings | null>(null);
 
 
   useEffect(() => {
-    void loadKta();
-    void loadTemplate();
-  }, [currentUser]);
-
-  async function loadTemplate() {
-    try {
-      const template = await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
-      setTemplateSettings(template);
-    } catch (error) {
-      console.error('Member KTA template loading error:', error);
-      setTemplateSettings(null);
-    }
-  }
+    loadKta();
+  }, [effectiveUser]);
 
 
   async function loadKta(){
@@ -51,17 +39,46 @@ export const MemberKtaView: React.FC = () => {
       setLoading(true);
 
       const memberId =
-        currentUser?.memberId ||
-        currentUser?.id;
+        effectiveUser?.memberProfile?.member_id ||
+        effectiveUser?.memberProfile?.id ||
+        effectiveUser?.memberProfile?.memberId ||
+        effectiveUser?.memberId ||
+        effectiveUser?.nomor_kta ||
+        effectiveUser?.no_kta ||
+        effectiveUser?.email ||
+        effectiveUser?.id ||
+        '';
 
 
       if(!memberId){
-        throw new Error("Member ID tidak tersedia");
+        throw new Error("Identitas anggota tidak tersedia");
       }
 
 
       const response =
-        await memberApi.detail(memberId);
+        await memberApi.detail(
+          memberId,
+          {
+            member_id:
+              effectiveUser?.memberProfile?.member_id ||
+              effectiveUser?.memberId ||
+              '',
+            nomor_kta:
+              effectiveUser?.nomor_kta ||
+              effectiveUser?.memberProfile?.nomor_kta ||
+              '',
+            no_kta:
+              effectiveUser?.no_kta ||
+              effectiveUser?.memberProfile?.no_kta ||
+              '',
+            email:
+              effectiveUser?.email ||
+              '',
+            user_id:
+              effectiveUser?.id ||
+              ''
+          }
+        );
 
 
       const member =
@@ -103,11 +120,92 @@ export const MemberKtaView: React.FC = () => {
 
 
 
-  const memberBinding: KtaMemberBindingData | null =
-    useMemo(() => {
-      if (!ktaData) return null;
-      return mapMemberToKtaBinding(ktaData);
-    }, [ktaData]);
+  const memberBinding:KtaMemberBindingData | null =
+    useMemo(()=>{
+
+      if(!ktaData) return null;
+
+
+      return {
+
+        id:
+          ktaData.id,
+
+        nationalMemberNumber:
+          ktaData.nationalMemberNumber ||
+          ktaData.no_kta,
+
+        fullName:
+          ktaData.fullName ||
+          ktaData.nama_lengkap,
+
+        membershipLevel:
+          ktaData.membershipLevel ||
+          ktaData.position ||
+          "Anggota",
+
+        currentPosition:
+          ktaData.currentPosition ||
+          ktaData.position ||
+          "Anggota",
+
+        provinceName:
+          ktaData.province,
+
+        regencyName:
+          ktaData.city,
+
+        districtName:
+          ktaData.district,
+
+        kwartirName:
+          ktaData.city
+            ? `Kwarcab ${ktaData.city}`
+            : 'Kwarcab SAKA Pariwisata',
+
+        kwartirHierarchy:
+          [
+            ktaData.province
+              ? `Kwarda ${ktaData.province}`
+              : '',
+            ktaData.city
+              ? `Kwarcab ${ktaData.city}`
+              : '',
+            ktaData.district
+              ? `Kwarran ${ktaData.district}`
+              : ''
+          ]
+          .filter(Boolean)
+          .join(' • ')
+          ||
+          'Kwartir Nasional',
+
+        krida:
+          ktaData.krida,
+
+        phone:
+          ktaData.phone,
+
+        email:
+          ktaData.email,
+
+        status:
+          ktaData.status,
+
+        photoUrl:
+          ktaData.photoUrl,
+
+        qrUrl:
+          ktaData.verificationUrl,
+
+        qrToken:
+          ktaData.nationalMemberNumber ||
+          ktaData.no_kta
+
+      };
+
+
+    },[ktaData]);
 
 
 
@@ -127,16 +225,6 @@ export const MemberKtaView: React.FC = () => {
     return (
       <div className="p-8 text-center">
         Data KTA tidak tersedia
-      </div>
-    );
-
-  }
-
-  if(!templateSettings){
-
-    return (
-      <div className="p-8 text-center text-amber-700">
-        Template KTA TMPL_DEFAULT belum berhasil dimuat dari GAS.
       </div>
     );
 
@@ -165,8 +253,6 @@ export const MemberKtaView: React.FC = () => {
         <DigitalMemberCard
 
           member={memberBinding}
-
-          previewSettings={templateSettings}
 
           side={cardSide}
 
