@@ -77,7 +77,10 @@ export const Header: React.FC = () => {
       case 'admin-portal':
       case 'admin': return 'Portal Administrator';
       case 'skk-learning': return 'SKK Learning Center';
-      case 'member-achievement': return 'Pencapaian & Lencana';
+      case 'member-achievement':
+      case 'achievement':
+      case 'pencapaian':
+        return 'Pencapaian & Lencana';
       case 'design-system': return 'Design System & UI Kit';
       default: return 'SPWN Workspace';
     }
@@ -229,9 +232,10 @@ export const Header: React.FC = () => {
                               item.id === 'PINSAKA' ||
                               item.id === 'MABISAKA'
                             ) {
-                              setActiveView('dashboard');
-                            } else {
-                              setActiveView('admin-portal');
+                              // MemberLayout memakai tab internal "achievement".
+                              // Jangan kirim alias App-level "member-achievement",
+                              // karena alias itu sebelumnya jatuh ke default dashboard.
+                              setActiveView('achievement');
                             }
 
                             setIsRoleDropdownOpen(false);
