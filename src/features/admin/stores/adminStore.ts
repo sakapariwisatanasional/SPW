@@ -203,6 +203,57 @@ interface AdminState {
   }>;
 }
 
+
+const buildKwartirScopeQuery = (state: any) => {
+  const perspective = String(state.qaPerspective || 'SUPER_ADMIN');
+
+  const actingLevel =
+    perspective === 'SUPER_ADMIN'
+      ? 'KWARNAS'
+      : perspective === 'ADMIN_KWARDA'
+      ? 'KWARDA'
+      : perspective === 'ADMIN_KWARCAB'
+      ? 'KWARCAB'
+      : perspective === 'ADMIN_PANGKALAN'
+      ? 'PANGKALAN'
+      : (() => {
+          const pangkalan =
+            state.scopePangkalanId &&
+            state.scopePangkalanId !== 'ALL';
+
+          const district =
+            state.scopeDistrictId &&
+            state.scopeDistrictId !== 'ALL';
+
+          const regency =
+            state.scopeRegencyId &&
+            state.scopeRegencyId !== 'ALL';
+
+          const province =
+            state.scopeProvinceId &&
+            state.scopeProvinceId !== 'ALL';
+
+          if (pangkalan) return 'PANGKALAN';
+          if (district) return 'KWARRAN';
+          if (regency) return 'KWARCAB';
+          if (province) return 'KWARDA';
+
+          return 'KWARNAS';
+        })();
+
+  return {
+    actingLevel,
+    scopeProvinceId: state.scopeProvinceId,
+    scopeProvinceName: state.scopeProvinceName,
+    scopeRegencyId: state.scopeRegencyId,
+    scopeRegencyName: state.scopeRegencyName,
+    scopeDistrictId: state.scopeDistrictId,
+    scopeDistrictName: state.scopeDistrictName,
+    scopePangkalanId: state.scopePangkalanId,
+    scopePangkalanName: state.scopePangkalanName,
+  };
+};
+
 export const useAdminStore = create<AdminState>((set, get) => ({
   activeTab: 'overview',
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -326,12 +377,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       return;
     }
 
-    if (perspective === 'ADMIN_PANGKALAN') {
+    if (
+      perspective === 'PINSAKA' ||
+      perspective === 'MABISAKA'
+    ) {
       set({
         qaPerspective: perspective,
         actingLevel: 'WILAYAH',
-        actingRole: 'ADMIN_WILAYAH',
-        simulatedScope: 'ADMIN_WILAYAH',
+        actingRole: 'MEMBER',
+        simulatedScope: 'MEMBER',
         scopeProvinceId: provId === 'ALL' ? '32' : provId,
         scopeProvinceName: provName || 'JAWA BARAT',
         scopeRegencyId: regId,
@@ -1002,7 +1056,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
        * Backend endpoint ini mengembalikan data anggota sesuai RBAC admin
        * dan merupakan source of truth untuk dashboard administrasi.
        */
-      const response = await apiClient.get<any>('admin.member.list');
+      const response = await apiClient.get<any>(
+        'admin.member.list',
+        buildKwartirScopeQuery(get())
+      );
 
       /**
        * Normalisasi seluruh response shape yang pernah dipakai GAS:
@@ -1049,13 +1106,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             '',
 
           nomor_kta:
-            member.nomor_kta ||
             member.no_kta ||
+            member.nomor_kta ||
             '',
 
           no_kta:
-            member.nomor_kta ||
             member.no_kta ||
+            member.nomor_kta ||
             '',
 
           nama_lengkap:
@@ -1139,8 +1196,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             (member.no_kta || member.nomor_kta ? 'ACTIVE' : 'NOT_CREATED'),
 
           foto_url:
-            member.foto_url ||
             member.photo_url ||
+            member.foto_url ||
             member.foto ||
             '',
 
@@ -1197,7 +1254,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       const [members, dashboardResponse] = await Promise.all([
         get().loadMembers(),
-        apiClient.get<any>('admin.dashboard.summary'),
+        apiClient.get<any>(
+          'admin.dashboard.summary',
+          buildKwartirScopeQuery(get())
+        ),
       ]);
 
       const envelope =
