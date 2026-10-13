@@ -60,6 +60,7 @@ import {
 } from './ktaDesigner/ktaFieldRegistry';
 import { canRenderKtaField } from './ktaDesigner/ktaFieldVisibility';
 import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
+import { useAuthStore } from '../../../stores/authStore';
 
 interface KtaCardCustomizerModalProps {
   isOpen: boolean;
@@ -78,8 +79,10 @@ export const KtaCardCustomizerModal: React.FC<KtaCardCustomizerModalProps> = ({
 }) => {
   // Store & RBAC
   const { simulatedScope, loadMembers } = useAdminStore();
+  const { currentUser: authUser } = useAuthStore();
+  const isQaSuperAdminSession = authUser?.role === 'SUPER_ADMIN';
   const effectiveRole = userRole || simulatedScope;
-  const isSuperAdmin = effectiveRole === 'SUPER_ADMIN';
+  const isSuperAdmin = isQaSuperAdminSession || effectiveRole === 'SUPER_ADMIN';
 
   // State Settings
   const [settings, setSettings] = useState<KtaCardSettings>(DEFAULT_KTA_SETTINGS);
