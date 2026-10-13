@@ -60,28 +60,29 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
   const { profile, skkItems, badges, activities } = useAchievementStore();
   const { members } = useAdminStore();
 
-  // Find linked member record from GAS/adminStore.
-  // Semua field dibuat null-safe agar Dashboard tidak crash menjadi layar putih.
+  // Find linked member record from adminStore if available for live status & KTA
   const linkedMember = useMemo(() => {
     const list = Array.isArray(members) ? members : [];
+    const user: any = currentUser || {};
 
-    const currentIdentities = [
-      (currentUser as any)?.memberId,
-      (currentUser as any)?.memberProfile?.member_id,
-      (currentUser as any)?.memberProfile?.id,
-      (currentUser as any)?.nomor_kta,
-      (currentUser as any)?.no_kta,
-      (currentUser as any)?.email,
+    const userKeys = [
+      user?.memberProfile?.member_id,
+      user?.memberProfile?.id,
+      user?.memberId,
+      user?.nomor_kta,
+      user?.no_kta,
+      user?.email,
     ]
       .map((value) => String(value || '').trim().toLowerCase())
       .filter(Boolean);
 
-    const currentName = String(
-      (currentUser as any)?.fullName || ''
-    ).trim().toLowerCase();
+    const userName =
+      String(user?.fullName || '')
+        .trim()
+        .toLowerCase();
 
     return list.find((m: any) => {
-      const memberIdentities = [
+      const memberKeys = [
         m?.id,
         m?.member_id,
         m?.nomor_kta,
@@ -91,29 +92,35 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
         .map((value) => String(value || '').trim().toLowerCase())
         .filter(Boolean);
 
-      const identityMatch = currentIdentities.some((identity) =>
-        memberIdentities.includes(identity)
+      const identityMatch =
+        userKeys.some((value) =>
+          memberKeys.includes(value)
+        );
+
+      const memberName =
+        String(
+          m?.nama_lengkap ||
+          m?.full_name ||
+          m?.fullName ||
+          ''
+        )
+          .trim()
+          .toLowerCase();
+
+      return (
+        identityMatch ||
+        (
+          Boolean(userName) &&
+          Boolean(memberName) &&
+          userName === memberName
+        )
       );
-
-      const memberName = String(
-        m?.nama_lengkap ||
-        m?.full_name ||
-        m?.fullName ||
-        ''
-      ).trim().toLowerCase();
-
-      const nameMatch =
-        Boolean(currentName) &&
-        Boolean(memberName) &&
-        memberName === currentName;
-
-      return identityMatch || nameMatch;
     });
   }, [members, currentUser]);
 
   const ktaNumber =
     linkedMember?.nomor_kta ||
-    currentUser.nomor_kta ||
+    (currentUser as any)?.nomor_kta ||
     'Belum Terbit';
 
   const qrToken = linkedMember?.qr_token || '';
@@ -139,12 +146,12 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     linkedMember?.member_id ||
     linkedMember?.nomor_kta ||
     linkedMember?.no_kta ||
-    currentUser.memberId ||
-    currentUser.nomor_kta ||
-    currentUser.no_kta ||
-    currentUser.email ||
-    currentUser.username ||
-    currentUser.id ||
+    (currentUser as any)?.memberId ||
+    (currentUser as any)?.nomor_kta ||
+    (currentUser as any)?.no_kta ||
+    (currentUser as any)?.email ||
+    (currentUser as any)?.username ||
+    (currentUser as any)?.id ||
     ''
   ).trim();
 
@@ -224,7 +231,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     (profile as any)?.member?.kridaUtamaNama ||
     linkedMember?.krida_nama ||
     linkedMember?.krida ||
-    currentUser.kridaName ||
+    (currentUser as any)?.kridaName ||
     ''
   ).trim();
 
@@ -234,7 +241,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     .replace(/^\+/, '');
 
   const waText = encodeURIComponent(
-    `Salam Pramuka, saya ${currentUser.fullName}, anggota SAKA Pariwisata${
+    `Salam Pramuka, saya ${((currentUser as any)?.fullName || 'Anggota')}, anggota SAKA Pariwisata${
       selectedKrida ? ` dengan peminatan ${selectedKrida}` : ''
     }. Saya ingin menindaklanjuti pencapaian Krida dan mengikuti SKK/pengujian SKK. Mohon arahan dan pendampingannya.`
   );
@@ -254,16 +261,16 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 min-w-0">
             <div className="relative shrink-0">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-3 border-white/40 shadow-xl bg-slate-900">
-                {currentUser.avatarUrl ? (
+                {(currentUser as any)?.avatarUrl ? (
                   <img
-                    src={(currentUser as any)?.avatarUrl || (currentUser as any)?.photo_url || ''}
-                    alt={(currentUser as any)?.fullName || 'Anggota'}
+                    src={(currentUser as any)?.avatarUrl}
+                    alt={((currentUser as any)?.fullName || 'Anggota')}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-bold text-2xl text-white">
-                    {currentUser.fullName.charAt(0)}
+                    {((currentUser as any)?.fullName || 'Anggota').charAt(0)}
                   </div>
                 )}
               </div>
@@ -286,7 +293,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               </div>
 
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
-                {currentUser.fullName}
+                {((currentUser as any)?.fullName || 'Anggota')}
               </h2>
 
               <p className="text-xs sm:text-sm text-slate-100/90 flex flex-wrap items-center gap-1.5 font-medium">
@@ -305,7 +312,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
               <div className="text-[11px] text-white/80 pt-0.5 flex flex-wrap items-center gap-2 sm:gap-3">
                 <span>Pangkalan: <strong>{currentUser.pangkalan || 'Pangkalan Saka Pariwisata'}</strong></span>
                 <span className="hidden sm:inline">•</span>
-                <span>Krida: <strong>{currentUser.kridaName || 'Krida Pemandu Wisata'}</strong></span>
+                <span>Krida: <strong>{(currentUser as any)?.kridaName || 'Krida Pemandu Wisata'}</strong></span>
               </div>
             </div>
           </div>
@@ -467,7 +474,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                     {ktaNumber}
                   </p>
                   <p className="text-xs font-semibold text-slate-200 mt-1 truncate max-w-[170px]">
-                    {currentUser.fullName}
+                    {((currentUser as any)?.fullName || 'Anggota')}
                   </p>
                 </div>
                 <div className="w-14 h-14 bg-white p-1 rounded-xl shadow-xs shrink-0 flex items-center justify-center">
@@ -475,7 +482,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
                 </div>
               </div>
               <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300">
-                <span>{currentUser.kridaName || 'Krida Pemandu'}</span>
+                <span>{(currentUser as any)?.kridaName || 'Krida Pemandu'}</span>
                 <span className="text-emerald-300 font-semibold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3" /> QR Terverifikasi
                 </span>
@@ -620,7 +627,7 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
             <div className="space-y-2.5">
               {kridaList.map((k) => {
                 const percent = Math.round((k.completed / k.totalSkk) * 100);
-                const isSelected = k.name.toLowerCase().includes(currentUser.kridaName?.toLowerCase() || 'pemandu');
+                const isSelected = k.name.toLowerCase().includes((currentUser as any)?.kridaName?.toLowerCase() || 'pemandu');
                 return (
                   <div
                     key={k.id}
