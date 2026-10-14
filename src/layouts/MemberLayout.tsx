@@ -39,6 +39,8 @@ import {
   ChevronRight,
   Compass,
   ArrowRightLeft,
+  Newspaper,
+  Store,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useUIStore } from '../stores/uiStore';
@@ -51,6 +53,8 @@ import { MemberActivityView } from '../features/membership/components/MemberActi
 import { MemberProfileView } from '../features/membership/components/MemberProfileView';
 import { SkkLearningCenterPage } from '../features/skk/pages/SkkLearningCenterPage';
 import { TourismPage } from '../features/tourism/pages/TourismPage';
+import { ContentPage } from '../features/content/pages/ContentPage';
+import { CommercePage } from '../features/commerce/pages/CommercePage';
 import { useAdminStore } from '../features/admin/stores/adminStore';
 import { resolveEffectiveMember } from '../features/membership/utils/resolveEffectiveMember';
 
@@ -166,6 +170,8 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
     { id: 'achievement', label: 'Achievement', icon: Award, badge: null },
     { id: 'portfolio', label: 'Portfolio', icon: Briefcase, badge: null },
     { id: 'kegiatan', label: 'Kegiatan', icon: Calendar, badge: null },
+    { id: 'content', label: 'Warta SAKA', icon: Newspaper, badge: null },
+    { id: 'commerce', label: 'Kedai SAKA', icon: Store, badge: null },
     { id: 'profil', label: 'Profil & Keamanan', icon: User, badge: null },
   ];
 
@@ -204,7 +210,12 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
       case 'krida':
         return <SkkLearningCenterPage />;
       case 'wisata':
+      case 'tourism':
         return <TourismPage />;
+      case 'content':
+        return <ContentPage />;
+      case 'commerce':
+        return <CommercePage />;
       default:
         return children || <MemberDashboardView onNavigateTab={handleTabClick} />;
     }
@@ -408,7 +419,9 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => handleTabClick('content')} className="w-8 h-8 rounded-xl bg-purple-50 text-[#7E57C2] grid place-items-center border border-purple-100" aria-label="Warta SAKA"><Newspaper className="w-4 h-4" /></button>
+            <button type="button" onClick={() => handleTabClick('commerce')} className="w-8 h-8 rounded-xl bg-orange-50 text-[#FB8C00] grid place-items-center border border-orange-100" aria-label="Kedai SAKA"><Store className="w-4 h-4" /></button>
             <button
               onClick={() => handleTabClick('profil')}
               className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0"
