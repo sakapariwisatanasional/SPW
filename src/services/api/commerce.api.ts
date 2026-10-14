@@ -66,7 +66,10 @@ export const commerceApi = {
    * Mengambil etalase produk aktif dan tersedia stok
    */
   listProducts: async (params?: { page?: number; limit?: number; kategori?: string; search?: string }): Promise<ApiResponse<Product[]>> => {
-    return apiClient.get<Product[]>('commerce.products', params as Record<string, string | number>);
+    const response = await apiClient.get<any>('commerce.products', params as Record<string, string | number>);
+    const d: any = response?.data;
+    const rows = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : Array.isArray(d?.products) ? d.products : [];
+    return { ...response, data: rows as Product[] };
   },
 
   /**
@@ -87,7 +90,10 @@ export const commerceApi = {
    * Mengambil daftar kategori produk kedai
    */
   listCategories: async (): Promise<ApiResponse<ProductCategory[]>> => {
-    return apiClient.get<ProductCategory[]>('commerce.categories');
+    const response = await apiClient.get<any>('commerce.categories');
+    const d: any = response?.data;
+    const rows = Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : Array.isArray(d?.categories) ? d.categories : [];
+    return { ...response, data: rows as ProductCategory[] };
   },
 
   /**
