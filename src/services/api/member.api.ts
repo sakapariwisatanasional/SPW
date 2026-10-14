@@ -1,137 +1,492 @@
-// member.api.ts
-// SPWN Apps 2.0 - member.list nested response normalization
+/**
+ * SPWN Apps 2.0 - Member API Client Module
+ * Location: src/services/api/member.api.ts
+ */
 
 import { apiClient, ApiResponse } from './apiClient';
 import { SpwnUser } from './auth.api';
 
-export function normalizeMemberKtaData(member:any){
+/**
+ * Adapter response MEMBER API -> format KTA Renderer
+ * Menyamakan snake_case dari GAS dengan camelCase frontend KTA.
+ */
+export function normalizeMemberKtaData(member: any) {
   return {
     ...member,
+
+    // identity compatibility
+    nama_lengkap:
+      member.nama_lengkap ||
+      member.full_name ||
+      member.fullName ||
+      member.nama ||
+      '',
+
     fullName:
-      member?.fullName ||
-      member?.full_name ||
-      member?.nama_lengkap ||
-      member?.nama ||
+      member.fullName ||
+      member.full_name ||
+      member.nama ||
+      member.nama_lengkap ||
       '',
+
+    // contact compatibility
+    email:
+      member.email || '',
+
+    nomor_telepon:
+      member.nomor_telepon ||
+      member.phone ||
+      member.telepon ||
+      '',
+
+    phone:
+      member.phone ||
+      member.nomor_telepon ||
+      member.telepon ||
+      '',
+
+    // biodata
+    tempat_lahir:
+      member.tempat_lahir || '',
+
+    tanggal_lahir:
+      member.tanggal_lahir || '',
+
+    jenis_kelamin:
+      member.jenis_kelamin || '',
+
+    golongan_darah:
+      member.golongan_darah || '',
+
+    // address
+    alamat_domisili:
+      member.alamat_domisili ||
+      member.alamat ||
+      '',
+
+    // KTA fields
     nationalMemberNumber:
-      member?.nationalMemberNumber ||
-      member?.nomor_kta ||
-      member?.no_kta ||
+      member.nationalMemberNumber ||
+      member.no_kta ||
+      member.nomor_kta ||
       '',
+
     photoUrl:
-      member?.photoUrl ||
-      member?.foto_url ||
-      member?.photo_url ||
-      member?.foto ||
+      member.photoUrl ||
+      member.photo_url ||
+      member.foto ||
+      member.foto_url ||
       '',
+
+    membershipLevel:
+      member.membershipLevel ||
+      member.position ||
+      member.tingkatan ||
+      '',
+
+    currentPosition:
+      member.currentPosition ||
+      member.position ||
+      member.tingkatan ||
+      '',
+
+    krida:
+      member.krida || '',
+
+    province:
+      member.province ||
+      member.provinsi_id ||
+      '',
+
+    city:
+      member.city ||
+      member.kwartir_daerah ||
+      '',
+
+    district:
+      member.district || '',
+
     status:
-      member?.kta_status ||
-      member?.status_anggota ||
-      member?.status ||
-      ''
+      member.status || '',
   };
 }
 
 export interface MemberListParams {
-  page?:number;
-  limit?:number;
-  search?:string;
-  status?:string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  provinsi_id?: string;
+  tingkatan?: string;
+  status?: string;
+}
+
+export interface RegisterMemberPayload {
+  // Canonical fields
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  position?: string;
+  krida?: string;
+  foto_url?: string;
+  photo_url?: string;
+  password?: string;
+  confirm_password?: string;
+
+  // Backward compatible & regional fields
+  nama_lengkap?: string;
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  jenis_kelamin?: 'L' | 'P' | string;
+  golongan_darah?: string;
+  nik?: string;
+  telepon?: string;
+  nomor_telepon?: string;
+  alamat_domisili?: string;
+  provinsi_id?: string;
+  provinsi_nama?: string;
+  kabupaten_id?: string;
+  kabupaten_nama?: string;
+  kecamatan_id?: string;
+  wilayah_kecamatan_id?: string;
+  wilayah_kecamatan_nama?: string;
+  pangkalan_gudep?: string;
+  kwartir_cabang?: string;
+  kwartir_ranting?: string;
+  tingkatan?: string;
+  tingkat_keanggotaan?: string;
+  krida_id?: string;
+  krida_nama?: string;
+  level_organisasi?: string;
+  is_public?: boolean;
+  source?: string;
+}
+
+export interface UpdateMemberPayload {
+  id: string;
+  nama_lengkap?: string;
+  telepon?: string;
+  email?: string;
+  alamat?: string;
+  foto?: string;
+  krida?: string;
 }
 
 export const memberApi = {
+  /**
+   * Mengambil daftar anggota terpaginasi
+   */
+  list: async (params?: MemberListParams): Promise<ApiResponse<SpwnUser[]>> => {
+    const response = await apiClient.get<any[]>('member.list', params as Record<string, string | number>);
 
-  list: async(params?:MemberListParams):Promise<ApiResponse<SpwnUser[]>>=>{
-    const response = await apiClient.post<any>('member.list',{
-      query: params || {}
-    });
-
-    /*
-     * Backend member.list saat ini mengembalikan:
-     * response.data = {
-     *   data: [...],
-     *   pagination: {...}
-     * }
-     *
-     * Versi lama hanya mengecek Array.isArray(response.data),
-     * sehingga hasil sukses dianggap bukan array.
-     */
-    const raw =
-      Array.isArray(response?.data)
+    const members =
+      Array.isArray(response.data)
         ? response.data
-        : Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray((response as any)?.data?.members)
-        ? (response as any).data.members
-        : Array.isArray((response as any)?.members)
-        ? (response as any).members
-        : [];
+        : (
+            Array.isArray(response.data?.data)
+              ? response.data.data
+              : []
+          );
 
     return {
       ...response,
-      data: raw.map(normalizeMemberKtaData) as SpwnUser[]
+      data: members.map(normalizeMemberKtaData) as SpwnUser[],
     };
   },
 
-  detail: async(
-    identity:string,
-    aliases?:{
-      member_id?:string;
-      nomor_kta?:string;
-      no_kta?:string;
-      email?:string;
-      user_id?:string;
-    }
-  ):Promise<ApiResponse<SpwnUser>>=>{
-    const response = await apiClient.post<any>('member.detail',{
-      body:{
-        member_id:
-          aliases?.member_id ||
-          identity,
-        nomor_kta:
-          aliases?.nomor_kta ||
-          '',
-        no_kta:
-          aliases?.no_kta ||
-          '',
-        email:
-          aliases?.email ||
-          '',
-        user_id:
-          aliases?.user_id ||
-          ''
+  /**
+   * Mengambil detail profil anggota berdasarkan ID atau no_kta
+   */
+  detail: async (idOrNoKta: string): Promise<ApiResponse<SpwnUser>> => {
+
+    /**
+     * GAS MemberAdminController.detail membaca:
+     * request.body.member_id
+     *
+     * Jangan gunakan query parameter { id: ... }
+     * karena akan menyebabkan:
+     * "Member ID wajib diisi"
+     */
+
+    const response = await apiClient.post<any>('member.detail', {
+      member_id: idOrNoKta,
+    });
+
+
+    const detailData =
+      response?.data?.data ||
+      response?.data?.member ||
+      response?.data ||
+      response;
+
+
+    return {
+      ...response,
+      data: detailData
+        ? normalizeMemberKtaData(detailData) as SpwnUser
+        : response.data,
+    };
+
+  },
+
+  /**
+   * Mendaftarkan anggota baru ke backend dan Google Spreadsheet
+   */
+  register: async (payload: RegisterMemberPayload): Promise<ApiResponse<SpwnUser>> => {
+    const response =
+      await apiClient.post<any>('member.register', {
+        ...payload,
+        is_public: payload.is_public !== undefined ? payload.is_public : true,
+        source: payload.source || 'PUBLIC_REGISTER',
+      } as unknown as Record<string, unknown>);
+
+    const memberData =
+      response?.data?.member ||
+      response?.data?.data ||
+      response?.data ||
+      response;
+
+    return {
+      ...response,
+      data: normalizeMemberKtaData(memberData) as SpwnUser,
+    };
+  },
+
+  /**
+   * Memperbarui data anggota
+   */
+  update: async (payload: UpdateMemberPayload): Promise<ApiResponse<SpwnUser>> => {
+    return apiClient.post<SpwnUser>('member.update', payload as unknown as Record<string, unknown>);
+  },
+
+
+
+  /**
+   * Edit profil sendiri berdasarkan session GAS.
+   * Jabatan/tingkat_keanggotaan tidak diubah dari halaman profil pribadi.
+   */
+  getSelfProfile: async (
+    memberId?: string
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.get<any>(
+      'member.profile.getSelf',
+      memberId
+        ? { member_id: memberId }
+        : undefined
+    );
+  },
+
+  updateSelfProfile: async (
+    memberId: string,
+    data: Record<string, unknown>
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('member.profile.updateSelf', {
+      member_id: memberId,
+      data,
+    });
+  },
+
+
+  listPendingPositionChanges: async (
+    params?: Record<string, unknown>
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.get<any>(
+      'admin.member.positionChange.pending',
+      params as Record<string, string | number>
+    );
+  },
+
+  decidePositionChange: async (
+    memberId: string,
+    decision: 'APPROVE' | 'REJECT',
+    note?: string
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>(
+      'admin.member.positionChange.decide',
+      {
+        member_id: memberId,
+        decision,
+        note: note || '',
       }
-    });
-
-    const raw =
-      response?.data?.data ??
-      response?.data ??
-      null;
-
-    return {
-      ...response,
-      data: raw
-        ? normalizeMemberKtaData(raw) as SpwnUser
-        : raw
-    };
+    );
   },
 
-  approval: async(memberId:string):Promise<ApiResponse<any>>=>{
-    return apiClient.post('member.approval',{
-      body:{ member_id:memberId }
+  /**
+   * Menonaktifkan anggota (Super Admin / Admin Pusat)
+   */
+  deactivate: async (id: string, reason: string): Promise<ApiResponse<SpwnUser>> => {
+    return apiClient.post<SpwnUser>('member.deactivate', { id, reason });
+  },
+
+  /**
+   * Koreksi dan pembaruan profil anggota oleh Admin (dengan alasan audit)
+   */
+  adminUpdate: async (
+    memberId: string,
+    updates: Record<string, unknown>,
+    reason: string
+  ): Promise<ApiResponse<{ memberId: string; modifiedFields: string[] }>> => {
+    return apiClient.post<{ memberId: string; modifiedFields: string[] }>('admin.member.update', {
+      member_id: memberId,
+      updates,
+      reason,
     });
   },
 
-  reject: async(memberId:string):Promise<ApiResponse<any>>=>{
-    return apiClient.post('member.reject',{
-      body:{ member_id:memberId }
+  /**
+   * Reset kata sandi anggota oleh Admin
+   */
+  adminResetPassword: async (
+    memberId: string,
+    temporaryPassword?: string,
+    reason?: string
+  ): Promise<ApiResponse<{ memberId: string; temporaryPassword: string }>> => {
+    return apiClient.post<{ memberId: string; temporaryPassword: string }>('admin.member.resetPassword', {
+      member_id: memberId,
+      temporary_password: temporaryPassword,
+      reason,
     });
   },
 
-  generateKta: async(memberId:string):Promise<ApiResponse<any>>=>{
-    return apiClient.post('member.generate_kta',{
-      body:{ member_id:memberId }
+  /**
+   * Daftar penunjukan admin berjenjang (Nasional, Provinsi, Kab/Kota, Kecamatan, Pangkalan)
+   */
+  listAppointments: async (params?: Record<string, unknown>): Promise<ApiResponse<unknown[]>> => {
+    return apiClient.get<unknown[]>('admin.assignment.list', params as Record<string, string | number>);
+  },
+
+  /**
+   * Penunjukan admin berjenjang baru oleh Super Admin
+   */
+  assignAdmin: async (payload: Record<string, unknown>): Promise<ApiResponse<unknown>> => {
+    return apiClient.post<unknown>('admin.assignment.create', payload);
+  },
+
+  /**
+   * Pencabutan SK penunjukan admin oleh Super Admin
+   */
+  revokeAdmin: async (appointmentId: string, reason: string): Promise<ApiResponse<unknown>> => {
+    return apiClient.post<unknown>('admin.assignment.revoke', {
+      appointment_id: appointmentId,
+      reason,
     });
-  }
+  },
+
+  /**
+   * Reset kata sandi admin berjenjang oleh Super Admin
+   */
+  resetAdminPassword: async (
+    appointmentId: string,
+    temporaryPassword?: string,
+    reason?: string
+  ): Promise<ApiResponse<{ appointmentId: string; temporaryPassword: string }>> => {
+    return apiClient.post<{ appointmentId: string; temporaryPassword: string }>('admin.assignment.resetPassword', {
+      appointment_id: appointmentId,
+      temporary_password: temporaryPassword,
+      reason,
+    });
+  },
+
+  /**
+   * Action 1: admin.member.pending
+   * Mengambil antrean anggota pending dari Google Apps Script
+   */
+  getPendingMembers: async (params?: Record<string, unknown>): Promise<ApiResponse<any[]>> => {
+    return apiClient.get<any[]>('member.list', params || {} as Record<string, unknown>);
+  },
+
+  /**
+   * Action 2: admin.member.review
+   * Review berkas pendaftaran (PENDING -> REVIEWED_VERIFIED)
+   */
+  reviewMember: async (
+    memberId: string,
+    decision: string = 'REVIEWED_VERIFIED',
+    notes: string = 'Berkas telah ditinjau dan diverifikasi'
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('admin.member.review', {
+      member_id: memberId,
+      decision,
+      notes,
+    });
+  },
+
+  /**
+   * Action 3: admin.member.activate
+   * Aktivasi keanggotaan (REVIEWED_VERIFIED -> ACTIVE)
+   */
+  activateMember: async (
+    memberId: string,
+    notes: string = 'Aktivasi resmi keanggotaan'
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('admin.member.activate', {
+      member_id: memberId,
+      notes,
+    });
+  },
+
+  /**
+   * Action 4: admin.member.reject
+   * Penolakan pendaftaran anggota (dikembalikan ke status REJECTED)
+   */
+  rejectMember: async (
+    memberId: string,
+    notes: string = 'Berkas belum memenuhi persyaratan'
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('admin.member.reject', {
+      member_id: memberId,
+      notes,
+    });
+  },
+
+  /**
+   * Action 5: admin.kta.generate
+   * Menerbitkan Nomor KTA dan Dynamic QR Token resmi (ACTIVE -> KTA_GENERATED)
+   */
+  generateKta: async (
+    memberId: string,
+    reason: string = 'Penerbitan KTA Digital Resmi'
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('admin.kta.generate', {
+      member_id: memberId,
+      reason,
+    });
+  },
+
+
+
+  /**
+   * Batch penerbitan KTA melalui Admin KTA Controller.
+   * Digunakan KtaManagementCenter untuk menerbitkan seluruh antrean sekaligus.
+   */
+  batchGenerateKta: async (
+    memberIds: string[],
+    reason: string = 'Penerbitan Batch Otomatis'
+  ): Promise<ApiResponse<any[]>> => {
+    return apiClient.post<any[]>('admin.kta.batch', {
+      member_ids: memberIds,
+      reason,
+    });
+  },
+
+  /**
+   * Update profil anggota dari halaman profil pribadi
+   * Digunakan oleh AuthStore.updateCurrentUserProfile()
+   */
+  updateProfile: async (
+    payload: {
+      member_id: string;
+      data: Record<string, unknown>;
+      actor?: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>(
+      'member.update_profile',
+      payload as unknown as Record<string, unknown>
+    );
+  },
 
 };
+
