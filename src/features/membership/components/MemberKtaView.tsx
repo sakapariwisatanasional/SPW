@@ -1,336 +1,313 @@
 /**
- * SPWN Apps 2.0
- * Member KTA View v5
- *
- * Rule of Truth:
- * - Data anggota: GAS member.list
- * - Template KTA: GAS admin.kta.template.get / TMPL_DEFAULT
- * - Render: DigitalMemberCard + previewSettings dari GAS
- *
- * Mendukung QA SuperAdmin tanpa mengganti session/token.
+ * SPWN Apps 2.0 - Member Digital KTA
+ * GAS Rule of Truth:
+ * - Data anggota: member.profile.getSelf untuk MEMBER
+ * - QA/Admin preview: member.detail untuk anggota yang dipilih
+ * - Template desain: KTA_TEMPLATE / TMPL_DEFAULT melalui GAS
+ * - Tidak memakai fallback template browser/localStorage
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
-
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { DigitalMemberCard } from '../../admin/components/DigitalMemberCard';
 import {
   KtaCardSide,
-  KtaCardSettings,
   KtaMemberBindingData,
+  KtaCardSettings,
 } from '../../../types/kta.types';
-
 import { useAuthStore } from '../../../stores/authStore';
+import { useUIStore } from '../../../stores/uiStore';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import { memberApi } from '../../../services/api/member.api';
 import { spreadsheetService } from '../../../services/spreadsheetService';
-import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
-import { resolveEffectiveMember } from '../utils/resolveEffectiveMember';
-
-const norm = (value: unknown) =>
-  String(value ?? '').trim().toLowerCase();
-
-const normalizePosition = (member: any) =>
-  String(
-    member?.position ||
-    member?.jabatan ||
-    member?.tingkat_keanggotaan ||
-    ''
-  )
-    .trim()
-    .toUpperCase()
-    .replace(/_/g, ' ');
 
 export const MemberKtaView: React.FC = () => {
   const { currentUser } = useAuthStore();
+  const { addToast } = useUIStore();
+  const { selectedMemberId } = useAdminStore();
 
-  const {
-    selectedMemberId,
-    qaPerspective,
-    scopeProvinceId,
-    scopeRegencyId,
-    scopeDistrictId,
-    scopePangkalanId,
-  } = useAdminStore();
-
-  const [cardSide, setCardSide] =
-    useState<KtaCardSide>('FRONT');
-
-  const [ktaData, setKtaData] =
-    useState<any>(null);
-
+  const [cardSide, setCardSide] = useState<KtaCardSide>('FRONT');
+  const [ktaData, setKtaData] = useState<any>(null);
   const [templateSettings, setTemplateSettings] =
     useState<KtaCardSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const resolveTargetMemberId = () =>
+    String(
+      currentUser?.role === 'MEMBER'
+        ? (
+            (currentUser as any)?.memberProfile?.member_id ||
+            (currentUser as any)?.memberProfile?.id ||
+            (currentUser as any)?.memberId ||
+            (currentUser as any)?.nomor_kta ||
+            (currentUser as any)?.no_kta ||
+            currentUser?.id ||
+            ''
+          )
+        : (
+            selectedMemberId ||
+            (currentUser as any)?.memberId ||
+            currentUser?.id ||
+            ''
+          )
+    ).trim();
 
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [templateError, setTemplateError] =
-    useState<string | null>(null);
-
-  const resolveMemberFromList = (
-    rows: any[],
-    user: any
-  ) =>
-    resolveEffectiveMember({
-      members: rows,
-      currentUser: user,
-      qaPerspective,
-      selectedMemberId,
-      scope: {
-        provinceId: scopeProvinceId,
-        regencyId: scopeRegencyId,
-        districtId: scopeDistrictId,
-        pangkalanId: scopePangkalanId,
-      },
-    });
-
-  const loadAll = async () => {
+  const loadKta = async () => {
     setLoading(true);
-    setError(null);
-    setTemplateError(null);
+    setLoadError(null);
 
     try {
-      const user: any =
-        currentUser || {};
+      const memberId = resolveTargetMemberId();
+
+      if (!memberId) {
+        throw new Error('Member ID tidak tersedia.');
+      }
 
       /*
-       * Kedua sumber dibaca langsung dari GAS:
-       * member.list + admin.kta.template.get
+       * MEMBER membaca data dirinya melalui endpoint self-profile.
+       * Admin/SuperAdmin QA tetap memakai member.detail agar fitur
+       * simulasi/preview anggota yang sudah berjalan tidak diputus.
        */
-      const [
-        memberResponse,
-        gasTemplate,
-      ] = await Promise.all([
-        memberApi.list({
-          limit: 500,
-        }),
-        spreadsheetService
-          .refreshKtaSettings(
-            'TMPL_DEFAULT'
-          ),
-      ]);
+      const memberResponse =
+        currentUser?.role === 'MEMBER'
+          ? await memberApi.getSelfProfile(memberId)
+          : await memberApi.detail(memberId);
 
-      const rawMemberList: any =
-        memberResponse?.data;
+      const rawMember: any =
+        (memberResponse as any)?.data?.member ||
+        (memberResponse as any)?.data?.data?.member ||
+        (memberResponse as any)?.data?.data ||
+        (memberResponse as any)?.data ||
+        null;
 
-      const rows: any[] =
-        Array.isArray(rawMemberList)
-          ? rawMemberList
-          : Array.isArray(
-              rawMemberList?.data
-            )
-          ? rawMemberList.data
-          : Array.isArray(
-              rawMemberList?.members
-            )
-          ? rawMemberList.members
-          : [];
+      if (!rawMember) {
+        throw new Error('Data KTA anggota tidak ditemukan.');
+      }
 
-      if (!rows.length) {
+      /*
+       * Sumber desain wajib dari KTA Designer di Spreadsheet.
+       * refreshKtaSettings membaca TMPL_DEFAULT melalui GAS.
+       * Jika gagal/tidak tersedia, jangan fallback diam-diam ke storage browser.
+       */
+      const template =
+        await spreadsheetService.refreshKtaSettings('TMPL_DEFAULT');
+
+      if (!template) {
         throw new Error(
-          'Daftar anggota dari GAS kosong.'
+          'Template KTA TMPL_DEFAULT belum tersedia dari KTA Designer/GAS.'
         );
       }
 
-      const matched =
-        resolveMemberFromList(
-          rows,
-          user
-        );
+      setKtaData(rawMember);
+      setTemplateSettings(template);
+    } catch (error: any) {
+      console.error('Member KTA loading error:', error);
 
-      if (!matched) {
-        throw new Error(
-          'Record anggota untuk mode ini tidak ditemukan pada member.list GAS.'
-        );
-      }
+      const message =
+        error?.message ||
+        'Gagal memuat KTA dari GAS.';
 
-      setKtaData(matched);
-
-      if (!gasTemplate) {
-        setTemplateSettings(null);
-        setTemplateError(
-          'Template TMPL_DEFAULT tidak berhasil dimuat dari GAS.'
-        );
-        return;
-      }
-
-      setTemplateSettings(
-        gasTemplate
-      );
-    } catch (e: any) {
       setKtaData(null);
+      setTemplateSettings(null);
+      setLoadError(message);
 
-      setError(
-        e?.message ||
-        'KTA gagal dimuat dari GAS.'
-      );
+      addToast({
+        type: 'error',
+        title: 'Gagal Memuat KTA',
+        message,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadAll();
-  }, [
-    currentUser,
-    selectedMemberId,
-    qaPerspective,
-    scopeProvinceId,
-    scopeRegencyId,
-    scopeDistrictId,
-    scopePangkalanId,
-  ]);
+    void loadKta();
+    // selectedMemberId diperlukan untuk QA SuperAdmin.
+  }, [currentUser, selectedMemberId]);
 
-  const memberBinding:
-    KtaMemberBindingData | null =
+  const memberBinding: KtaMemberBindingData | null =
     useMemo(() => {
-      if (!ktaData) {
-        return null;
-      }
+      if (!ktaData) return null;
 
-      /*
-       * Gunakan mapper yang sama dengan
-       * Designer & KTA Management.
-       */
-      return mapMemberToKtaBinding(
-        ktaData
-      );
+      return {
+        id:
+          ktaData.id ||
+          ktaData.member_id,
+
+        nationalMemberNumber:
+          ktaData.nationalMemberNumber ||
+          ktaData.nomor_kta ||
+          ktaData.no_kta,
+
+        fullName:
+          ktaData.fullName ||
+          ktaData.full_name ||
+          ktaData.nama_lengkap,
+
+        membershipLevel:
+          ktaData.membershipLevel ||
+          ktaData.tingkat_keanggotaan ||
+          ktaData.position ||
+          'Anggota',
+
+        currentPosition:
+          ktaData.currentPosition ||
+          ktaData.position ||
+          ktaData.jabatan ||
+          'Anggota',
+
+        provinceName:
+          ktaData.provinceName ||
+          ktaData.provinsi_nama ||
+          ktaData.province,
+
+        regencyName:
+          ktaData.regencyName ||
+          ktaData.kabupaten_kota_nama ||
+          ktaData.kabupaten_nama ||
+          ktaData.city,
+
+        districtName:
+          ktaData.districtName ||
+          ktaData.kecamatan_nama ||
+          ktaData.district,
+
+        kwartirName:
+          (
+            ktaData.kabupaten_kota_nama ||
+            ktaData.kabupaten_nama ||
+            ktaData.city
+          )
+            ? `Kwarcab ${
+                ktaData.kabupaten_kota_nama ||
+                ktaData.kabupaten_nama ||
+                ktaData.city
+              }`
+            : 'Kwarcab SAKA Pariwisata',
+
+        kwartirHierarchy:
+          [
+            (
+              ktaData.provinsi_nama ||
+              ktaData.province
+            )
+              ? `Kwarda ${
+                  ktaData.provinsi_nama ||
+                  ktaData.province
+                }`
+              : '',
+            (
+              ktaData.kabupaten_kota_nama ||
+              ktaData.kabupaten_nama ||
+              ktaData.city
+            )
+              ? `Kwarcab ${
+                  ktaData.kabupaten_kota_nama ||
+                  ktaData.kabupaten_nama ||
+                  ktaData.city
+                }`
+              : '',
+            (
+              ktaData.kecamatan_nama ||
+              ktaData.district
+            )
+              ? `Kwarran ${
+                  ktaData.kecamatan_nama ||
+                  ktaData.district
+                }`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' • ') ||
+          'Kwartir Nasional',
+
+        krida:
+          ktaData.krida ||
+          ktaData.krida_nama,
+
+        phone:
+          ktaData.phone ||
+          ktaData.nomor_telepon,
+
+        email:
+          ktaData.email,
+
+        status:
+          ktaData.kta_status ||
+          ktaData.status_anggota ||
+          ktaData.status,
+
+        photoUrl:
+          ktaData.photoUrl ||
+          ktaData.photo_url ||
+          ktaData.foto_url,
+
+        qrUrl:
+          ktaData.verificationUrl ||
+          ktaData.verification_url ||
+          ktaData.qr_verification_url,
+
+        qrToken:
+          ktaData.qr_token ||
+          ktaData.nationalMemberNumber ||
+          ktaData.nomor_kta ||
+          ktaData.no_kta,
+      };
     }, [ktaData]);
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="text-center text-slate-500">
-          <RefreshCw className="w-6 h-6 mx-auto animate-spin text-[#0066B3]" />
-          <p className="text-sm mt-2">
-            Memuat anggota dan template KTA dari GAS...
+      <div className="p-8 text-center">
+        <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin text-[#0066B3]" />
+        <div>Memuat data anggota dan template KTA Designer...</div>
+      </div>
+    );
+  }
+
+  if (loadError || !memberBinding || !templateSettings) {
+    return (
+      <div className="p-6">
+        <div className="max-w-xl mx-auto rounded-2xl border border-rose-200 bg-rose-50 p-5 text-center">
+          <AlertCircle className="w-6 h-6 mx-auto text-rose-600 mb-2" />
+          <h3 className="font-bold text-rose-900">
+            KTA belum dapat ditampilkan
+          </h3>
+          <p className="text-sm text-rose-700 mt-1">
+            {loadError || 'Data anggota atau template KTA tidak tersedia dari GAS.'}
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-
-          <div>
-            <p className="font-bold text-red-900">
-              KTA tidak dapat dimuat
-            </p>
-
-            <p className="text-sm text-red-700 mt-1">
-              {error}
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                void loadAll()
-              }
-              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white border border-red-200 px-3 py-2 text-xs font-bold text-red-700"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Muat Ulang
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (
-    !memberBinding
-  ) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
-        Data anggota KTA tidak tersedia.
-      </div>
-    );
-  }
-
-  if (
-    !templateSettings
-  ) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-
-          <div>
-            <p className="font-bold text-amber-900">
-              Template KTA GAS belum tersedia
-            </p>
-
-            <p className="text-sm text-amber-800 mt-1">
-              {templateError ||
-                'TMPL_DEFAULT tidak berhasil dimuat.'}
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                void loadAll()
-              }
-              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Muat Ulang Template GAS
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => void loadKta()}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Coba Lagi
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-[#0066B3]">
-            KTA DIGITAL ANDA
-          </p>
+    <div className="space-y-6">
+      <div className="bg-white rounded-3xl border p-6">
+        <h2 className="text-xl font-black">
+          Kartu Tanda Anggota (KTA) Digital
+        </h2>
 
-          <h2 className="text-xl font-black text-slate-900 mt-1">
-            Kartu Tanda Anggota
-          </h2>
-
-          <p className="text-xs text-emerald-700 font-semibold mt-1">
-            Template aktif: {templateSettings.name || 'TMPL_DEFAULT'} • GAS
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            void loadAll()
-          }
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Muat Ulang
-        </button>
+        <p className="text-sm text-slate-500">
+          Data anggota dan desain KTA tersinkron langsung dari GAS/Spreadsheet.
+        </p>
       </div>
 
       <div className="flex justify-center">
         <DigitalMemberCard
           member={memberBinding}
-          previewSettings={
-            templateSettings
-          }
+          previewSettings={templateSettings}
           side={cardSide}
-          onSideChange={
-            setCardSide
-          }
+          onSideChange={setCardSide}
           showControls={true}
         />
       </div>
