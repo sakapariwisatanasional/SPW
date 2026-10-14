@@ -41,6 +41,7 @@ import { useAdminStore } from '../../admin/stores/adminStore';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { apiClient } from '../../../services/api/apiClient';
 import { resolveEffectiveMember } from '../utils/resolveEffectiveMember';
+import { PamongDashboardView } from './PamongDashboardView';
 
 interface MemberDashboardViewProps {
   onNavigateTab: (tabId: string) => void;
@@ -99,6 +100,29 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
   const effectiveMember: any =
     linkedMember ||
     (currentUser?.role === 'MEMBER' ? currentUser : {});
+
+  const effectivePosition = String(
+    effectiveMember?.position ||
+    effectiveMember?.jabatan ||
+    effectiveMember?.tingkat_keanggotaan ||
+    ''
+  )
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, ' ');
+
+  const isPamongDashboard =
+    effectivePosition === 'PAMONG SAKA' ||
+    String(qaPerspective || '').toUpperCase() === 'PAMONG_SAKA';
+
+  if (isPamongDashboard) {
+    return (
+      <PamongDashboardView
+        onNavigateTab={onNavigateTab}
+        effectiveMember={effectiveMember}
+      />
+    );
+  }
 
   const ktaNumber =
     effectiveMember?.nomor_kta ||
