@@ -23,7 +23,7 @@
  *   5. Profil
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard,
   CreditCard,
@@ -50,6 +50,7 @@ import { MemberPortfolioView } from '../features/membership/components/MemberPor
 import { MemberActivityView } from '../features/membership/components/MemberActivityView';
 import { MemberProfileView } from '../features/membership/components/MemberProfileView';
 import { useAdminStore } from '../features/admin/stores/adminStore';
+import { resolveEffectiveMember } from '../features/membership/utils/resolveEffectiveMember';
 
 export interface MemberLayoutProps {
   children?: React.ReactNode;
@@ -64,7 +65,75 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
 }) => {
   const { currentUser, switchRole } = useAuthStore();
   const { addToast, setActiveView } = useUIStore();
-  const { qaPerspective } = useAdminStore();
+  const {
+    qaPerspective,
+    members,
+    selectedMemberId,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
+    loadMembers,
+  } = useAdminStore();
+
+  useEffect(() => {
+    if (
+      currentUser?.role === ROLES.SUPER_ADMIN &&
+      qaPerspective !== 'SUPER_ADMIN' &&
+      (!Array.isArray(members) || members.length === 0)
+    ) {
+      void loadMembers();
+    }
+  }, [currentUser?.role, qaPerspective, members, loadMembers]);
+
+  const effectiveMember: any = useMemo(
+    () =>
+      resolveEffectiveMember({
+        members: Array.isArray(members) ? members : [],
+        currentUser,
+        qaPerspective,
+        selectedMemberId,
+        scope: {
+          provinceId: scopeProvinceId,
+          regencyId: scopeRegencyId,
+          districtId: scopeDistrictId,
+          pangkalanId: scopePangkalanId,
+        },
+      }) ||
+      (currentUser?.role === ROLES.MEMBER ? currentUser : null),
+    [
+      members,
+      currentUser,
+      qaPerspective,
+      selectedMemberId,
+      scopeProvinceId,
+      scopeRegencyId,
+      scopeDistrictId,
+      scopePangkalanId,
+    ]
+  );
+
+  const displayUser: any = effectiveMember || currentUser;
+  const displayName =
+    displayUser?.full_name ||
+    displayUser?.nama_lengkap ||
+    displayUser?.fullName ||
+    displayUser?.nama ||
+    'Anggota SAKA';
+
+  const displayKta =
+    displayUser?.nomor_kta ||
+    displayUser?.no_kta ||
+    displayUser?.memberId ||
+    displayUser?.id ||
+    'SPWN.MEMBER';
+
+  const displayPhoto =
+    displayUser?.photo_url ||
+    displayUser?.foto_url ||
+    displayUser?.photoUrl ||
+    displayUser?.avatarUrl ||
+    '';
 
   const [internalTab, setInternalTab] = useState<string>('dashboard');
 
@@ -169,16 +238,16 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
         <div className="p-4 mx-3 mt-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/70 border border-slate-200/60">
           <div className="flex items-center gap-3">
             <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-slate-900 shrink-0 border border-slate-300">
-              {currentUser.avatarUrl ? (
+              {displayPhoto ? (
                 <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.fullName}
+                  src={displayPhoto}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center font-bold text-white text-xs">
-                  {currentUser.fullName.charAt(0)}
+                  {String(displayName).charAt(0)}
                 </div>
               )}
               <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#009B4D] border border-white rounded-full" />
@@ -186,10 +255,10 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
 
             <div className="min-w-0 flex-1">
               <h4 className="text-xs font-bold text-slate-900 truncate leading-snug">
-                {currentUser.fullName}
+                {displayName}
               </h4>
               <p className="text-[10px] text-slate-500 truncate font-mono">
-                {currentUser.nomor_kta || currentUser.memberId || 'SPWN.MEMBER'}
+                {displayKta}
               </p>
               <div className="flex items-center gap-1 text-[9px] font-bold text-[#009B4D] mt-0.5">
                 <ShieldCheck className="w-3 h-3" />
