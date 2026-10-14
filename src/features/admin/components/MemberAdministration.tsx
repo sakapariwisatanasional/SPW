@@ -98,11 +98,85 @@ export const MemberAdministration: React.FC = () => {
     }
   };
 
-  const [subTab, setSubTab] = useState<'directory' | 'approval' | 'create'>('directory');
+  const [subTab, setSubTab] = useState<'directory' | 'approval' | 'position_change' | 'create'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterKrida, setFilterKrida] = useState<string>('ALL');
   const [filterProvince, setFilterProvince] = useState<string>('ALL');
+
+
+  // Antrean perubahan jabatan terpisah dari lifecycle approval pendaftaran.
+  const [positionChangeRequests, setPositionChangeRequests] = useState<any[]>([]);
+  const [positionChangeLoading, setPositionChangeLoading] = useState(false);
+  const [positionChangeError, setPositionChangeError] = useState('');
+  const [positionDecisionBusyId, setPositionDecisionBusyId] = useState<string | null>(null);
+
+  const loadPositionChangeRequests = async () => {
+    setPositionChangeLoading(true);
+    setPositionChangeError('');
+    try {
+      const response: any = await memberApi.listPendingPositionChanges();
+      const raw = response?.data?.data ?? response?.data ?? response ?? [];
+      const rows = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.data)
+          ? raw.data
+          : Array.isArray(raw?.items)
+            ? raw.items
+            : [];
+      setPositionChangeRequests(rows);
+    } catch (error: any) {
+      console.error('Gagal memuat pengajuan perubahan jabatan:', error);
+      setPositionChangeError(error?.message || 'Gagal memuat pengajuan perubahan jabatan.');
+      setPositionChangeRequests([]);
+    } finally {
+      setPositionChangeLoading(false);
+    }
+  };
+
+  const handlePositionDecision = async (request: any, decision: 'APPROVE' | 'REJECT') => {
+    const memberId = request?.id || request?.member_id || request?.memberId || '';
+    if (!memberId) {
+      addToast({ type: 'error', title: 'Gagal', message: 'Member ID pengajuan tidak ditemukan.' });
+      return;
+    }
+
+    const promptLabel = decision === 'APPROVE'
+      ? 'Catatan persetujuan (opsional)'
+      : 'Alasan penolakan (disarankan diisi)';
+    const note = window.prompt(promptLabel, '') ?? '';
+
+    setPositionDecisionBusyId(memberId);
+    try {
+      const response: any = await memberApi.decidePositionChange(memberId, decision, note.trim());
+      const result = response?.data?.data ?? response?.data ?? response ?? {};
+      const needsKta = Boolean(result?.require_generate_kta);
+
+      addToast({
+        type: 'success',
+        title: decision === 'APPROVE' ? 'Jabatan Disetujui' : 'Pengajuan Ditolak',
+        message: decision === 'APPROVE'
+          ? (needsKta
+              ? 'Jabatan resmi diperbarui. KTA anggota perlu diregenerasi.'
+              : 'Jabatan resmi berhasil diperbarui.')
+          : 'Jabatan resmi tidak berubah dan keputusan tersimpan di audit.',
+      });
+
+      await Promise.all([
+        loadPositionChangeRequests(),
+        refreshMembersFromApi(),
+      ]);
+    } catch (error: any) {
+      console.error('Gagal memproses perubahan jabatan:', error);
+      addToast({
+        type: 'error',
+        title: 'Keputusan Gagal Disimpan',
+        message: error?.message || 'Backend menolak keputusan perubahan jabatan.',
+      });
+    } finally {
+      setPositionDecisionBusyId(null);
+    }
+  };
 
   // Workflow Rejection / Revision Modal
   const [rejectWorkflowModal, setRejectWorkflowModal] = useState<{
@@ -200,6 +274,12 @@ export const MemberAdministration: React.FC = () => {
       }
     }
   }, [selectedMemberId, members, setSelectedMemberId]);
+
+  useEffect(() => {
+    if (subTab === 'position_change') {
+      void loadPositionChangeRequests();
+    }
+  }, [subTab]);
 
   // Create member state
   const [createLevel, setCreateLevel] = useState<OrganizationLevelType>('WILAYAH');
@@ -407,6 +487,24 @@ export const MemberAdministration: React.FC = () => {
             {approvalQueue.length > 0 && (
               <span className="bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px]">
                 {approvalQueue.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab('position_change')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              subTab === 'position_change'
+                ? 'bg-purple-700 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Perubahan Jabatan
+            {positionChangeRequests.length > 0 && (
+              <span className="bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px]">
+                {positionChangeRequests.length}
               </span>
             )}
           </button>
@@ -992,6 +1090,117 @@ export const MemberAdministration: React.FC = () => {
       {/* ------------------------------------------------------------- */}
       {/* SUB-TAB 3: REGISTRASI BARU MANUAL & KOLEKTIF                  */}
       {/* ------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------- */}
+      {/* SUB-TAB: PERUBAHAN JABATAN                                     */}
+      {/* ------------------------------------------------------------- */}
+      {subTab === 'position_change' && (
+        <div className="space-y-4">
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-bold text-purple-950">Antrean Perubahan Jabatan</p>
+              <p className="text-xs text-purple-700 mt-1">
+                Scope ditentukan backend dari session admin. Persetujuan tidak mengubah wilayah anggota dan tidak memberi hak jabatan sebelum disetujui.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadPositionChangeRequests()}
+              disabled={positionChangeLoading}
+              className="px-3 py-2 rounded-xl bg-white border border-purple-200 text-purple-800 text-xs font-bold disabled:opacity-50"
+            >
+              {positionChangeLoading ? 'Memuat...' : 'Muat Ulang'}
+            </button>
+          </div>
+
+          {positionChangeError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-3 text-xs">
+              {positionChangeError}
+            </div>
+          )}
+
+          {!positionChangeLoading && positionChangeRequests.length === 0 && !positionChangeError && (
+            <div className="py-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
+              Tidak ada pengajuan perubahan jabatan yang menunggu keputusan.
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {positionChangeRequests.map((request: any) => {
+              const memberId = request?.id || request?.member_id || request?.memberId || '';
+              const currentPosition = request?.position || request?.jabatan || request?.tingkat_keanggotaan || 'Anggota';
+              const requestedPosition = request?.requested_position || '-';
+              const memberName = request?.full_name || request?.nama_lengkap || request?.nama || memberId;
+              const isBusy = positionDecisionBusyId === memberId;
+
+              return (
+                <div key={`${memberId}-${requestedPosition}`} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="inline-flex px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                        PENDING
+                      </span>
+                      <h4 className="font-bold text-slate-900 mt-1">{memberName}</h4>
+                      <p className="text-[11px] text-slate-500 font-mono">{memberId}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openMemberDrawer(request as AdminMemberRecord, 'overview')}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                    >
+                      <Eye className="w-3.5 h-3.5 inline mr-1" /> Detail
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold">Jabatan Saat Ini</p>
+                      <p className="text-sm font-bold text-slate-800 mt-1">{currentPosition}</p>
+                    </div>
+                    <span className="text-slate-400 font-bold">→</span>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-purple-500 font-bold">Diminta</p>
+                      <p className="text-sm font-bold text-purple-800 mt-1">{requestedPosition}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <div><span className="font-semibold">Wilayah:</span> {request?.kabupaten_nama || request?.kabupaten_kota_nama || request?.city || '-'}</div>
+                    <div><span className="font-semibold">Pangkalan:</span> {request?.pangkalan_gudep || '-'}</div>
+                    <div><span className="font-semibold">Krida:</span> {request?.krida_nama || request?.krida || '-'}</div>
+                    <div><span className="font-semibold">Tanggal:</span> {request?.position_change_requested_at ? String(request.position_change_requested_at) : '-'}</div>
+                  </div>
+
+                  {request?.position_change_note && (
+                    <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-xs text-amber-900">
+                      <span className="font-bold">Catatan anggota:</span> {request.position_change_note}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => void handlePositionDecision(request, 'REJECT')}
+                      className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold disabled:opacity-50"
+                    >
+                      Tolak
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => void handlePositionDecision(request, 'APPROVE')}
+                      className="px-3 py-2 rounded-xl bg-[#0066B3] text-white text-xs font-bold disabled:opacity-50"
+                    >
+                      {isBusy ? 'Memproses...' : 'Setujui'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {subTab === 'create' && (
         <div className="max-w-3xl bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
           <div>
