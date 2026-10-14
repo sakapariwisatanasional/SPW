@@ -13,6 +13,7 @@ import {
   History,
   FileSpreadsheet,
   UserCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useAdminStore } from '../stores/adminStore';
 import { AdminScopeBar } from '../components/AdminScopeBar';
@@ -22,6 +23,7 @@ import { AdminAssignmentCenter } from '../components/AdminAssignmentCenter';
 import { KtaManagementCenter } from '../components/KtaManagementCenter';
 import { NationalRegionMaster } from '../components/NationalRegionMaster';
 import { AuditAccountability } from '../components/AuditAccountability';
+import { ContributionModerationPage } from './ContributionModerationPage';
 import { AdminActiveTab } from '../types/admin.types';
 
 export const AdminPortalPage: React.FC = () => {
@@ -43,7 +45,7 @@ export const AdminPortalPage: React.FC = () => {
   }, [loadDashboardData]);
 
   const TABS: {
-    id: AdminActiveTab;
+    id: AdminActiveTab | 'contributions';
     label: string;
     description: string;
     icon: React.ComponentType<{ className?: string }>;
@@ -81,6 +83,13 @@ export const AdminPortalPage: React.FC = () => {
       icon: Globe,
     },
     {
+      id: 'contributions',
+      label: 'Verifikasi Kontribusi',
+      description: 'Moderasi Warta, paket wisata, dan produk anggota sebelum tayang publik.',
+      icon: ClipboardCheck,
+      badge: '3 Kanal',
+    },
+    {
       id: 'audit',
       label: 'Audit & Akuntabilitas',
       description: 'Jejak perubahan dan aktivitas administratif.',
@@ -104,7 +113,7 @@ export const AdminPortalPage: React.FC = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as AdminActiveTab)}
                 aria-pressed={isActive}
                 className={`relative w-full min-h-[118px] rounded-2xl border-2 p-4 text-left transition-all cursor-pointer ${
                   isActive
@@ -190,6 +199,7 @@ export const AdminPortalPage: React.FC = () => {
         {activeTab === 'members' && <MemberAdministration />}
         {activeTab === 'kta' && <KtaManagementCenter />}
         {activeTab === 'regions' && <NationalRegionMaster />}
+        {(activeTab as string) === 'contributions' && <ContributionModerationPage />}
         {activeTab === 'audit' && <AuditAccountability />}
       </div>
     </div>
