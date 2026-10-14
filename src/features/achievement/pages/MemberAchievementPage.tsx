@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from 'react';
 import { Award, Compass, RefreshCw, AlertCircle, Users, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
+import { useUIStore } from '../../../stores/uiStore';
 import { useAchievementStore } from '../../../stores/achievementStore';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import { ROLES } from '../../../config/constants';
@@ -30,6 +31,7 @@ import { Button } from '../../../components/ui';
 
 export const MemberAchievementPage: React.FC = () => {
   const { currentUser } = useAuthStore();
+  const { setActiveView } = useUIStore();
   const {
     members: adminMembers,
     selectedMemberId,
@@ -691,8 +693,8 @@ export const MemberAchievementPage: React.FC = () => {
                   }
                   pamong={pamongContact}
                   pamongLoading={pamongLoading}
-                  onExploreCatalog={() => setSelectedKrida('pemandu')}
-                  onExploreKrida={() => setSelectedKrida('pemandu')}
+                  onExploreCatalog={() => setActiveView('krida')}
+                  onExploreKrida={() => setActiveView('krida')}
                   onOpenPortfolio={() => {
                     window.dispatchEvent(
                       new CustomEvent('spwn-member-navigate', {
