@@ -22,9 +22,6 @@ import {
 } from 'lucide-react';
 import { Card, Badge, Button, Avatar, Skeleton } from '../../../components/ui';
 import { useAuthStore } from '../../../stores/authStore';
-import { useAdminStore } from '../../admin/stores/adminStore';
-import { resolveEffectiveMember } from '../../membership/utils/resolveEffectiveMember';
-import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
 import { useUIStore } from '../../../stores/uiStore';
 import { formatCurrencyIDR } from '../../../utils/formatters';
 import { apiClient } from '../../../services/api/apiClient';
@@ -35,15 +32,6 @@ import { KtaCardSettings } from '../../../types/kta.types';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuthStore();
-  const {
-    members,
-    selectedMemberId,
-    qaPerspective,
-    scopeProvinceId,
-    scopeRegencyId,
-    scopeDistrictId,
-    scopePangkalanId,
-  } = useAdminStore();
   const { setActiveView, addToast } = useUIStore();
   const [isLoadingSkeleton, setIsLoadingSkeleton] = useState(false);
   const [selectedKridaFilter, setSelectedKridaFilter] = useState('ALL');
@@ -285,91 +273,73 @@ export const DashboardPage: React.FC = () => {
   const recentActivities: any[] = [];
 
 
-  const sessionProfile = (currentUser as any)?.memberProfile || {};
+  const profile = (currentUser as any)?.memberProfile || {};
 
-  // Rule of truth untuk preview KTA:
-  // - MEMBER nyata -> record anggota dirinya sendiri dari daftar GAS bila tersedia
-  // - QA SUPER_ADMIN -> record anggota sesuai perspektif/selected member
-  // - fallback terakhir hanya session profile agar dashboard tidak blank saat data anggota belum selesai dimuat
-  const effectiveMember = React.useMemo(() => {
-    const resolved = resolveEffectiveMember({
-      members: Array.isArray(members) ? members : [],
-      currentUser,
-      qaPerspective,
-      selectedMemberId,
-      scope: {
-        provinceId: scopeProvinceId,
-        regencyId: scopeRegencyId,
-        districtId: scopeDistrictId,
-        pangkalanId: scopePangkalanId,
-      },
-    });
-
-    return resolved || sessionProfile || currentUser || {};
-  }, [
-    members,
-    currentUser,
-    qaPerspective,
-    selectedMemberId,
-    scopeProvinceId,
-    scopeRegencyId,
-    scopeDistrictId,
-    scopePangkalanId,
-  ]);
-
+  // Patch aman: identitas anggota pada KTA harus mendahulukan memberProfile
+  // (record anggota) daripada role/session login. Ini mencegah QA SUPER_ADMIN
+  // tampil sebagai jabatan KTA anggota, tanpa menambah dependency baru ke Dashboard.
   const displayName =
-    effectiveMember?.full_name ||
-    effectiveMember?.nama_lengkap ||
-    effectiveMember?.fullName ||
-    effectiveMember?.nama ||
+    profile.full_name ||
+    profile.nama_lengkap ||
+    profile.nama ||
     currentUser?.fullName ||
+    (currentUser as any)?.full_name ||
+    (currentUser as any)?.nama ||
     currentUser?.username ||
     'Anggota SAKA';
 
   const displayRole =
-    effectiveMember?.position ||
-    effectiveMember?.jabatan ||
-    effectiveMember?.tingkat_keanggotaan ||
-    effectiveMember?.currentPosition ||
+    profile.position ||
+    profile.jabatan ||
+    profile.tingkat_keanggotaan ||
+    profile.currentPosition ||
     currentUser?.roleName ||
     currentUser?.role ||
     'ANGGOTA';
 
   const displayProvince =
-    effectiveMember?.provinsi_nama ||
-    effectiveMember?.provinceName ||
-    effectiveMember?.province ||
+    profile.provinsi_nama ||
+    profile.provinceName ||
+    profile.province ||
     currentUser?.province ||
     'Nasional';
 
   const displayPangkalan =
-    effectiveMember?.pangkalan_gudep ||
-    effectiveMember?.pangkalan ||
-    effectiveMember?.gugus_depan ||
+    profile.pangkalan_gudep ||
+    profile.pangkalan ||
+    profile.gugus_depan ||
+    currentUser?.pangkalan ||
     displayProvince;
 
   const displayKrida =
-    effectiveMember?.krida_nama ||
-    effectiveMember?.kridaName ||
-    effectiveMember?.krida ||
+    profile.krida_nama ||
+    profile.kridaName ||
+    profile.krida ||
+    (currentUser as any)?.kridaName ||
+    (currentUser as any)?.krida ||
     'Belum tersedia';
 
   const displayKta =
-    effectiveMember?.no_kta ||
-    effectiveMember?.nomor_kta ||
-    effectiveMember?.nomorKTA ||
+    profile.no_kta ||
+    profile.nomor_kta ||
+    profile.nomorKTA ||
+    (currentUser as any)?.no_kta ||
+    (currentUser as any)?.nomor_kta ||
+    (currentUser as any)?.nomorKTA ||
     'Belum tersedia';
 
   const displayPhoto =
-    effectiveMember?.photo_url ||
-    effectiveMember?.foto_url ||
-    effectiveMember?.photoUrl ||
+    profile.photo_url ||
+    profile.foto_url ||
+    profile.photoUrl ||
     currentUser?.avatarUrl ||
+    (currentUser as any)?.photo_url ||
     '';
 
   const displayStatus =
-    effectiveMember?.status_anggota ||
-    effectiveMember?.status ||
+    profile.status_anggota ||
+    profile.status ||
+    currentUser?.status ||
     'ACTIVE';
 
   const displayInitials =
@@ -380,44 +350,25 @@ export const DashboardPage: React.FC = () => {
       .substring(0,2)
       .toUpperCase();
 
-  // Gunakan mapper KTA kanonikal yang sama dengan KTA Management dan MemberKtaView.
-  // Ini mencegah perbedaan field seperti role vs position, province vs provinsi_nama, dll.
-  const dashboardKtaMember = React.useMemo(() =>
-    mapMemberToKtaBinding({
-      ...effectiveMember,
-      full_name: displayName,
-      nama_lengkap: displayName,
-      no_kta: displayKta,
-      nomor_kta: displayKta,
-      position: displayRole,
-      jabatan: displayRole,
-      provinsi_nama: displayProvince,
-      province: displayProvince,
-      pangkalan_gudep: displayPangkalan,
-      krida_nama: displayKrida,
-      krida: displayKrida,
-      photo_url: displayPhoto,
-      status_anggota: displayStatus,
-      status: displayStatus,
-      qr_token:
-        effectiveMember?.qr_token ||
-        effectiveMember?.verificationToken ||
-        effectiveMember?.verification_url ||
-        '',
-    }),
-    [
-      effectiveMember,
-      displayName,
-      displayKta,
-      displayRole,
-      displayProvince,
-      displayPangkalan,
-      displayKrida,
-      displayPhoto,
-      displayStatus,
-    ]
-  );
-
+  const dashboardKtaMember = {
+    id: profile.id || currentUser?.memberId || '',
+    fullName: displayName,
+    noKta: displayKta,
+    role: displayRole,
+    position: displayRole,
+    jabatan: displayRole,
+    kridaName: displayKrida,
+    province: displayProvince,
+    provinsi_nama: displayProvince,
+    photoUrl: displayPhoto,
+    photo_url: displayPhoto,
+    verificationToken:
+      profile.qr_token ||
+      profile.verification_url ||
+      '',
+    status: displayStatus,
+    status_anggota: displayStatus
+  };
 
   return (
     <div className="space-y-6">
@@ -433,10 +384,10 @@ export const DashboardPage: React.FC = () => {
               <span>SPWN Workspace 2.0 • Wonderful Indonesia</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Halo, {displayName}
+              Halo, {currentUser.fullName}
             </h1>
             <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
-              Anda terhubung sebagai <span className="font-bold text-white bg-white/15 px-2 py-0.5 rounded-md">{displayRole}</span> wilayah <span className="font-semibold text-white">{displayProvince}</span>. Akses kartu KTA, status verifikasi pangkalan, dan aktivitas ekosistem secara terpusat.
+              Anda terhubung sebagai <span className="font-bold text-white bg-white/15 px-2 py-0.5 rounded-md">{currentUser.roleName}</span> wilayah <span className="font-semibold text-white">{currentUser.province || 'Nasional'}</span>. Akses kartu KTA, status verifikasi pangkalan, dan aktivitas ekosistem secara terpusat.
             </p>
           </div>
 
