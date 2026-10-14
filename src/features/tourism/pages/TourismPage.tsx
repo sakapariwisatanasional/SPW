@@ -1,180 +1,44 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Compass,
-  Star,
-  MapPin,
-  CalendarDays,
-  RefreshCw,
-  AlertCircle,
-  Search,
-  Map,
-  Ticket,
-} from 'lucide-react';
+import { Compass, MapPin, RefreshCw, AlertCircle, Plus, CalendarDays, PackageOpen } from 'lucide-react';
+import { Card, Badge, Modal, Button } from '../../../components/ui';
 import { tourismApi, Destination, TourPackage } from '../../../services/api/tourism.api';
+import { useAuthStore } from '../../../stores/authStore';
+import { useUIStore } from '../../../stores/uiStore';
+import { ROLES } from '../../../config/constants';
 import { formatCurrencyIDR } from '../../../utils/formatters';
 
-export const TourismPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'destinations' | 'packages'>('destinations');
-  const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [packages, setPackages] = useState<TourPackage[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [packageError, setPackageError] = useState('');
+export const TourismPage:React.FC=()=>{
+  const {currentUser,isAuthenticated}=useAuthStore();
+  const {addToast}=useUIStore();
+  const [tab,setTab]=useState<'destinations'|'packages'|'mine'>('destinations');
+  const [destinations,setDestinations]=useState<Destination[]>([]),[packages,setPackages]=useState<TourPackage[]>([]),[mine,setMine]=useState<TourPackage[]>([]);
+  const [search,setSearch]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  const [modal,setModal]=useState(false),[submitting,setSubmitting]=useState(false);
+  const [form,setForm]=useState({nama_paket:'',deskripsi:'',harga:'',durasi:'',lokasi:'',kontak:'',url:'',foto_utama:''});
+  const canSubmit=isAuthenticated&&!!currentUser&&currentUser.role!==ROLES.PUBLIC_USER;
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    setPackageError('');
+  const load=async()=>{setLoading(true);setError('');try{
+    const d=await tourismApi.listDestinations({limit:100});setDestinations(Array.isArray(d.data)?d.data:[]);
+    try{const p=await tourismApi.listPackages({limit:100});setPackages(Array.isArray(p.data)?p.data:[]);}catch{setPackages([]);}
+    if(canSubmit){try{const m=await tourismApi.listMyPackages();setMine(Array.isArray(m.data)?m.data:[]);}catch{setMine([]);}}
+  }catch(e:any){setError(e?.message||'Gagal memuat data pariwisata dari GAS.');}finally{setLoading(false);}};
+  useEffect(()=>{void load();},[canSubmit]);
 
-    // Destinasi adalah data utama. Paket Wisata adalah subfitur opsional.
-    // Jangan gunakan Promise.all: satu endpoint opsional tidak boleh
-    // menjatuhkan seluruh halaman Wisata.
-    const destinationRequest = tourismApi.listDestinations({ limit: 100 });
-    const packageRequest = tourismApi.listPackages();
+  const filtered=useMemo(()=>{const q=search.trim().toLowerCase();return destinations.filter(d=>!q||[d.nama_destinasi,d.kategori,d.lokasi].some(v=>String(v||'').toLowerCase().includes(q)));},[destinations,search]);
 
-    const [destinationResult, packageResult] = await Promise.allSettled([
-      destinationRequest,
-      packageRequest,
-    ]);
+  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(!form.nama_paket.trim())return;setSubmitting(true);try{await tourismApi.submitPackage({...form,harga:Number(form.harga||0)});setForm({nama_paket:'',deskripsi:'',harga:'',durasi:'',lokasi:'',kontak:'',url:'',foto_utama:''});setModal(false);setTab('mine');const m=await tourismApi.listMyPackages();setMine(Array.isArray(m.data)?m.data:[]);addToast({type:'success',title:'Paket wisata terkirim',message:'Paket akan tampil umum setelah diverifikasi.'});}catch(e:any){addToast({type:'error',title:'Gagal mengirim paket',message:e?.message||'Terjadi kesalahan.'});}finally{setSubmitting(false);}};
 
-    if (destinationResult.status === 'fulfilled') {
-      const d = destinationResult.value;
-      setDestinations(Array.isArray(d.data) ? d.data : []);
-    } else {
-      setDestinations([]);
-      setError(
-        (destinationResult.reason as any)?.message ||
-        'Gagal memuat destinasi dari GAS.'
-      );
-    }
+  return <div className="space-y-4 pb-4">
+    <div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2"><Compass className="w-5 h-5 text-[#43A047]"/><h1 className="text-xl font-black text-slate-900">Wisata</h1></div><p className="text-xs text-slate-500 mt-1">Destinasi publik dan paket wisata karya anggota.</p></div><div className="flex gap-2"><button onClick={()=>void load()} className="w-10 h-10 rounded-xl border border-slate-200 bg-white grid place-items-center"><RefreshCw className={`w-4 h-4 ${loading?'animate-spin':''}`}/></button>{canSubmit&&<button onClick={()=>setModal(true)} className="w-10 h-10 rounded-xl bg-[#43A047] text-white grid place-items-center"><Plus className="w-5 h-5"/></button>}</div></div>
 
-    if (packageResult.status === 'fulfilled') {
-      const p = packageResult.value;
-      setPackages(Array.isArray(p.data) ? p.data : []);
-    } else {
-      setPackages([]);
-      setPackageError(
-        (packageResult.reason as any)?.message ||
-        'Paket wisata belum tersedia.'
-      );
-    }
+    <div className="flex gap-2 overflow-x-auto no-scrollbar"><button onClick={()=>setTab('destinations')} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${tab==='destinations'?'bg-[#0B5CAB] text-white':'bg-white border border-slate-200'}`}>Destinasi</button><button onClick={()=>setTab('packages')} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${tab==='packages'?'bg-[#43A047] text-white':'bg-white border border-slate-200'}`}>Paket Wisata</button>{canSubmit&&<button onClick={()=>setTab('mine')} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ${tab==='mine'?'bg-[#7E57C2] text-white':'bg-white border border-slate-200'}`}>Paket Saya</button>}</div>
 
-    setLoading(false);
-  };
+    {tab==='destinations'&&<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari destinasi..." className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white text-sm"/>}
 
-  useEffect(() => { void load(); }, []);
+    {loading?<Card><p className="text-sm text-slate-500">Memuat Wisata...</p></Card>:error?<Card><div className="flex gap-2 text-red-700"><AlertCircle className="w-4 h-4"/>{error}</div></Card>:tab==='destinations'?(filtered.length===0?<Card><p className="text-sm text-slate-500">Belum ada destinasi aktif.</p></Card>:<div className="flex gap-3 overflow-x-auto snap-x pb-2 no-scrollbar">{filtered.map(d=><article key={d.id} className="min-w-[78%] sm:min-w-[340px] snap-start bg-white border border-slate-200 rounded-2xl overflow-hidden"><div className="aspect-[16/9] bg-slate-100">{d.foto_utama?<img src={d.foto_utama} alt={d.nama_destinasi} className="w-full h-full object-cover"/>:<div className="w-full h-full grid place-items-center"><Compass className="w-9 h-9 text-slate-300"/></div>}</div><div className="p-3"><h3 className="font-extrabold text-sm">{d.nama_destinasi}</h3><p className="text-xs text-slate-500 mt-1 inline-flex items-center gap-1"><MapPin className="w-3 h-3"/>{d.lokasi||'-'}</p></div></article>)}</div>):(
+      (tab==='packages'?packages:mine).length===0?<Card><p className="text-sm text-slate-500">Belum ada paket wisata pada bagian ini.</p></Card>:<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{(tab==='packages'?packages:mine).map(p=><article key={p.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden"><div className="aspect-[16/9] bg-slate-100">{p.foto_utama?<img src={p.foto_utama} alt={p.nama_paket} className="w-full h-full object-cover"/>:<div className="w-full h-full grid place-items-center"><PackageOpen className="w-9 h-9 text-slate-300"/></div>}</div><div className="p-3 space-y-1.5"><div className="flex items-start justify-between gap-2"><h3 className="font-extrabold text-sm">{p.nama_paket}</h3>{tab==='mine'&&<Badge variant={String(p.status).toUpperCase()==='ACTIVE'?'green':String(p.status).toUpperCase()==='REJECTED'?'red':'gray'}>{p.status}</Badge>}</div>{p.lokasi&&<p className="text-xs text-slate-500 inline-flex items-center gap-1"><MapPin className="w-3 h-3"/>{p.lokasi}</p>}<div className="flex justify-between text-xs"><span className="inline-flex gap-1 items-center text-slate-500"><CalendarDays className="w-3 h-3"/>{p.durasi||'-'}</span><strong className="text-[#43A047]">{formatCurrencyIDR(Number(p.harga||0))}</strong></div>{p.deskripsi&&<p className="text-xs text-slate-600 line-clamp-2">{p.deskripsi}</p>}</div></article>)}</div>
+    )}
 
-  const filteredDestinations = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return destinations.filter((d) =>
-      !q || [d.nama_destinasi, d.kategori, d.lokasi]
-        .some((v) => String(v || '').toLowerCase().includes(q))
-    );
-  }, [destinations, search]);
-
-  return (
-    <div className="min-h-[calc(100vh-56px)] bg-[#F7FAFC] pb-5 sm:pb-10">
-      <section className="bg-gradient-to-br from-[#0B2F5B] via-[#0F6FAE] to-[#169CD8] px-4 pb-6 pt-5 text-white sm:px-6 sm:pb-9 sm:pt-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.2em] text-sky-100">
-                <Compass className="h-3.5 w-3.5" /> Jelajah Indonesia
-              </div>
-              <h1 className="mt-1 text-2xl font-black sm:text-4xl">Temukan destinasi</h1>
-              <p className="mt-1 max-w-xl text-xs text-sky-100 sm:text-sm">Geser kartu untuk menjelajah tanpa scroll panjang.</p>
-            </div>
-            <button onClick={() => void load()} className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 backdrop-blur" aria-label="Muat ulang">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-white/10 p-1.5 backdrop-blur-md sm:max-w-sm">
-            <button
-              onClick={() => setActiveTab('destinations')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${activeTab === 'destinations' ? 'bg-white text-[#0B2F5B] shadow' : 'text-white'}`}
-            >
-              <Map className="h-4 w-4" /> Destinasi
-            </button>
-            <button
-              onClick={() => setActiveTab('packages')}
-              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${activeTab === 'packages' ? 'bg-white text-[#0B2F5B] shadow' : 'text-white'}`}
-            >
-              <Ticket className="h-4 w-4" /> Paket
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-7">
-        {activeTab === 'destinations' && (
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari destinasi..."
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm outline-none focus:border-[#169CD8]"
-            />
-          </div>
-        )}
-
-        {loading ? (
-          <div className="grid h-44 place-items-center rounded-3xl bg-white text-sm text-slate-500 shadow-sm">Memuat data pariwisata...</div>
-        ) : error ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            <AlertCircle className="h-4 w-4 shrink-0" /> {error}
-          </div>
-        ) : activeTab === 'destinations' ? (
-          filteredDestinations.length === 0 ? (
-            <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">Belum ada destinasi aktif.</div>
-          ) : (
-            <div className="flex snap-x gap-3 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
-              {filteredDestinations.map((d) => (
-                <article key={d.id} className="min-w-[82%] snap-start overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm sm:min-w-0">
-                  <div className="relative h-44 bg-slate-100">
-                    {d.foto_utama ? <img src={d.foto_utama} alt={d.nama_destinasi} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><Compass className="h-8 w-8 text-slate-300" /></div>}
-                    <span className="absolute left-3 top-3 rounded-xl bg-white/95 px-2.5 py-1 text-[10px] font-black text-[#0B2F5B] shadow">{d.kategori || 'Wisata'}</span>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="line-clamp-1 text-base font-black text-[#0B2F5B]">{d.nama_destinasi}</h3>
-                    <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-500"><MapPin className="h-3.5 w-3.5 text-[#EC2F78]" />{d.lokasi}</p>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{d.deskripsi}</p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-xs font-black text-amber-600"><Star className="h-3.5 w-3.5 fill-current" />{d.rating_rata_rata || 0}</span>
-                      <span className="text-[10px] text-slate-400">{d.jumlah_ulasan || 0} ulasan</span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )
-        ) : packages.length === 0 ? (
-          <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
-            {packageError ? 'Paket wisata belum tersedia. Destinasi tetap dapat dijelajahi.' : 'Belum ada paket tur aktif.'}
-          </div>
-        ) : (
-          <div className="flex snap-x gap-3 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:overflow-visible">
-            {packages.map((p) => (
-              <article key={p.id} className="min-w-[82%] snap-start rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-orange-50 text-[#F7941D]"><CalendarDays className="h-5 w-5" /></span>
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{p.krida_fokus || 'Paket Wisata'}</span>
-                </div>
-                <h3 className="mt-4 text-base font-black text-[#0B2F5B]">{p.nama_paket}</h3>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">{p.deskripsi}</p>
-                <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-3 text-xs">
-                  <span className="text-slate-500">{p.durasi}</span>
-                  <strong className="text-sm text-[#F7941D]">{formatCurrencyIDR(Number(p.harga || 0))}</strong>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    <Modal isOpen={modal} onClose={()=>setModal(false)} title="Tambah Paket Wisata" description="Paket akan berstatus PENDING sampai diverifikasi pengurus."><form onSubmit={submit} className="space-y-3"><input required value={form.nama_paket} onChange={e=>setForm({...form,nama_paket:e.target.value})} placeholder="Nama paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><textarea value={form.deskripsi} onChange={e=>setForm({...form,deskripsi:e.target.value})} rows={3} placeholder="Deskripsi paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><div className="grid grid-cols-2 gap-2"><input value={form.harga} onChange={e=>setForm({...form,harga:e.target.value})} inputMode="numeric" placeholder="Harga" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.durasi} onChange={e=>setForm({...form,durasi:e.target.value})} placeholder="Durasi" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={form.lokasi} onChange={e=>setForm({...form,lokasi:e.target.value})} placeholder="Lokasi" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.kontak} onChange={e=>setForm({...form,kontak:e.target.value})} placeholder="Kontak/WhatsApp" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="URL informasi/pemesanan (opsional)" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.foto_utama} onChange={e=>setForm({...form,foto_utama:e.target.value})} placeholder="URL foto paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><Button type="submit" disabled={submitting}>{submitting?'Mengirim...':'Kirim untuk Verifikasi'}</Button></form></Modal>
+  </div>;
 };
-
-export default TourismPage;
