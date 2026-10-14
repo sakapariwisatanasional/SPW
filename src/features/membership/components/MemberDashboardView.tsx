@@ -40,6 +40,7 @@ import { useAchievementStore } from '../../../stores/achievementStore';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { apiClient } from '../../../services/api/apiClient';
+import { resolveEffectiveMember } from '../utils/resolveEffectiveMember';
 
 interface MemberDashboardViewProps {
   onNavigateTab: (tabId: string) => void;
@@ -62,126 +63,42 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({ onNavi
     members,
     selectedMemberId,
     qaPerspective,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
   } = useAdminStore();
 
-  // Resolve anggota efektif.
-  // Pada login MEMBER -> dirinya sendiri.
-  // Pada QA SuperAdmin -> record anggota nyata sesuai selectedMemberId/perspektif.
-  const linkedMember = useMemo(() => {
-    const list = Array.isArray(members) ? members : [];
-    const user: any = currentUser || {};
-
-    const norm = (value: unknown) =>
-      String(value ?? '').trim().toLowerCase();
-
-    const positionOf = (member: any) =>
-      String(
-        member?.position ||
-        member?.jabatan ||
-        member?.tingkat_keanggotaan ||
-        ''
-      )
-        .trim()
-        .toUpperCase()
-        .replace(/_/g, ' ');
-
-    const matchesIdentity = (member: any, identity: unknown) => {
-      const target = norm(identity);
-      if (!target) return false;
-
-      return [
-        member?.id,
-        member?.member_id,
-        member?.nomor_kta,
-        member?.no_kta,
-        member?.email,
-      ]
-        .map(norm)
-        .filter(Boolean)
-        .includes(target);
-    };
-
-    // 1. Pilihan QA nyata dari direktori admin selalu menang.
-    if (selectedMemberId) {
-      const selected = list.find((member: any) =>
-        matchesIdentity(member, selectedMemberId)
-      );
-
-      if (selected) return selected;
-    }
-
-    // 2. Untuk perspektif QA, pilih record nyata sesuai jabatan.
-    const perspective = String(qaPerspective || '').toUpperCase();
-
-    const desiredPositions: Record<string, string[]> = {
-      ANGGOTA: ['ANGGOTA', 'DEWAN SAKA'],
-      PAMONG_SAKA: ['PAMONG SAKA'],
-      PINSAKA: ['PIMPINAN SAKA', 'PINSAKA'],
-      MABISAKA: ['MABISAKA'],
-    };
-
-    const wanted = desiredPositions[perspective];
-
-    if (wanted) {
-      const matchedRole = list.find((member: any) =>
-        wanted.includes(positionOf(member))
-      );
-
-      if (matchedRole) return matchedRole;
-    }
-
-    // 3. Login MEMBER: cocokkan identitas session dengan Sheet Anggota.
-    const userKeys = [
-      user?.memberProfile?.member_id,
-      user?.memberProfile?.id,
-      user?.memberId,
-      user?.nomor_kta,
-      user?.no_kta,
-      user?.email,
+  // Satu resolver yang sama dengan Sidebar dan KTA Saya.
+  const linkedMember = useMemo(
+    () =>
+      resolveEffectiveMember({
+        members: Array.isArray(members) ? members : [],
+        currentUser,
+        qaPerspective,
+        selectedMemberId,
+        scope: {
+          provinceId: scopeProvinceId,
+          regencyId: scopeRegencyId,
+          districtId: scopeDistrictId,
+          pangkalanId: scopePangkalanId,
+        },
+      }),
+    [
+      members,
+      currentUser,
+      qaPerspective,
+      selectedMemberId,
+      scopeProvinceId,
+      scopeRegencyId,
+      scopeDistrictId,
+      scopePangkalanId,
     ]
-      .map(norm)
-      .filter(Boolean);
-
-    const userName = norm(user?.fullName);
-
-    return (
-      list.find((member: any) => {
-        const memberKeys = [
-          member?.id,
-          member?.member_id,
-          member?.nomor_kta,
-          member?.no_kta,
-          member?.email,
-        ]
-          .map(norm)
-          .filter(Boolean);
-
-        return userKeys.some((key) =>
-          memberKeys.includes(key)
-        );
-      }) ||
-      list.find((member: any) => {
-        const memberName = norm(
-          member?.nama_lengkap ||
-          member?.full_name ||
-          member?.fullName
-        );
-
-        return Boolean(userName) && memberName === userName;
-      }) ||
-      null
-    );
-  }, [
-    members,
-    currentUser,
-    selectedMemberId,
-    qaPerspective,
-  ]);
+  );
 
   const effectiveMember: any =
     linkedMember ||
-    currentUser ||
-    {};
+    (currentUser?.role === 'MEMBER' ? currentUser : {});
 
   const ktaNumber =
     effectiveMember?.nomor_kta ||
