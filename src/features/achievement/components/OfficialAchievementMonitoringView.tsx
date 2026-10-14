@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { apiClient } from '../../../services/api/apiClient';
+import { PamongSkkAssessmentMatrix } from './PamongSkkAssessmentMatrix';
 import { useAdminStore } from '../../admin/stores/adminStore';
 
 interface MonitoringData {
@@ -775,6 +776,14 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
                   </p>
                 </label>
               </div>
+
+              <PamongSkkAssessmentMatrix
+                member={reviewMember}
+                canAssess={Boolean(reviewMember?.canAssess)}
+                onUpdated={async () => {
+                  await load();
+                }}
+              />
 
               <div className="rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
