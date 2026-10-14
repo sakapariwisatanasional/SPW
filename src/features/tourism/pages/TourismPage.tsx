@@ -20,24 +20,47 @@ export const TourismPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [packageError, setPackageError] = useState('');
 
   const load = async () => {
     setLoading(true);
     setError('');
-    try {
-      const [d, p] = await Promise.all([
-        tourismApi.listDestinations({ limit: 100 }),
-        tourismApi.listPackages(),
-      ]);
+    setPackageError('');
+
+    // Destinasi adalah data utama. Paket Wisata adalah subfitur opsional.
+    // Jangan gunakan Promise.all: satu endpoint opsional tidak boleh
+    // menjatuhkan seluruh halaman Wisata.
+    const destinationRequest = tourismApi.listDestinations({ limit: 100 });
+    const packageRequest = tourismApi.listPackages();
+
+    const [destinationResult, packageResult] = await Promise.allSettled([
+      destinationRequest,
+      packageRequest,
+    ]);
+
+    if (destinationResult.status === 'fulfilled') {
+      const d = destinationResult.value;
       setDestinations(Array.isArray(d.data) ? d.data : []);
-      setPackages(Array.isArray(p.data) ? p.data : []);
-    } catch (e: any) {
+    } else {
       setDestinations([]);
-      setPackages([]);
-      setError(e?.message || 'Gagal memuat data pariwisata dari GAS.');
-    } finally {
-      setLoading(false);
+      setError(
+        (destinationResult.reason as any)?.message ||
+        'Gagal memuat destinasi dari GAS.'
+      );
     }
+
+    if (packageResult.status === 'fulfilled') {
+      const p = packageResult.value;
+      setPackages(Array.isArray(p.data) ? p.data : []);
+    } else {
+      setPackages([]);
+      setPackageError(
+        (packageResult.reason as any)?.message ||
+        'Paket wisata belum tersedia.'
+      );
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => { void load(); }, []);
@@ -128,7 +151,9 @@ export const TourismPage: React.FC = () => {
             </div>
           )
         ) : packages.length === 0 ? (
-          <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">Belum ada paket tur aktif.</div>
+          <div className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">
+            {packageError ? 'Paket wisata belum tersedia. Destinasi tetap dapat dijelajahi.' : 'Belum ada paket tur aktif.'}
+          </div>
         ) : (
           <div className="flex snap-x gap-3 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:overflow-visible">
             {packages.map((p) => (
