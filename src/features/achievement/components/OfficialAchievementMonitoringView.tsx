@@ -8,6 +8,10 @@ import {
   AlertCircle,
   MapPin,
   Eye,
+  X,
+  ClipboardCheck,
+  FileCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { apiClient } from '../../../services/api/apiClient';
 import { useAdminStore } from '../../admin/stores/adminStore';
@@ -78,6 +82,27 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
   const [tab, setTab] =
     useState<'participants' | 'pamongs'>('participants');
 
+  const [reviewMember, setReviewMember] =
+    useState<any | null>(null);
+
+  const [evidence, setEvidence] =
+    useState<any[]>([]);
+
+  const [evidenceLoading, setEvidenceLoading] =
+    useState(false);
+
+  const [reviewNotes, setReviewNotes] =
+    useState('');
+
+  const [assessmentScore, setAssessmentScore] =
+    useState('');
+
+  const [reviewSaving, setReviewSaving] =
+    useState(false);
+
+  const [reviewError, setReviewError] =
+    useState<string | null>(null);
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -139,6 +164,158 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEvidence = async (member: any) => {
+    const memberId =
+      member?.id ||
+      member?.member_id ||
+      member?.no_kta ||
+      member?.nomor_kta ||
+      '';
+
+    if (!memberId) return;
+
+    setEvidenceLoading(true);
+    setReviewError(null);
+
+    try {
+      const response = await apiClient.get<any>(
+        'pamong.evidence.list',
+        { member_id: memberId }
+      );
+
+      const payload =
+        response?.data?.data ??
+        response?.data ??
+        [];
+
+      setEvidence(
+        Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+          ? payload.items
+          : []
+      );
+    } catch (e: any) {
+      setEvidence([]);
+      setReviewError(
+        e?.message ||
+        'Bukti SKK gagal dimuat.'
+      );
+    } finally {
+      setEvidenceLoading(false);
+    }
+  };
+
+  const openReview = async (member: any) => {
+    setReviewMember(member);
+    setReviewNotes('');
+    setAssessmentScore('');
+    await loadEvidence(member);
+  };
+
+  const closeReview = () => {
+    setReviewMember(null);
+    setEvidence([]);
+    setReviewNotes('');
+    setAssessmentScore('');
+    setReviewError(null);
+  };
+
+  const verifyEvidence = async (
+    item: any,
+    status:
+      | 'VERIFIED'
+      | 'REVISION_REQUIRED'
+      | 'REJECTED'
+  ) => {
+    if (!reviewMember) return;
+
+    setReviewSaving(true);
+    setReviewError(null);
+
+    try {
+      await apiClient.post<any>(
+        'pamong.evidence.verify',
+        {
+          evidence_id:
+            item?.id ||
+            item?.evidence_id,
+          status,
+          notes: reviewNotes,
+        }
+      );
+
+      await Promise.all([
+        loadEvidence(reviewMember),
+        load(),
+      ]);
+    } catch (e: any) {
+      setReviewError(
+        e?.message ||
+        'Verifikasi bukti gagal disimpan.'
+      );
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const saveAssessment = async (item: any) => {
+    if (!reviewMember) return;
+
+    const skkCode =
+      item?.skk_code ||
+      item?.skkCode ||
+      '';
+
+    if (!skkCode) {
+      setReviewError(
+        'Evidence ini belum memiliki kode SKK.'
+      );
+      return;
+    }
+
+    setReviewSaving(true);
+    setReviewError(null);
+
+    try {
+      await apiClient.post<any>(
+        'pamong.skk.assessment.save',
+        {
+          member_id:
+            reviewMember?.id ||
+            reviewMember?.member_id ||
+            reviewMember?.no_kta ||
+            reviewMember?.nomor_kta,
+          skk_code: skkCode,
+          skk_nama:
+            item?.skk_nama ||
+            item?.title ||
+            skkCode,
+          krida_id:
+            item?.krida_id ||
+            reviewMember?.krida ||
+            '',
+          status: 'COMPLETED',
+          progress_percent: 100,
+          score:
+            assessmentScore ||
+            '',
+        }
+      );
+
+      await load();
+      setReviewNotes('');
+      setAssessmentScore('');
+    } catch (e: any) {
+      setReviewError(
+        e?.message ||
+        'Hasil pengujian SKK gagal disimpan.'
+      );
+    } finally {
+      setReviewSaving(false);
     }
   };
 
@@ -420,15 +597,24 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
                     </td>
 
                     <td className="px-4 py-3">
-                      {member.canAssess ? (
-                        <span className="inline-flex px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                          Dapat Verifikasi
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-2 py-1 rounded-lg bg-slate-50 text-slate-600 text-[10px] font-bold border border-slate-200">
-                          Lihat Saja
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => void openReview(member)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border ${
+                          member.canAssess
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {member.canAssess ? (
+                          <ClipboardCheck className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                        {member.canAssess
+                          ? 'Review & Verifikasi'
+                          : 'Lihat Bukti'}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -519,6 +705,213 @@ export const OfficialAchievementMonitoringView: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {reviewMember && (
+        <div className="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-black text-[#0066B3]">
+                  Review Anggota Binaan
+                </p>
+                <h3 className="text-lg font-black text-slate-900 mt-1">
+                  {reviewMember.full_name}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {reviewMember.krida || 'Krida belum dipilih'}
+                  {' • '}
+                  {reviewMember.no_kta || reviewMember.id}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeReview}
+                className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {reviewError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {reviewError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-[11px] font-bold text-slate-600">
+                    Catatan Pamong
+                  </span>
+                  <textarea
+                    value={reviewNotes}
+                    onChange={(event) => setReviewNotes(event.target.value)}
+                    rows={3}
+                    placeholder="Catatan verifikasi / alasan revisi..."
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#0066B3]"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-[11px] font-bold text-slate-600">
+                    Nilai Pengujian SKK (opsional)
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={assessmentScore}
+                    onChange={(event) => setAssessmentScore(event.target.value)}
+                    placeholder="0 - 100"
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#0066B3]"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Nilai digunakan ketika Pamong menandai SKK selesai.
+                  </p>
+                </label>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      Bukti / Portofolio SKK
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Verifikasi hanya aktif bila akun memiliki kewenangan assess pada scope ini.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void loadEvidence(reviewMember)}
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#0066B3]"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${evidenceLoading ? 'animate-spin' : ''}`} />
+                    Muat Ulang
+                  </button>
+                </div>
+
+                {evidenceLoading ? (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">
+                    Memuat bukti SKK...
+                  </div>
+                ) : evidence.length ? (
+                  <div className="divide-y divide-slate-100">
+                    {evidence.map((item: any) => {
+                      const status = String(
+                        item?.verification_status ||
+                        item?.status ||
+                        'PENDING'
+                      ).toUpperCase();
+
+                      return (
+                        <div
+                          key={item.id || item.evidence_id}
+                          className="p-4"
+                        >
+                          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-bold text-slate-900">
+                                  {item.title || item.skk_code || 'Bukti SKK'}
+                                </p>
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600">
+                                  {status}
+                                </span>
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 mt-1">
+                                {item.skk_code || '-'}
+                                {' • '}
+                                {item.evidence_type || 'BUKTI'}
+                              </p>
+
+                              {item.description && (
+                                <p className="text-xs text-slate-600 mt-2">
+                                  {item.description}
+                                </p>
+                              )}
+
+                              {(item.file_url || item.url) && (
+                                <a
+                                  href={item.file_url || item.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0066B3] mt-2"
+                                >
+                                  <FileCheck className="w-3.5 h-3.5" />
+                                  Buka Bukti
+                                </a>
+                              )}
+                            </div>
+
+                            {reviewMember.canAssess && (
+                              <div className="flex flex-wrap gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={reviewSaving}
+                                  onClick={() => void verifyEvidence(item, 'VERIFIED')}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-[10px] font-black disabled:opacity-50"
+                                >
+                                  Verifikasi
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={reviewSaving}
+                                  onClick={() => void verifyEvidence(item, 'REVISION_REQUIRED')}
+                                  className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black disabled:opacity-50"
+                                >
+                                  Minta Revisi
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={reviewSaving}
+                                  onClick={() => void verifyEvidence(item, 'REJECTED')}
+                                  className="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-[10px] font-black disabled:opacity-50"
+                                >
+                                  Tolak
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={reviewSaving || status !== 'VERIFIED'}
+                                  onClick={() => void saveAssessment(item)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-[#0066B3] text-white text-[10px] font-black disabled:opacity-40"
+                                  title={
+                                    status !== 'VERIFIED'
+                                      ? 'Verifikasi bukti terlebih dahulu'
+                                      : 'Catat SKK selesai'
+                                  }
+                                >
+                                  Selesaikan SKK
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">
+                    Belum ada bukti SKK yang diunggah anggota ini.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Setelah verifikasi atau penilaian, progres wilayah dimuat ulang dari GAS.
+              </div>
+            </div>
           </div>
         </div>
       )}
