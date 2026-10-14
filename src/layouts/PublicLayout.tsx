@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Home,
-  GraduationCap,
+  Users,
   Compass,
   QrCode,
-  MoreHorizontal,
-  Newspaper,
-  ShoppingBag,
+  Shapes,
   LogIn,
   UserPlus,
-  X,
   Search,
 } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
@@ -39,10 +36,11 @@ const DESKTOP_NAV = [
 ];
 
 const MOBILE_NAV = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'skk-learning', label: 'SKK', icon: GraduationCap },
-  { id: 'tourism', label: 'Jelajah', icon: Compass },
-  { id: 'kta-verification', label: 'KTA', icon: QrCode },
+  { id: 'home', label: 'Beranda', icon: Home },
+  { id: 'registration', label: 'Anggota', icon: Users },
+  { id: 'kta-verification', label: 'Cek KTA', icon: QrCode },
+  { id: 'skk-learning', label: 'Krida', icon: Shapes },
+  { id: 'tourism', label: 'Wisata', icon: Compass },
 ];
 
 export const PublicLayout: React.FC<PublicLayoutProps> = ({
@@ -50,11 +48,9 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
   activeNav = 'home',
   onNavigate,
 }) => {
-  const [moreOpen, setMoreOpen] = useState(false);
   const { setLoginModalOpen } = useUIStore();
 
   const go = (id: string) => {
-    setMoreOpen(false);
     onNavigate?.(id);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -157,8 +153,8 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
         </div>
       </footer>
 
-      {/* Mobile bottom navigation: icon first, short labels, always reachable. */}
-      <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white/95 px-2 pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl lg:hidden">
+      {/* Mobile bottom navigation: 5 shortcut utama sesuai kebutuhan pengguna HP. */}
+      <nav className="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white/95 px-1.5 pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {MOBILE_NAV.map((item) => {
             const Icon = item.icon;
@@ -168,67 +164,18 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => go(item.id)}
-                className={`flex min-h-[58px] flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition ${
+                className={`flex min-h-[58px] flex-col items-center justify-center rounded-2xl px-0.5 text-[9px] font-bold leading-tight transition ${
                   active ? 'bg-sky-50 text-[#0B68C8]' : 'text-slate-500'
                 }`}
+                aria-label={item.label}
               >
                 <Icon className={`mb-1 h-5 w-5 ${active ? 'stroke-[2.5]' : ''}`} />
-                {item.label}
+                <span className="whitespace-nowrap">{item.label}</span>
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => setMoreOpen(true)}
-            className="flex min-h-[58px] flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold text-slate-500"
-          >
-            <MoreHorizontal className="mb-1 h-5 w-5" />
-            Lainnya
-          </button>
         </div>
       </nav>
-
-      {moreOpen && (
-        <div className="fixed inset-0 z-[80] flex items-end bg-slate-950/35 backdrop-blur-[2px] lg:hidden" onClick={() => setMoreOpen(false)}>
-          <div
-            className="w-full rounded-t-[28px] bg-white px-4 pb-[max(18px,env(safe-area-inset-bottom))] pt-3 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-[#0B2F5B]">Menu lainnya</h3>
-              <button onClick={() => setMoreOpen(false)} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 grid grid-cols-4 gap-3">
-              {[
-                { id: 'content', label: 'Berita', icon: Newspaper, color: WI.pink },
-                { id: 'commerce', label: 'UMKM', icon: ShoppingBag, color: WI.orange },
-                { id: 'registration', label: 'Daftar', icon: UserPlus, color: WI.green },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button key={item.id} onClick={() => go(item.id)} className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center">
-                    <span className="grid h-11 w-11 place-items-center rounded-2xl text-white" style={{ backgroundColor: item.color }}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-700">{item.label}</span>
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => { setMoreOpen(false); setLoginModalOpen(true); }}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 text-center"
-              >
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#0B2F5B] text-white"><LogIn className="h-5 w-5" /></span>
-                <span className="text-[11px] font-bold text-slate-700">Masuk</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
