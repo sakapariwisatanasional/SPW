@@ -39,7 +39,7 @@ import { memberApi } from '../../../services/api/member.api';
 import { useAdminStore } from '../../admin/stores/adminStore';
 
 export const MemberProfileView: React.FC = () => {
-  const { currentUser, updateCurrentUserProfile, resetCurrentUserPassword } = useAuthStore();
+  const { currentUser, resetCurrentUserPassword } = useAuthStore();
   const { addToast } = useUIStore();
   const { qaPerspective, selectedMemberId } = useAdminStore();
 
@@ -59,7 +59,34 @@ export const MemberProfileView: React.FC = () => {
   const [avatarUrl, setAvatarUrl] = useState(currentUser.avatarUrl || '');
   const [pangkalan, setPangkalan] = useState(currentUser.pangkalan || '');
   const [kridaId, setKridaId] = useState(currentUser.kridaId || 'KRIDA_PEMANDU');
+  const [province, setProvince] = useState(currentUser.province || '');
+  const [provinceId, setProvinceId] = useState((currentUser as any).provinsi_id || '');
+  const [city, setCity] = useState(currentUser.cityName || (currentUser as any).city || '');
+  const [cityId, setCityId] = useState((currentUser as any).kabupaten_id || '');
+  const [district, setDistrict] = useState(currentUser.districtName || (currentUser as any).district || '');
+  const [districtId, setDistrictId] = useState((currentUser as any).kecamatan_id || '');
+  const [pangkalanId, setPangkalanId] = useState((currentUser as any).pangkalan_id || '');
+  const [isPublic, setIsPublic] = useState(
+    (currentUser as any).is_public !== false
+  );
+  const [position, setPosition] = useState(
+    String(
+      (currentUser as any).position ||
+      (currentUser as any).jabatan ||
+      (currentUser as any).membershipLevel ||
+      qaPerspective ||
+      'ANGGOTA'
+    )
+      .toUpperCase()
+      .replace(/_/g, ' ')
+  );
+  const [officialPosition, setOfficialPosition] = useState(position);
+  const [positionChangeStatus, setPositionChangeStatus] = useState('');
+  const [positionChangeNote, setPositionChangeNote] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
+  const [ktaRefreshRequired, setKtaRefreshRequired] = useState(false);
 
   // Form State for Password Change
   const [oldPassword, setOldPassword] = useState('');
@@ -74,14 +101,8 @@ export const MemberProfileView: React.FC = () => {
   const activityLogs: any[] = [];
 
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullName.trim()) {
-      addToast({ type: 'error', title: 'Validasi', message: 'Nama lengkap wajib diisi!' });
-      return;
-    }
-
-    const memberId = String(
+  const resolveMemberId = () =>
+    String(
       (currentUser as any)?.memberProfile?.id ||
       (currentUser as any)?.memberProfile?.member_id ||
       (currentUser.role === 'SUPER_ADMIN' ? selectedMemberId : '') ||
@@ -89,6 +110,240 @@ export const MemberProfileView: React.FC = () => {
       currentUser.id ||
       ''
     ).trim();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSelfProfile = async () => {
+      setIsLoadingProfile(true);
+      setProfileLoadError(null);
+
+      try {
+        const memberId = resolveMemberId();
+
+        const response =
+          await memberApi.getSelfProfile(
+            memberId || undefined
+          );
+
+        const payload: any =
+          response?.data?.data ??
+          response?.data ??
+          null;
+
+        const member =
+          payload?.member ||
+          payload ||
+          {};
+
+        if (cancelled) return;
+
+        setFullName(
+          member.full_name ||
+          member.nama_lengkap ||
+          currentUser.fullName ||
+          ''
+        );
+        setEmail(
+          member.email ||
+          currentUser.email ||
+          ''
+        );
+        setPhone(
+          member.phone ||
+          member.nomor_telepon ||
+          currentUser.phone ||
+          ''
+        );
+        setGender(
+          member.jenis_kelamin ||
+          member.gender ||
+          currentUser.gender ||
+          'L'
+        );
+        setBirthPlace(
+          member.tempat_lahir ||
+          member.birth_place ||
+          currentUser.birthPlace ||
+          ''
+        );
+        setBirthDate(
+          member.tanggal_lahir ||
+          member.birth_date ||
+          currentUser.birthDate ||
+          ''
+        );
+        setBloodType(
+          member.golongan_darah ||
+          member.blood_type ||
+          currentUser.bloodType ||
+          ''
+        );
+        setAddress(
+          member.alamat_domisili ||
+          member.address ||
+          currentUser.address ||
+          ''
+        );
+        setAvatarUrl(
+          member.photo_url ||
+          member.foto_url ||
+          currentUser.avatarUrl ||
+          ''
+        );
+
+        setProvince(
+          member.province ||
+          member.provinsi_nama ||
+          member.provinsi ||
+          currentUser.province ||
+          ''
+        );
+        setProvinceId(
+          member.provinsi_id ||
+          member.province_id ||
+          ''
+        );
+
+        setCity(
+          member.city ||
+          member.kabupaten_kota_nama ||
+          member.kabupaten_nama ||
+          currentUser.cityName ||
+          ''
+        );
+        setCityId(
+          member.kabupaten_kota_id ||
+          member.kabupaten_id ||
+          ''
+        );
+
+        setDistrict(
+          member.district ||
+          member.kecamatan_nama ||
+          member.kecamatan ||
+          currentUser.districtName ||
+          ''
+        );
+        setDistrictId(
+          member.kecamatan_id ||
+          member.wilayah_kecamatan_id ||
+          ''
+        );
+
+        setPangkalan(
+          member.pangkalan_gudep ||
+          member.pangkalan ||
+          currentUser.pangkalan ||
+          ''
+        );
+        setPangkalanId(
+          member.pangkalan_id ||
+          ''
+        );
+
+        const rawKridaId =
+          member.krida_id ||
+          currentUser.kridaId ||
+          '';
+
+        if (rawKridaId) {
+          setKridaId(rawKridaId);
+        } else {
+          const kridaName =
+            member.krida ||
+            member.krida_nama ||
+            currentUser.kridaName ||
+            '';
+
+          const matched =
+            KRIDA_MASTER.find(
+              (item) =>
+                item.name.toLowerCase() ===
+                String(kridaName).toLowerCase()
+            );
+
+          if (matched) {
+            setKridaId(matched.id);
+          }
+        }
+
+        setIsPublic(
+          member.is_public === undefined
+            ? true
+            : (
+                member.is_public === true ||
+                String(member.is_public).toLowerCase() === 'true'
+              )
+        );
+
+        const currentPosition = String(
+          member.position ||
+          member.jabatan ||
+          member.tingkat_keanggotaan ||
+          currentUser.membershipLevel ||
+          'ANGGOTA'
+        )
+          .toUpperCase()
+          .replace(/_/g, ' ');
+
+        const pendingPosition = String(
+          member.requested_position ||
+          ''
+        )
+          .toUpperCase()
+          .replace(/_/g, ' ');
+
+        setOfficialPosition(currentPosition);
+        setPosition(
+          pendingPosition ||
+          currentPosition
+        );
+        setPositionChangeStatus(
+          String(
+            member.position_change_status ||
+            ''
+          ).toUpperCase()
+        );
+        setPositionChangeNote(
+          member.position_change_note ||
+          ''
+        );
+      } catch (err: any) {
+        if (cancelled) return;
+        setProfileLoadError(
+          err?.message ||
+          'Profil GAS gagal dimuat.'
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    void loadSelfProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentUser?.id,
+    currentUser?.memberId,
+    selectedMemberId,
+    qaPerspective,
+  ]);
+
+
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) {
+      addToast({ type: 'error', title: 'Validasi', message: 'Nama lengkap wajib diisi!' });
+      return;
+    }
+
+    const memberId = resolveMemberId();
 
     if (!memberId) {
       addToast({ type: 'error', title: 'Profil Gagal Disimpan', message: 'Member ID GAS tidak ditemukan.' });
@@ -101,48 +356,190 @@ export const MemberProfileView: React.FC = () => {
       const payload = {
         full_name: fullName.trim(),
         nama_lengkap: fullName.trim(),
+
         email: email.trim(),
         phone: phone.trim(),
         nomor_telepon: phone.trim(),
+
         jenis_kelamin: gender,
+        gender,
+
         tempat_lahir: birthPlace.trim(),
         tanggal_lahir: birthDate,
         golongan_darah: bloodType,
         alamat_domisili: address.trim(),
+
         photo_url: avatarUrl.trim(),
         foto_url: avatarUrl.trim(),
+
+        province: province.trim(),
+        provinsi_nama: province.trim(),
+        provinsi_id: provinceId.trim(),
+
+        city: city.trim(),
+        kabupaten_kota_nama: city.trim(),
+        kabupaten_id: cityId.trim(),
+        kabupaten_kota_id: cityId.trim(),
+
+        district: district.trim(),
+        kecamatan_nama: district.trim(),
+        kecamatan_id: districtId.trim(),
+        wilayah_kecamatan_id: districtId.trim(),
+
         pangkalan_gudep: pangkalan.trim(),
+        pangkalan_id: pangkalanId.trim(),
+
+        is_public: isPublic,
+
+        requested_position: position,
+        position_change_note: positionChangeNote.trim(),
+
         ...(isParticipantMembership ? {
           krida_id: kridaId,
-          krida_nama: selectedKrida?.name || currentUser.kridaName || '',
-          krida: selectedKrida?.name || currentUser.kridaName || '',
+          krida_nama:
+            selectedKrida?.name ||
+            currentUser.kridaName ||
+            '',
+          krida:
+            selectedKrida?.name ||
+            currentUser.kridaName ||
+            '',
         } : {}),
       };
 
-      await memberApi.updateSelfProfile(memberId, payload);
+      const response =
+        await memberApi.updateSelfProfile(
+          memberId,
+          payload
+        );
 
-      // Sinkronkan session tampilan setelah GAS berhasil menulis.
-      updateCurrentUserProfile({
-        fullName: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        gender: gender as 'L' | 'P',
-        birthPlace: birthPlace.trim(),
-        birthDate,
-        bloodType,
-        address: address.trim(),
-        avatarUrl: avatarUrl.trim(),
-        pangkalan: pangkalan.trim(),
-        ...(isParticipantMembership ? {
+      const result: any =
+        response?.data?.data ??
+        response?.data ??
+        {};
+
+      const savedMember =
+        result?.member ||
+        {};
+
+      /*
+       * Sinkronisasi session HANYA setelah GAS sukses.
+       * Jangan memanggil updateCurrentUserProfile karena versi lama
+       * fungsi itu melakukan write kedua ke backend.
+       */
+      const updatedUser: any = {
+        ...currentUser,
+        fullName:
+          savedMember.full_name ||
+          fullName.trim(),
+        email:
+          savedMember.email ||
+          email.trim(),
+        phone:
+          savedMember.phone ||
+          phone.trim(),
+        gender:
+          savedMember.jenis_kelamin ||
+          gender,
+        birthPlace:
+          savedMember.tempat_lahir ||
+          birthPlace.trim(),
+        birthDate:
+          savedMember.tanggal_lahir ||
+          birthDate,
+        bloodType:
+          savedMember.golongan_darah ||
+          bloodType,
+        address:
+          savedMember.alamat_domisili ||
+          address.trim(),
+        avatarUrl:
+          savedMember.photo_url ||
+          avatarUrl.trim(),
+        province:
+          savedMember.province ||
+          province.trim(),
+        cityName:
+          savedMember.city ||
+          city.trim(),
+        districtName:
+          savedMember.district ||
+          district.trim(),
+        pangkalan:
+          savedMember.pangkalan_gudep ||
+          pangkalan.trim(),
+        kridaId:
+          savedMember.krida_id ||
           kridaId,
-          kridaName: selectedKrida?.name || currentUser.kridaName,
-        } : {}),
-      });
+        kridaName:
+          savedMember.krida ||
+          selectedKrida?.name ||
+          currentUser.kridaName,
+        is_public:
+          savedMember.is_public ??
+          isPublic,
+        memberProfile: {
+          ...((currentUser as any).memberProfile || {}),
+          ...savedMember,
+        },
+      };
+
+      useAuthStore.setState({
+        currentUser: updatedUser,
+      } as any);
+
+      try {
+        localStorage.setItem(
+          'spwn_session_user',
+          JSON.stringify(updatedUser)
+        );
+      } catch {
+        // Browser storage optional.
+      }
+
+      const requireKtaRefresh =
+        Boolean(result?.require_generate_kta);
+
+      setKtaRefreshRequired(
+        requireKtaRefresh
+      );
+
+      const positionChange =
+        result?.position_change ||
+        {};
+
+      setPositionChangeStatus(
+        String(
+          positionChange.status ||
+          savedMember.position_change_status ||
+          ''
+        ).toUpperCase()
+      );
+
+      if (
+        positionChange.requested_position
+      ) {
+        setPosition(
+          String(
+            positionChange.requested_position
+          )
+            .toUpperCase()
+            .replace(/_/g, ' ')
+        );
+      }
 
       addToast({
         type: 'success',
         title: 'Profil Diperbarui',
-        message: 'Data profil berhasil disimpan ke GAS.',
+        message:
+          String(
+            result?.position_change?.status ||
+            ''
+          ).toUpperCase() === 'PENDING'
+            ? 'Data profil tersimpan. Perubahan jabatan diajukan dan menunggu verifikasi admin/kwartir.'
+            : requireKtaRefresh
+            ? 'Data berhasil disimpan. Ada data KTA yang berubah; KTA perlu disinkronkan/generate ulang.'
+            : 'Semua perubahan profil berhasil disimpan ke GAS.',
       });
     } catch (err: any) {
       addToast({
@@ -176,7 +573,23 @@ export const MemberProfileView: React.FC = () => {
 
       // If user had force_change_password active, clear it now!
       if (currentUser.force_change_password) {
-        updateCurrentUserProfile({ force_change_password: false });
+        const nextUser: any = {
+          ...currentUser,
+          force_change_password: false,
+        };
+
+        useAuthStore.setState({
+          currentUser: nextUser,
+        } as any);
+
+        try {
+          localStorage.setItem(
+            'spwn_session_user',
+            JSON.stringify(nextUser)
+          );
+        } catch {
+          // Browser storage optional.
+        }
       }
 
       // Add to log
@@ -279,6 +692,17 @@ export const MemberProfileView: React.FC = () => {
       {/* ============================================================== */}
       {activeSubTab === 'profile' && (
         <form onSubmit={handleSaveProfile} className="space-y-6">
+          {profileLoadError && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              <strong>Profil GAS belum sinkron:</strong> {profileLoadError}
+            </div>
+          )}
+
+          {ktaRefreshRequired && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+              <strong>Data KTA berubah.</strong> Profil sudah tersimpan, tetapi KTA perlu disinkronkan/generate ulang agar data pada kartu mengikuti profil terbaru.
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Identity Card */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
@@ -388,14 +812,44 @@ export const MemberProfileView: React.FC = () => {
 
               <div className="space-y-3.5 text-xs">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Tingkatan SAKA Pariwisata</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={currentUser.membershipLevel || 'Anggota'}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-bold cursor-not-allowed"
-                  />
-                  <p className="text-[10px] text-slate-400">Ditetapkan oleh Kwartir Pengesah</p>
+                  <label className="font-bold text-slate-700">Jabatan SAKA Pariwisata</label>
+                  <select
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#009B4D] outline-hidden font-medium bg-white"
+                  >
+                    <option value="ANGGOTA">ANGGOTA</option>
+                    <option value="DEWAN SAKA">DEWAN SAKA</option>
+                    <option value="PAMONG SAKA">PAMONG SAKA</option>
+                    <option value="PIMPINAN SAKA">PIMPINAN SAKA / PINSAKA</option>
+                    <option value="MABISAKA">MABISAKA</option>
+                  </select>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-500">
+                    <div>
+                      Jabatan resmi saat ini:
+                      <strong className="ml-1 text-slate-700">{officialPosition}</strong>
+                    </div>
+                    {positionChangeStatus === 'PENDING' && (
+                      <div className="mt-1 text-amber-700 font-semibold">
+                        Perubahan ke {position} sedang menunggu verifikasi admin/kwartir.
+                      </div>
+                    )}
+                  </div>
+
+                  {position !== officialPosition && (
+                    <textarea
+                      rows={2}
+                      value={positionChangeNote}
+                      onChange={(e) => setPositionChangeNote(e.target.value)}
+                      placeholder="Alasan koreksi jabatan (opsional)"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-[#009B4D] outline-hidden font-medium"
+                    />
+                  )}
+
+                  <p className="text-[10px] text-slate-400">
+                    Jabatan dapat dikoreksi oleh user, tetapi perubahan jabatan struktural tidak langsung memberi hak akses baru sebelum diverifikasi admin/kwartir.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -424,26 +878,67 @@ export const MemberProfileView: React.FC = () => {
                   <input
                     type="text"
                     value={pangkalan}
-                    onChange={(e) => setPangkalan(e.target.value)}
+                    onChange={(e) => { setPangkalan(e.target.value); setPangkalanId(''); }}
                     placeholder="Contoh: Pangkalan Saka Pariwisata Kab. Bandung"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#009B4D] outline-hidden font-medium"
                   />
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Kwartir Daerah:</span>
-                    <span className="font-bold text-slate-800">{currentUser.province || 'Jawa Barat'}</span>
+                <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">Provinsi / Kwarda</label>
+                      <input
+                        type="text"
+                        value={province}
+                        onChange={(e) => { setProvince(e.target.value); setProvinceId(''); }}
+                        placeholder="Contoh: JAWA BARAT"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:border-[#009B4D] outline-hidden font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">Kabupaten/Kota / Kwarcab</label>
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={(e) => { setCity(e.target.value); setCityId(''); }}
+                        placeholder="Contoh: KOTA BEKASI"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:border-[#009B4D] outline-hidden font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">Kecamatan / Kwarran</label>
+                      <input
+                        type="text"
+                        value={district}
+                        onChange={(e) => { setDistrict(e.target.value); setDistrictId(''); }}
+                        placeholder="Contoh: BEKASI TIMUR"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:border-[#009B4D] outline-hidden font-medium"
+                      />
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Kwartir Cabang:</span>
-                    <span className="font-bold text-slate-800">{currentUser.cityName || 'Kabupaten Bandung'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Kwartir Ranting:</span>
-                    <span className="font-bold text-slate-800">{currentUser.districtName || 'Soreang'}</span>
-                  </div>
+
+                  <p className="text-[10px] text-slate-400">
+                    Koreksi wilayah disimpan ke profil anggota. Jabatan dapat diajukan koreksinya; tingkat organisasi tetap ditetapkan oleh admin/kwartir.
+                  </p>
                 </div>
+
+                <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-3.5 py-3">
+                  <div>
+                    <p className="font-bold text-slate-700">Tampilkan Profil pada Direktori Internal</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Mengatur visibilitas profil; tidak mengubah status keanggotaan.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                </label>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -469,14 +964,30 @@ export const MemberProfileView: React.FC = () => {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-start gap-3">
+              <Shield className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-black text-slate-800">
+                  Data sistem yang tidak dapat diubah sendiri
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Nomor KTA, ID anggota, status keanggotaan, tingkat organisasi, QR/verifikasi KTA,
+                  role akun, serta hasil penilaian/pencapaian tetap merupakan data sistem.
+                  Jabatan dapat diajukan koreksinya oleh user, tetapi baru menjadi jabatan resmi setelah diverifikasi admin/kwartir.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isSavingProfile}
+              disabled={isSavingProfile || isLoadingProfile}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#0066B3] hover:bg-[#005299] text-white text-xs font-bold shadow-md transition-all active:scale-95"
             >
               <Save className="w-4 h-4" />
-              <span>{isSavingProfile ? 'Menyimpan...' : 'Simpan Perubahan Profil'}</span>
+              <span>{isLoadingProfile ? 'Memuat Profil...' : isSavingProfile ? 'Menyimpan...' : 'Simpan Semua Perubahan'}</span>
             </button>
           </div>
         </form>
