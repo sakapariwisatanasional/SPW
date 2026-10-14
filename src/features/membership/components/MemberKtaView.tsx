@@ -28,6 +28,7 @@ import { useAdminStore } from '../../admin/stores/adminStore';
 import { memberApi } from '../../../services/api/member.api';
 import { spreadsheetService } from '../../../services/spreadsheetService';
 import { mapMemberToKtaBinding } from '../../../utils/ktaMemberMapper';
+import { resolveEffectiveMember } from '../utils/resolveEffectiveMember';
 
 const norm = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
@@ -49,6 +50,10 @@ export const MemberKtaView: React.FC = () => {
   const {
     selectedMemberId,
     qaPerspective,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
   } = useAdminStore();
 
   const [cardSide, setCardSide] =
@@ -72,148 +77,19 @@ export const MemberKtaView: React.FC = () => {
   const resolveMemberFromList = (
     rows: any[],
     user: any
-  ) => {
-    const list =
-      Array.isArray(rows)
-        ? rows
-        : [];
-
-    const matchesIdentity = (
-      member: any,
-      identity: unknown
-    ) => {
-      const target = norm(identity);
-
-      if (!target) return false;
-
-      return [
-        member?.id,
-        member?.member_id,
-        member?.nomor_kta,
-        member?.no_kta,
-        member?.email,
-      ]
-        .map(norm)
-        .filter(Boolean)
-        .includes(target);
-    };
-
-    // 1. Record nyata yang dipilih oleh SuperAdmin QA.
-    if (selectedMemberId) {
-      const selected = list.find(
-        (member: any) =>
-          matchesIdentity(
-            member,
-            selectedMemberId
-          )
-      );
-
-      if (selected) {
-        return selected;
-      }
-    }
-
-    // 2. QA perspective harus memakai record nyata sesuai jabatan.
-    const perspective =
-      String(
-        qaPerspective || ''
-      ).toUpperCase();
-
-    const desiredPositions:
-      Record<string, string[]> = {
-        ANGGOTA: [
-          'ANGGOTA',
-          'DEWAN SAKA',
-        ],
-        PAMONG_SAKA: [
-          'PAMONG SAKA',
-        ],
-        PINSAKA: [
-          'PIMPINAN SAKA',
-          'PINSAKA',
-        ],
-        MABISAKA: [
-          'MABISAKA',
-        ],
-      };
-
-    const wanted =
-      desiredPositions[perspective];
-
-    if (
-      user?.role === 'SUPER_ADMIN' &&
-      wanted
-    ) {
-      const roleMatch =
-        list.find(
-          (member: any) =>
-            wanted.includes(
-              normalizePosition(member)
-            )
-        );
-
-      if (roleMatch) {
-        return roleMatch;
-      }
-    }
-
-    // 3. Login anggota normal.
-    const identities = [
-      user?.memberProfile?.member_id,
-      user?.memberProfile?.id,
-      user?.memberId,
-      user?.nomor_kta,
-      user?.no_kta,
-      user?.email,
-    ]
-      .map(norm)
-      .filter(Boolean);
-
-    const exact =
-      list.find((member: any) => {
-        const memberIdentities = [
-          member?.id,
-          member?.member_id,
-          member?.nomor_kta,
-          member?.no_kta,
-          member?.email,
-        ]
-          .map(norm)
-          .filter(Boolean);
-
-        return identities.some(
-          (identity) =>
-            memberIdentities.includes(
-              identity
-            )
-        );
-      });
-
-    if (exact) {
-      return exact;
-    }
-
-    // 4. Nama hanya fallback terakhir.
-    const userName =
-      norm(user?.fullName);
-
-    if (userName) {
-      return (
-        list.find((member: any) => {
-          const name =
-            norm(
-              member?.full_name ||
-              member?.nama_lengkap ||
-              member?.fullName
-            );
-
-          return name === userName;
-        }) || null
-      );
-    }
-
-    return null;
-  };
+  ) =>
+    resolveEffectiveMember({
+      members: rows,
+      currentUser: user,
+      qaPerspective,
+      selectedMemberId,
+      scope: {
+        provinceId: scopeProvinceId,
+        regencyId: scopeRegencyId,
+        districtId: scopeDistrictId,
+        pangkalanId: scopePangkalanId,
+      },
+    });
 
   const loadAll = async () => {
     setLoading(true);
@@ -306,6 +182,10 @@ export const MemberKtaView: React.FC = () => {
     currentUser,
     selectedMemberId,
     qaPerspective,
+    scopeProvinceId,
+    scopeRegencyId,
+    scopeDistrictId,
+    scopePangkalanId,
   ]);
 
   const memberBinding:
