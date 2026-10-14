@@ -394,7 +394,22 @@ export const memberApi = {
    * Mengambil antrean anggota pending dari Google Apps Script
    */
   getPendingMembers: async (params?: Record<string, unknown>): Promise<ApiResponse<any[]>> => {
-    return apiClient.get<any[]>('member.list', params || {} as Record<string, unknown>);
+    const response = await apiClient.get<any[]>(
+      'admin.member.pending',
+      (params || {}) as Record<string, string | number>
+    );
+
+    const raw =
+      Array.isArray(response?.data) ? response.data :
+      Array.isArray((response as any)?.data?.data) ? (response as any).data.data :
+      Array.isArray((response as any)?.data?.members) ? (response as any).data.members :
+      Array.isArray((response as any)?.members) ? (response as any).members :
+      [];
+
+    return {
+      ...response,
+      data: raw.map(normalizeMemberKtaData),
+    };
   },
 
   /**
@@ -461,6 +476,16 @@ export const memberApi = {
    * Batch penerbitan KTA melalui Admin KTA Controller.
    * Digunakan KtaManagementCenter untuk menerbitkan seluruh antrean sekaligus.
    */
+  regenerateKta: async (
+    memberId: string,
+    reason: string
+  ): Promise<ApiResponse<any>> => {
+    return apiClient.post<any>('admin.kta.regenerate', {
+      member_id: memberId,
+      reason,
+    });
+  },
+
   batchGenerateKta: async (
     memberIds: string[],
     reason: string = 'Penerbitan Batch Otomatis'
