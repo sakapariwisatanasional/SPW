@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Award,
 } from 'lucide-react';
-import { KRIDA_LIST } from '../../krida/data/kridaData';
+import { KRIDA_LIST, SKK_MASTER_LIST } from '../../krida/data/kridaData';
 import { useUIStore } from '../../../stores/uiStore';
 
 const WI = ['#169CD8', '#F7941D', '#EC2F78', '#63B32E'];
@@ -23,10 +23,34 @@ export const SkkLearningCenterPage: React.FC = () => {
   const kridas = (KRIDA_LIST as any[]) || [];
   const activeKrida = kridas.find((k) => String(k.id) === selected) || kridas[0];
 
-  const skkCodes = useMemo(() => {
-    const list = Array.isArray(activeKrida?.skkCodes) ? activeKrida.skkCodes : [];
+  const skkItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return list.filter((code: string) => !q || String(code).toLowerCase().includes(q));
+    const activeKridaId = String(activeKrida?.id || '');
+    const activeCodes = new Set(
+      (Array.isArray(activeKrida?.skkCodes) ? activeKrida.skkCodes : [])
+        .map((code: unknown) => String(code || '').trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    return ((SKK_MASTER_LIST as any[]) || [])
+      .filter((item: any) => {
+        const code = String(item?.kode || item?.skk_code || item?.skkCode || '').trim().toUpperCase();
+        const kridaId = String(item?.kridaId || item?.krida_id || '').trim();
+        const belongsToKrida =
+          (activeKridaId && kridaId === activeKridaId) ||
+          (code && activeCodes.has(code));
+
+        if (!belongsToKrida) return false;
+        if (!q) return true;
+
+        const name = String(item?.nama || item?.skk_nama || item?.title || '').toLowerCase();
+        return code.toLowerCase().includes(q) || name.includes(q);
+      })
+      .sort((a: any, b: any) => {
+        const aCode = String(a?.kode || a?.skk_code || a?.skkCode || '');
+        const bCode = String(b?.kode || b?.skk_code || b?.skkCode || '');
+        return aCode.localeCompare(bCode, 'id', { numeric: true });
+      });
   }, [activeKrida, search]);
 
   const openSkk = (code: string) => setActiveView(`skk-${String(code).toLowerCase()}`);
@@ -74,34 +98,45 @@ export const SkkLearningCenterPage: React.FC = () => {
                 <h2 className="mt-1 truncate text-base font-black text-[#0B2F5B] sm:text-xl">{activeKrida.nama || activeKrida.name}</h2>
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{activeKrida.tagline || activeKrida.deskripsi || 'Kembangkan kecakapan pariwisata melalui SKK.'}</p>
               </div>
-              <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-black text-slate-500">{activeKrida.totalSkk || skkCodes.length} SKK</span>
+              <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-black text-slate-500">{activeKrida.totalSkk || skkItems.length} SKK</span>
             </div>
           </div>
         )}
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari kode SKK..." className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm outline-none focus:border-[#6F3BC5]" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari kode atau nama SKK..." className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm outline-none focus:border-[#6F3BC5]" />
         </div>
 
-        {skkCodes.length === 0 ? (
+        {skkItems.length === 0 ? (
           <div className="rounded-2xl bg-white p-5 text-center text-sm text-slate-500 shadow-sm">SKK tidak ditemukan.</div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {skkCodes.map((code: string, index: number) => (
-              <button
-                key={code}
-                onClick={() => openSkk(code)}
-                className="group flex min-h-[92px] items-center justify-between gap-2 rounded-[20px] border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
-              >
-                <div>
-                  <span className="grid h-8 w-8 place-items-center rounded-xl text-[10px] font-black text-white" style={{ backgroundColor: activeKrida?.warna || WI[index % WI.length] }}>{index + 1}</span>
-                  <div className="mt-2 text-sm font-black text-[#0B2F5B]">{code}</div>
-                  <div className="text-[9px] font-semibold text-slate-400">Buka materi</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#6F3BC5]" />
-              </button>
-            ))}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {skkItems.map((item: any, index: number) => {
+              const code = String(item?.kode || item?.skk_code || item?.skkCode || '');
+              const name = String(item?.nama || item?.skk_nama || item?.title || 'Nama SKK belum tersedia');
+
+              return (
+                <button
+                  key={code}
+                  onClick={() => openSkk(code)}
+                  className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
+                >
+                  <div className="min-w-0">
+                    <span
+                      className="grid h-8 w-8 place-items-center rounded-xl text-[10px] font-black text-white"
+                      style={{ backgroundColor: activeKrida?.warna || WI[index % WI.length] }}
+                    >
+                      {index + 1}
+                    </span>
+                    <div className="mt-2 text-xs font-black uppercase tracking-wide text-[#0066B3]">{code}</div>
+                    <div className="mt-0.5 line-clamp-2 text-sm font-black leading-5 text-[#0B2F5B]">{name}</div>
+                    <div className="mt-1 text-[9px] font-semibold text-slate-400">Buka materi</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#6F3BC5]" />
+                </button>
+              );
+            })}
           </div>
         )}
       </main>
