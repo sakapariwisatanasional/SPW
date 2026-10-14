@@ -49,6 +49,8 @@ import { MemberAchievementPage } from '../features/achievement/pages/MemberAchie
 import { MemberPortfolioView } from '../features/membership/components/MemberPortfolioView';
 import { MemberActivityView } from '../features/membership/components/MemberActivityView';
 import { MemberProfileView } from '../features/membership/components/MemberProfileView';
+import { SkkLearningCenterPage } from '../features/skk/pages/SkkLearningCenterPage';
+import { TourismPage } from '../features/tourism/pages/TourismPage';
 import { useAdminStore } from '../features/admin/stores/adminStore';
 import { resolveEffectiveMember } from '../features/membership/utils/resolveEffectiveMember';
 
@@ -167,13 +169,14 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
     { id: 'profil', label: 'Profil & Keamanan', icon: User, badge: null },
   ];
 
-  // Mobile Bottom Navigation Items (5 Items)
+  // Mobile Bottom Navigation Items (5 shortcut utama)
+  // Konsisten dengan navigasi publik, tetapi tujuannya disesuaikan untuk member aktif.
   const mobileNavItems = [
-    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-    { id: 'kta', label: 'KTA', icon: CreditCard },
-    { id: 'achievement', label: 'Progress', icon: Award },
-    { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
-    { id: 'profil', label: 'Profil', icon: User },
+    { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
+    { id: 'profil', label: 'Anggota', icon: User },
+    { id: 'kta', label: 'Cek KTA', icon: CreditCard },
+    { id: 'krida', label: 'Krida', icon: Award },
+    { id: 'wisata', label: 'Wisata', icon: Compass },
   ];
 
   // Render view corresponding to activeTab
@@ -198,6 +201,10 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
         return <MemberActivityView />;
       case 'profil':
         return <MemberProfileView />;
+      case 'krida':
+        return <SkkLearningCenterPage />;
+      case 'wisata':
+        return <TourismPage />;
       default:
         return children || <MemberDashboardView onNavigateTab={handleTabClick} />;
     }
@@ -284,7 +291,11 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
 
           {desktopNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === 'achievement' && activeTab === 'pencapaian');
+            const isActive =
+            activeTab === item.id ||
+            (item.id === 'krida' &&
+              ['achievement', 'pencapaian', 'member-achievement', 'skk-learning', 'skk'].includes(activeTab)) ||
+            (item.id === 'wisata' && activeTab === 'tourism');
 
             return (
               <button
@@ -424,7 +435,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
       {/* ============================================================== */}
       <nav
         id="member-mobile-bottom-nav"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1 flex items-center justify-around lg:hidden shadow-lg"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] flex items-center justify-around lg:hidden shadow-[0_-8px_30px_rgba(15,23,42,0.10)]"
         aria-label="Navigasi Anggota"
       >
         {mobileNavItems.map((item) => {
@@ -435,7 +446,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
             <button
               key={item.id}
               onClick={() => handleTabClick(item.id)}
-              className={`flex flex-col items-center justify-center w-14 min-h-[48px] py-1 transition-all rounded-xl ${
+              className={`flex flex-1 flex-col items-center justify-center min-h-[58px] py-1 transition-all rounded-2xl ${
                 isActive ? 'text-[#0066B3] font-black' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -449,7 +460,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
                   <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0066B3] rounded-full" />
                 )}
               </div>
-              <span className="text-[10px] mt-1 tracking-tight leading-none">{item.label}</span>
+              <span className="text-[9px] mt-1 tracking-tight leading-none whitespace-nowrap">{item.label}</span>
             </button>
           );
         })}
