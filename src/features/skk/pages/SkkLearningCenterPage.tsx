@@ -7,9 +7,12 @@ import {
   GraduationCap,
   Search,
   ChevronRight,
+  LockKeyhole,
+  CheckCircle2,
   Award,
 } from 'lucide-react';
 import { KRIDA_LIST, SKK_MASTER_LIST } from '../../krida/data/kridaData';
+import { useSkkSequentialAccess } from '../hooks/useSkkSequentialAccess';
 import { useUIStore } from '../../../stores/uiStore';
 
 const WI = ['#169CD8', '#F7941D', '#EC2F78', '#63B32E'];
@@ -17,6 +20,7 @@ const ICONS = [Compass, Megaphone, CalendarDays, Utensils];
 
 export const SkkLearningCenterPage: React.FC = () => {
   const { setActiveView } = useUIStore();
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
   const [selected, setSelected] = useState<string>(() => String((KRIDA_LIST as any[])?.[0]?.id || 'pemandu'));
   const [search, setSearch] = useState('');
 
@@ -53,7 +57,10 @@ export const SkkLearningCenterPage: React.FC = () => {
       });
   }, [activeKrida, search]);
 
-  const openSkk = (code: string) => setActiveView(`skk-${String(code).toLowerCase()}`);
+  const openSkk = (code: string) => {
+    if (!canOpen(code)) return;
+    setActiveView(`skk-${String(code).toLowerCase()}`);
+  };
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#F7FAFC] pb-5 sm:pb-10">
@@ -108,6 +115,7 @@ export const SkkLearningCenterPage: React.FC = () => {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari kode atau nama SKK..." className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm outline-none focus:border-[#6F3BC5]" />
         </div>
 
+        {isMember && (loading || error) && <div role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{loading ? 'Memuat status SKK dari server…' : error}</div>}
         {skkItems.length === 0 ? (
           <div className="rounded-2xl bg-white p-5 text-center text-sm text-slate-500 shadow-sm">SKK tidak ditemukan.</div>
         ) : (
@@ -115,12 +123,17 @@ export const SkkLearningCenterPage: React.FC = () => {
             {skkItems.map((item: any, index: number) => {
               const code = String(item?.kode || item?.skk_code || item?.skkCode || '');
               const name = String(item?.nama || item?.skk_nama || item?.title || 'Nama SKK belum tersedia');
+              const access = getAccess(code);
+              const locked = isMember && !canOpen(code);
+              const passed = isMember && !!access?.passed;
 
               return (
                 <button
                   key={code}
                   onClick={() => openSkk(code)}
-                  className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
+                  disabled={locked}
+                  title={locked ? (access?.blockedBy ? `Selesaikan ${access.blockedBy} dan tunggu kelulusan Pamong Saka` : 'Menunggu verifikasi status SKK') : undefined}
+                  className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-purple-200 enabled:hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <div className="min-w-0">
                     <span
@@ -131,9 +144,9 @@ export const SkkLearningCenterPage: React.FC = () => {
                     </span>
                     <div className="mt-2 text-xs font-black uppercase tracking-wide text-[#0066B3]">{code}</div>
                     <div className="mt-0.5 line-clamp-2 text-sm font-black leading-5 text-[#0B2F5B]">{name}</div>
-                    <div className="mt-1 text-[9px] font-semibold text-slate-400">Buka materi</div>
+                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Terkunci • Luluskan ${access.blockedBy} terlebih dahulu` : 'Status belum dapat diverifikasi') : passed ? 'Lulus • Lihat materi' : 'Aktif • Buka materi'}</div>
                   </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#6F3BC5]" />
+                  {locked ? <LockKeyhole className="h-4 w-4 shrink-0 text-slate-400" /> : passed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />}
                 </button>
               );
             })}
