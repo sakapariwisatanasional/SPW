@@ -1,432 +1,153 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Award,
-  CheckCircle2,
-  Clock3,
-  Save,
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Award, AlertCircle, RefreshCw, Save, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../../../services/api/apiClient';
 
-interface PamongSkkAssessmentMatrixProps {
-  member: any;
-  canAssess?: boolean;
-  onUpdated?: () => void | Promise<void>;
-}
+type Level = 'PURWA' | 'MADYA' | 'UTAMA';
+type RubricField = 'knowledge_level' | 'skill_level' | 'attitude_level' | 'product_level';
+type Rubric = Record<RubricField, string> & { assessment_note: string };
+interface Props { member: any; canAssess?: boolean; onUpdated?: () => void | Promise<void> }
+interface SkkItem { skkCode: string; nama?: string; kridaId?: string; kridaNama?: string; urutan?: number; isOfficial?: boolean; accessStatus?: string; blockedBy?: string }
+const LEVELS: Level[] = ['PURWA', 'MADYA', 'UTAMA'];
+const FIELDS: { key: RubricField; label: string }[] = [
+  { key: 'knowledge_level', label: 'Pengetahuan' },
+  { key: 'skill_level', label: 'Keterampilan' },
+  { key: 'attitude_level', label: 'Sikap kerja' },
+  { key: 'product_level', label: 'Produk / praktik' },
+];
+const emptyRubric = (): Rubric => ({ knowledge_level: '', skill_level: '', attitude_level: '', product_level: '', assessment_note: '' });
+const isOfficial = (code: string) => /^(PM-0[1-8]|PY-0[1-6]|ME-0[1-4]|KC-0[1-5])$/i.test(code);
+const responsePayload = (response: any) => response?.data?.data ?? response?.data ?? response;
 
-const upper = (value: unknown) =>
-  String(value ?? '').trim().toUpperCase();
-
-const statusLabel = (status: string) => {
-  const s = upper(status);
-
-  if (s === 'VERIFIED' || s === 'COMPLETED') return 'SELESAI';
-  if (s === 'SUBMITTED') return 'MENUNGGU REVIEW';
-  if (s === 'REVISION_REQUIRED') return 'REVISI';
-  if (s === 'IN_PROGRESS' || s === 'SELECTED') return 'PROSES';
-  if (s === 'RESUBMITTED') return 'DIKIRIM ULANG';
-
-  return 'BELUM DIMULAI';
-};
-
-const statusClass = (status: string) => {
-  const s = upper(status);
-
-  if (s === 'VERIFIED' || s === 'COMPLETED') {
-    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  }
-
-  if (s === 'SUBMITTED' || s === 'RESUBMITTED') {
-    return 'bg-blue-50 text-blue-700 border-blue-200';
-  }
-
-  if (s === 'REVISION_REQUIRED') {
-    return 'bg-amber-50 text-amber-700 border-amber-200';
-  }
-
-  if (s === 'IN_PROGRESS' || s === 'SELECTED') {
-    return 'bg-violet-50 text-violet-700 border-violet-200';
-  }
-
-  return 'bg-slate-50 text-slate-600 border-slate-200';
-};
-
-export const PamongSkkAssessmentMatrix: React.FC<PamongSkkAssessmentMatrixProps> = ({
-  member,
-  canAssess = false,
-  onUpdated,
-}) => {
-  const [items, setItems] = useState<any[]>([]);
+/**
+ * Matriks penilaian bertingkat. API tetap menjadi satu-satunya penentu otorisasi,
+ * verifikasi bukti, status ledger, dan pembukaan SKK berikutnya.
+ * Jangan menggunakan status pada MEMBER_SKILL_STATUS sebagai hasil kelulusan level.
+ */
+export const PamongSkkAssessmentMatrix: React.FC<Props> = ({ member, canAssess = false, onUpdated }) => {
+  const memberId = String(member?.id || member?.member_id || member?.no_kta || member?.nomor_kta || '').trim();
+  const [items, setItems] = useState<SkkItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [savingCode, setSavingCode] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [selectedKrida, setSelectedKrida] = useState('ALL');
-  const [scores, setScores] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [levels, setLevels] = useState<Record<string, Level>>({});
+  const [rubrics, setRubrics] = useState<Record<string, Rubric>>({});
+  const [assessedInSession, setAssessedInSession] = useState<Record<string, boolean>>({});
 
-  const memberId =
-    member?.id ||
-    member?.member_id ||
-    member?.no_kta ||
-    member?.nomor_kta ||
-    '';
-
-  const load = async () => {
-    if (!memberId) return;
-
+  const load = useCallback(async () => {
+    if (!memberId) { setItems([]); return; }
     setLoading(true);
-    setError(null);
-
+    setError('');
     try {
-      const response = await apiClient.get<any>(
-        'pamong.skk.available',
-        { member_id: memberId }
-      );
-
-      const payload =
-        response?.data?.data ??
-        response?.data ??
-        null;
-
-      const nextItems =
-        Array.isArray(payload?.skk)
-          ? payload.skk
-          : [];
-
-      setItems(nextItems);
-
-      const initialScores: Record<string, string> = {};
-      nextItems.forEach((item: any) => {
-        initialScores[item.skkCode] =
-          item.score == null ? '' : String(item.score);
-      });
-      setScores(initialScores);
+      const result = responsePayload(await apiClient.get<any>('pamong.skk.available', { member_id: memberId }));
+      setItems(Array.isArray(result?.skk) ? result.skk.filter((x: any) => isOfficial(String(x.skkCode || ''))) : []);
     } catch (e: any) {
       setItems([]);
-      setError(
-        e?.message ||
-        'Matriks SKK gagal dimuat.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
+      setError(e?.message || 'Gagal memuat katalog SKK.');
+    } finally { setLoading(false); }
   }, [memberId]);
 
-  const kridaOptions = useMemo(() => {
-    const map = new Map<string, string>();
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { setRubrics({}); setAssessedInSession({}); setLevels({}); setMessage(''); }, [memberId]);
 
-    items.forEach((item: any) => {
-      const id = String(item.kridaId || '').trim();
+  const kridaOptions = useMemo(() => Array.from(new Map(items.map(x => [String(x.kridaId || ''), String(x.kridaNama || x.kridaId || '')])).entries()).filter(([id]) => id), [items]);
+  const filtered = useMemo(() => items.filter(x => selectedKrida === 'ALL' || x.kridaId === selectedKrida).sort((a, b) => String(a.kridaId).localeCompare(String(b.kridaId)) || Number(a.urutan || 0) - Number(b.urutan || 0)), [items, selectedKrida]);
+  const keyFor = (code: string, level: Level) => `${code}:${level}`;
+  const levelFor = (code: string): Level => levels[code] || 'PURWA';
+  const rubricFor = (code: string, level: Level): Rubric => rubrics[keyFor(code, level)] || emptyRubric();
+  const updateRubric = (code: string, level: Level, field: keyof Rubric, value: string) => {
+    const k = keyFor(code, level);
+    setRubrics(prev => ({ ...prev, [k]: { ...(prev[k] || emptyRubric()), [field]: value } }));
+    setAssessedInSession(prev => ({ ...prev, [k]: false }));
+  };
+  const validRubric = (rubric: Rubric) => FIELDS.every(({key}) => rubric[key] !== '' && Number.isInteger(Number(rubric[key])) && Number(rubric[key]) >= 0 && Number(rubric[key]) <= 4);
 
-      if (!id) return;
-
-      map.set(
-        id,
-        item.kridaNama || id
-      );
-    });
-
-    return Array.from(map.entries());
-  }, [items]);
-
-  const filteredItems = useMemo(
-    () =>
-      selectedKrida === 'ALL'
-        ? items
-        : items.filter(
-            (item: any) =>
-              String(item.kridaId) ===
-              String(selectedKrida)
-          ),
-    [items, selectedKrida]
-  );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, any[]>();
-
-    filteredItems.forEach((item: any) => {
-      const key =
-        item.kridaNama ||
-        item.kridaId ||
-        'KRIDA';
-
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-
-      map.get(key)!.push(item);
-    });
-
-    return Array.from(map.entries());
-  }, [filteredItems]);
-
-  const saveAssessment = async (
-    item: any,
-    targetStatus: 'IN_PROGRESS' | 'COMPLETED'
-  ) => {
-    if (!canAssess) return;
-
-    setSavingCode(item.skkCode);
-    setError(null);
-
+  const run = async (item: SkkItem, action: 'assess' | 'pass') => {
+    if (!canAssess || !memberId) return;
+    const level = levelFor(item.skkCode);
+    const k = keyFor(item.skkCode, level);
+    const rubric = rubricFor(item.skkCode, level);
+    if (action === 'assess' && !validRubric(rubric)) {
+      setError('Isi keempat komponen rubrik dengan nilai bilangan bulat 0–4.'); return;
+    }
+    // The completion action is deliberately separate; only the backend confirms pass.
+    // A rubric must be saved in this session before this UI offers completion.
+    if (action === 'pass' && !assessedInSession[k]) {
+      setError('Simpan penilaian tingkat ini terlebih dahulu.'); return;
+    }
+    setBusy(k);
+    setError(''); setMessage('');
     try {
-      await apiClient.post<any>(
-        'pamong.skk.assessment.save',
-        {
-          member_id: memberId,
-          skk_code: item.skkCode,
-          skk_nama: item.nama,
-          krida_id: item.kridaId,
-          status: targetStatus,
-          progress_percent:
-            targetStatus === 'COMPLETED'
-              ? 100
-              : Math.max(
-                  1,
-                  Number(item.progressPercent || 0)
-                ),
-          score:
-            scores[item.skkCode] || '',
-          notes:
-            notes[item.skkCode] || '',
-        }
-      );
-
-      await load();
-
-      if (onUpdated) {
-        await onUpdated();
+      if (action === 'assess') {
+        const data = Object.fromEntries(FIELDS.map(({ key }) => [key, Number(rubric[key])]));
+        await apiClient.post<any>('pamong.skk.assessment.hybrid.save', {
+          member_id: memberId, skk_code: item.skkCode, level,
+          ...data, assessment_note: rubric.assessment_note,
+        });
+        setAssessedInSession(prev => ({ ...prev, [k]: true }));
+        setMessage(`Penilaian ${item.skkCode} ${level} tersimpan. Kelulusan belum ditetapkan.`);
+      } else {
+        await apiClient.post<any>('pamong.skk.hybrid.complete', { member_id: memberId, skk_code: item.skkCode, level });
+        setAssessedInSession(prev => ({ ...prev, [k]: false }));
+        setMessage(`${item.skkCode} ${level}: keputusan kelulusan berhasil dicatat oleh backend.`);
+        await load();
+        await onUpdated?.();
       }
     } catch (e: any) {
-      setError(
-        e?.message ||
-        'Penilaian SKK gagal disimpan.'
-      );
-    } finally {
-      setSavingCode(null);
-    }
+      setError(e?.message || 'Proses gagal. Periksa tingkat, prasyarat, bukti terverifikasi, dan hak Pamong.');
+    } finally { setBusy(''); }
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <div>
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4 text-[#0066B3]" />
-            <p className="text-sm font-black text-slate-900">
-              Matriks Penilaian SKK per Krida
-            </p>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Sumber SKK: SKK_Master • Status: Member_Skill_Status
-          </p>
+          <p className="flex items-center gap-2 text-sm font-black text-slate-900"><Award className="h-4 w-4" /> Penilaian SKK bertingkat</p>
+          <p className="mt-1 text-xs text-slate-600">Purwa, Madya, dan Utama dicatat terpisah. Persyaratan kelulusan diverifikasi di GAS.</p>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={selectedKrida}
-            onChange={(event) =>
-              setSelectedKrida(event.target.value)
-            }
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700"
-          >
+        <div className="flex items-center gap-2">
+          <select className="rounded-lg border px-2 py-2 text-xs" value={selectedKrida} onChange={e => setSelectedKrida(e.target.value)} aria-label="Filter Krida">
             <option value="ALL">Semua Krida</option>
-            {kridaOptions.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
+            {kridaOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
-
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-[#0066B3]"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${
-                loading ? 'animate-spin' : ''
-              }`}
-            />
-            Muat Ulang
-          </button>
+          <button type="button" onClick={() => void load()} className="flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold"><RefreshCw className="h-4 w-4" /> Muat ulang</button>
         </div>
       </div>
-
-      {error && (
-        <div className="m-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="px-4 py-10 text-center text-sm text-slate-500">
-          Memuat SKK per Krida...
-        </div>
-      ) : grouped.length ? (
+      {!!error && <div role="alert" className="m-4 flex gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
+      {!!message && <div role="status" className="m-4 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">{message}</div>}
+      {loading ? <p className="p-8 text-center text-sm text-slate-500">Memuat SKK...</p> : filtered.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">Belum ada SKK resmi yang dapat ditampilkan.</p> : (
         <div className="divide-y divide-slate-200">
-          {grouped.map(([kridaName, rows]) => (
-            <div key={kridaName}>
-              <div className="px-4 py-2.5 bg-slate-50/70">
-                <p className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                  {kridaName}
-                </p>
+          {filtered.map(item => {
+            const level = levelFor(item.skkCode);
+            const k = keyFor(item.skkCode, level);
+            const rubric = rubricFor(item.skkCode, level);
+            return (
+              <div key={item.skkCode} className="space-y-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="text-sm font-bold text-slate-900">{item.skkCode} — {item.nama}</p><p className="text-xs text-slate-500">{item.kridaNama || item.kridaId}</p></div>
+                  <label className="text-xs font-semibold text-slate-700">Tingkat
+                    <select value={level} onChange={e => { setLevels(prev => ({ ...prev, [item.skkCode]: e.target.value as Level })); setError(''); }} className="ml-2 rounded-lg border px-2 py-1.5" aria-label={`Tingkat ${item.skkCode}`}>
+                      {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-4">
+                  {FIELDS.map(({ key, label }) => <label key={key} className="text-xs text-slate-700">{label}
+                    <input type="number" inputMode="numeric" min={0} max={4} step={1} disabled={!canAssess || !!busy} value={rubric[key]} onChange={e => updateRubric(item.skkCode, level, key, e.target.value)} className="mt-1 block w-full rounded-lg border px-2 py-2 disabled:bg-slate-50" placeholder="0–4" />
+                  </label>)}
+                </div>
+                <label className="block text-xs text-slate-700">Catatan penilaian
+                  <input type="text" disabled={!canAssess || !!busy} value={rubric.assessment_note} onChange={e => updateRubric(item.skkCode, level, 'assessment_note', e.target.value)} className="mt-1 block w-full rounded-lg border px-2 py-2 disabled:bg-slate-50" placeholder="Catatan Pamong" />
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" disabled={!canAssess || !!busy || !validRubric(rubric)} onClick={() => void run(item, 'assess')} className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50"><Save className="h-4 w-4" /> Simpan penilaian</button>
+                  <button type="button" disabled={!canAssess || !!busy || !assessedInSession[k]} onClick={() => void run(item, 'pass')} className="flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Nyatakan lulus</button>
+                  <span className="text-xs text-slate-500">Kelulusan baru sah jika GAS menerima bukti terverifikasi, nilai, dan urutan tingkat.</span>
+                </div>
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left">
-                  <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                      <th className="px-4 py-2">SKK</th>
-                      <th className="px-4 py-2">Status</th>
-                      <th className="px-4 py-2">Progres</th>
-                      <th className="px-4 py-2">Nilai</th>
-                      <th className="px-4 py-2">Catatan</th>
-                      <th className="px-4 py-2">Aksi Pamong</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {rows.map((item: any) => {
-                      const completed =
-                        ['VERIFIED', 'COMPLETED'].includes(
-                          upper(item.status)
-                        );
-
-                      return (
-                        <tr key={item.skkCode}>
-                          <td className="px-4 py-3">
-                            <p className="text-xs font-black text-slate-900">
-                              {item.skkCode}
-                            </p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              {item.nama || '-'}
-                            </p>
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex px-2 py-1 rounded-lg border text-[9px] font-black ${statusClass(
-                                item.status
-                              )}`}
-                            >
-                              {statusLabel(item.status)}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <div className="w-28">
-                              <div className="flex justify-between text-[10px] mb-1">
-                                <span>
-                                  {Number(item.progressPercent || 0)}%
-                                </span>
-                              </div>
-                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-[#0066B3]"
-                                  style={{
-                                    width: `${Math.min(
-                                      100,
-                                      Number(item.progressPercent || 0)
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              disabled={!canAssess}
-                              value={scores[item.skkCode] ?? ''}
-                              onChange={(event) =>
-                                setScores((prev) => ({
-                                  ...prev,
-                                  [item.skkCode]: event.target.value,
-                                }))
-                              }
-                              className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-xs disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              disabled={!canAssess}
-                              value={notes[item.skkCode] ?? ''}
-                              onChange={(event) =>
-                                setNotes((prev) => ({
-                                  ...prev,
-                                  [item.skkCode]: event.target.value,
-                                }))
-                              }
-                              placeholder="Catatan penilaian"
-                              className="w-52 rounded-lg border border-slate-200 px-2 py-1.5 text-xs disabled:bg-slate-50"
-                            />
-                          </td>
-
-                          <td className="px-4 py-3">
-                            {canAssess ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {!completed && (
-                                  <button
-                                    type="button"
-                                    disabled={savingCode === item.skkCode}
-                                    onClick={() =>
-                                      void saveAssessment(item, 'IN_PROGRESS')
-                                    }
-                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 text-[9px] font-black disabled:opacity-50"
-                                  >
-                                    <Clock3 className="w-3 h-3" />
-                                    Proses
-                                  </button>
-                                )}
-
-                                <button
-                                  type="button"
-                                  disabled={savingCode === item.skkCode}
-                                  onClick={() =>
-                                    void saveAssessment(item, 'COMPLETED')
-                                  }
-                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-600 text-white text-[9px] font-black disabled:opacity-50"
-                                >
-                                  {completed ? (
-                                    <CheckCircle2 className="w-3 h-3" />
-                                  ) : (
-                                    <Save className="w-3 h-3" />
-                                  )}
-                                  {completed
-                                    ? 'Perbarui Nilai'
-                                    : 'Luluskan SKK'}
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-slate-400">
-                                Lihat saja
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="px-4 py-10 text-center text-sm text-slate-500">
-          SKK_Master belum memiliki data untuk anggota ini.
+            );
+          })}
         </div>
       )}
     </div>
