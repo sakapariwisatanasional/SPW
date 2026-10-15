@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Card, Badge, Button } from '../../../components/ui';
 import { SkkEvaluationMatrix } from '../components/SkkEvaluationMatrix';
+import { useSkkSequentialAccess } from '../hooks/useSkkSequentialAccess';
 import { useKridaStore } from '../../../stores/kridaStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { SkkLevelKey } from '../../../types/krida';
@@ -35,6 +36,7 @@ export const SkkDetailPage: React.FC<{
 }> = ({ skkCode, onBack }) => {
   const { selectedSkkCode, selectedLevelTab, setSelectedLevelTab, setSelectedKridaSlug } = useKridaStore();
   const { setActiveView } = useUIStore();
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
 
   const codeToDisplay = skkCode || selectedSkkCode || 'PM-01';
   const skk = SKK_MASTER_LIST.find((s) => s.kode.toUpperCase() === codeToDisplay.toUpperCase()) || SKK_MASTER_LIST[0];
@@ -79,6 +81,14 @@ export const SkkDetailPage: React.FC<{
     },
   ];
 
+  if (isMember && !canOpen(codeToDisplay)) {
+    const blocker = getAccess(codeToDisplay)?.blockedBy;
+    return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 space-y-3">
+      <h2 className="text-xl font-bold text-amber-900">SKK belum dapat dibuka</h2>
+      <p className="text-sm text-amber-800">{loading ? 'Memeriksa status SKK…' : error || (blocker ? `Selesaikan ${blocker} dan tunggu keputusan lulus Pamong Saka sebelum mengerjakan ${codeToDisplay}.` : 'SKK ini belum tersedia untuk akun Anda.')}</p>
+      <button className="rounded-lg bg-amber-900 px-4 py-2 text-white" onClick={() => setActiveView('skk-learning')}>Kembali ke daftar SKK</button>
+    </div>;
+  }
   return (
     <div className="space-y-6">
       {/* Navigation Breadcrumbs & Action Bar */}
