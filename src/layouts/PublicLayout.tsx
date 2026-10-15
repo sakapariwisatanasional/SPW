@@ -51,8 +51,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
   const { setLoginModalOpen } = useUIStore();
 
   const go = (id: string) => {
+    // Lepaskan rute verifikasi QR agar navigasi publik dapat membuka halaman lain.
+    if (typeof window !== 'undefined' && /^\/verifikasi(?:\/|$)/i.test(window.location.pathname)) {
+      window.history.replaceState(window.history.state, '', '/');
+    }
     onNavigate?.(id);
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const isActive = (id: string) =>
