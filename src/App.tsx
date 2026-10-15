@@ -55,6 +55,17 @@ export default function App() {
 
   const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
+  // Bila sesi dipulihkan di URL QR, langsung kembalikan pengguna ke dashboard.
+  // QR publik tetap tersedia untuk pengunjung yang belum login.
+  React.useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+    if (/^\/verifikasi(?:\/|$)/i.test(window.location.pathname)) {
+      window.history.replaceState(window.history.state, '', '/');
+      setActiveView('dashboard');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [isAuthenticated, setActiveView]);
+
   // Role Access Guard
   const renderActiveView = () => {
     switch (activeView) {
@@ -182,7 +193,7 @@ export default function App() {
     const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
     return path === '/verifikasi' || path.startsWith('/verifikasi/');
   })();
-  if (isDirectVerificationRoute) {
+  if (isDirectVerificationRoute && !isAuthenticated && activeView === 'home') {
     return (
       <>
         <PublicLayout activeNav="verifikasi" onNavigate={(navId) => setActiveView(navId)}>
