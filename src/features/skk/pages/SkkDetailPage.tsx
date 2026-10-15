@@ -36,7 +36,7 @@ export const SkkDetailPage: React.FC<{
 }> = ({ skkCode, onBack }) => {
   const { selectedSkkCode, selectedLevelTab, setSelectedLevelTab, setSelectedKridaSlug } = useKridaStore();
   const { setActiveView } = useUIStore();
-  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess(selectedLevelTab.toUpperCase() as 'PURWA' | 'MADYA' | 'UTAMA');
 
   const codeToDisplay = skkCode || selectedSkkCode || 'PM-01';
   const skk = SKK_MASTER_LIST.find((s) => s.kode.toUpperCase() === codeToDisplay.toUpperCase()) || SKK_MASTER_LIST[0];
