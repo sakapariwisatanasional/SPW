@@ -14,13 +14,17 @@ import {
 import { KRIDA_LIST, SKK_MASTER_LIST } from '../../krida/data/kridaData';
 import { useSkkSequentialAccess } from '../hooks/useSkkSequentialAccess';
 import { useUIStore } from '../../../stores/uiStore';
+import { useKridaStore } from '../../../stores/kridaStore';
 
 const WI = ['#169CD8', '#F7941D', '#EC2F78', '#63B32E'];
 const ICONS = [Compass, Megaphone, CalendarDays, Utensils];
 
 export const SkkLearningCenterPage: React.FC = () => {
   const { setActiveView } = useUIStore();
-  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
+  const { selectedLevelTab, setSelectedLevelTab, setSelectedSkkCode } = useKridaStore();
+  const level = selectedLevelTab.toUpperCase() as 'PURWA' | 'MADYA' | 'UTAMA';
+  const setLevel = (next: 'PURWA' | 'MADYA' | 'UTAMA') => setSelectedLevelTab(next.toLowerCase() as 'purwa' | 'madya' | 'utama');
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess(level);
   const [selected, setSelected] = useState<string>(() => String((KRIDA_LIST as any[])?.[0]?.id || 'pemandu'));
   const [search, setSearch] = useState('');
 
@@ -59,6 +63,7 @@ export const SkkLearningCenterPage: React.FC = () => {
 
   const openSkk = (code: string) => {
     if (!canOpen(code)) return;
+    setSelectedSkkCode(code);
     setActiveView(`skk-${String(code).toLowerCase()}`);
   };
 
@@ -110,6 +115,20 @@ export const SkkLearningCenterPage: React.FC = () => {
           </div>
         )}
 
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="mb-2 text-xs font-bold text-[#0B2F5B]">Tingkatan kecakapan</div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Pilih tingkat SKK">
+            {(['PURWA','MADYA','UTAMA'] as const).map((candidate) => (
+              <button key={candidate} type="button" onClick={() => setLevel(candidate)}
+                aria-pressed={level === candidate}
+                className={`rounded-xl px-4 py-2 text-xs font-bold ${level === candidate ? 'bg-[#48218A] text-white' : 'bg-slate-100 text-slate-700'}`}>
+                {candidate.charAt(0) + candidate.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Madya terbuka setelah seluruh SKK Purwa di Krida ini lulus; Utama setelah seluruh SKK Madya lulus. Status ditentukan oleh GAS.</p>
+        </div>
+
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari kode atau nama SKK..." className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm outline-none focus:border-[#6F3BC5]" />
@@ -144,7 +163,7 @@ export const SkkLearningCenterPage: React.FC = () => {
                     </span>
                     <div className="mt-2 text-xs font-black uppercase tracking-wide text-[#0066B3]">{code}</div>
                     <div className="mt-0.5 line-clamp-2 text-sm font-black leading-5 text-[#0B2F5B]">{name}</div>
-                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Terkunci • Luluskan ${access.blockedBy} terlebih dahulu` : 'Status belum dapat diverifikasi') : passed ? 'Lulus • Lihat materi' : 'Aktif • Buka materi'}</div>
+                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Terkunci • Luluskan ${access.blockedBy} terlebih dahulu` : access?.blockedLevel ? `Tuntaskan ${access.blockedLevel} pada Krida ini` : 'Status belum dapat diverifikasi') : passed ? 'Lulus • Lihat materi' : 'Aktif • Buka materi'}</div>
                   </div>
                   {locked ? <LockKeyhole className="h-4 w-4 shrink-0 text-slate-400" /> : passed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />}
                 </button>
