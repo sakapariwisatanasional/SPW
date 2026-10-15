@@ -57,7 +57,7 @@ export const PublicRegistrationPage: React.FC = () => {
     nama_lengkap: '',
     tempat_lahir: '',
     tanggal_lahir: '',
-    jenis_kelamin: 'L' as 'L' | 'P',
+    jenis_kelamin: '' as '' | 'L' | 'P',
     golongan_darah: 'O',
     email: '',
     nomor_telepon: '',
@@ -192,6 +192,10 @@ export const PublicRegistrationPage: React.FC = () => {
     }
     if (!formData.tempat_lahir.trim() || !formData.tanggal_lahir) {
       setErrorMsg('Tempat dan tanggal lahir wajib diisi.');
+      return;
+    }
+    if (formData.jenis_kelamin !== 'L' && formData.jenis_kelamin !== 'P') {
+      setErrorMsg('Pilih jenis kelamin sesuai identitas.');
       return;
     }
     if (!formData.email.trim() || !formData.email.includes('@')) {
@@ -550,6 +554,7 @@ export const PublicRegistrationPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, jenis_kelamin: e.target.value as 'L' | 'P' })}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-[#009B4D]/30 focus:border-[#009B4D]"
               >
+                <option value="" disabled>Pilih jenis kelamin</option>
                 <option value="L">Laki-laki</option>
                 <option value="P">Perempuan</option>
               </select>
