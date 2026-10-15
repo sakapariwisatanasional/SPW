@@ -18,8 +18,10 @@ import {
   Award,
   Layers,
   FileCheck,
+  LockKeyhole,
 } from 'lucide-react';
 import { Card, Badge, Button } from '../../../components/ui';
+import { useSkkSequentialAccess } from '../../skk/hooks/useSkkSequentialAccess';
 import { useKridaStore } from '../../../stores/kridaStore';
 import { useUIStore } from '../../../stores/uiStore';
 import { KRIDA_LIST, SKK_MASTER_LIST } from '../data/kridaData';
@@ -46,12 +48,14 @@ export const KridaDetailPage: React.FC<{
 }> = ({ kridaSlug, onBack, onSelectSkk }) => {
   const { selectedKridaSlug, setSelectedSkkCode } = useKridaStore();
   const { setActiveView } = useUIStore();
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
 
   const slug = kridaSlug || selectedKridaSlug || 'pemandu';
   const krida = KRIDA_LIST.find((k) => k.slug === slug || k.id === slug) || KRIDA_LIST[0];
   const skkItems = SKK_MASTER_LIST.filter((s) => s.kridaId === krida.id);
 
   const handleOpenSkk = (kode: string) => {
+    if (!canOpen(kode)) return;
     setSelectedSkkCode(kode);
     if (onSelectSkk) {
       onSelectSkk(kode);
@@ -179,6 +183,7 @@ export const KridaDetailPage: React.FC<{
         </div>
       </Card>
 
+      {isMember && (loading || error) && <div role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{loading ? 'Memuat status SKK dari server…' : error}</div>}
       {/* Daftar SKK Table & Cards */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -194,11 +199,13 @@ export const KridaDetailPage: React.FC<{
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {skkItems.map((item) => (
-            <Card
+          {skkItems.map((item) => {
+            const access = getAccess(item.kode);
+            const locked = isMember && !canOpen(item.kode);
+            return <Card
               key={item.kode}
               padding="md"
-              className="border border-slate-200 hover:border-[#0066B3] hover:shadow-md transition-all duration-150 flex flex-col justify-between cursor-pointer group"
+              className={`border border-slate-200 transition-all duration-150 flex flex-col justify-between group ${locked ? "opacity-60 cursor-not-allowed" : "hover:border-[#0066B3] hover:shadow-md cursor-pointer"}`}
               onClick={() => handleOpenSkk(item.kode)}
             >
               <div className="space-y-2.5">
@@ -235,11 +242,11 @@ export const KridaDetailPage: React.FC<{
 
               {/* Action Button */}
               <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[#0066B3]">
-                <span>Buka Silabus & Matriks Penilaian</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span>{locked ? (access?.blockedBy ? `Terkunci — selesaikan ${access.blockedBy}` : "Status SKK belum tersedia") : access?.passed ? "Lulus — Lihat Silabus" : "Buka Silabus & Matriks Penilaian"}</span>
+                {locked ? <LockKeyhole className="w-4 h-4" /> : <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
               </div>
-            </Card>
-          ))}
+            </Card>;
+          })}
         </div>
       </div>
     </div>
