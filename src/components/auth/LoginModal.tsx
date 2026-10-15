@@ -11,7 +11,6 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
-import { ROLES } from '../../config/constants';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -57,13 +56,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
         onClose();
 
-        if (targetViewAfterLogin) {
-          setActiveView(targetViewAfterLogin);
-        } else if (res.user?.role === ROLES.MEMBER) {
-          setActiveView('membership');
-        } else {
-          setActiveView('admin_portal');
+        // Lepaskan rute QR publik sebelum membuka beranda pengguna.
+        // Tanpa ini App akan terus memprioritaskan /verifikasi.
+        if (typeof window !== 'undefined' && /^\/verifikasi(?:\/|$)/i.test(window.location.pathname)) {
+          window.history.replaceState(window.history.state, '', '/');
         }
+
+        // Semua peran mendarat di beranda/dashboard masing-masing.
+        // MemberLayout maupun shell admin mengenali id "dashboard".
+        // Jangan gunakan "admin_portal" (alias tidak dikenal).
+        const requestedView = targetViewAfterLogin &&
+          !['verifikasi', 'kta-verification', 'admin_portal'].includes(targetViewAfterLogin)
+          ? targetViewAfterLogin : 'dashboard';
+        setActiveView(requestedView);
+        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'instant' });
       } else {
         setErrorMessage(res.message || 'Gagal login. Periksa kembali akun Anda.');
       }
