@@ -46,9 +46,9 @@ export const KridaDetailPage: React.FC<{
   onBack?: () => void;
   onSelectSkk?: (code: string) => void;
 }> = ({ kridaSlug, onBack, onSelectSkk }) => {
-  const { selectedKridaSlug, setSelectedSkkCode } = useKridaStore();
+  const { selectedKridaSlug, selectedLevelTab, setSelectedSkkCode } = useKridaStore();
   const { setActiveView } = useUIStore();
-  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess();
+  const { isMember, loading, error, getAccess, canOpen } = useSkkSequentialAccess(selectedLevelTab.toUpperCase() as 'PURWA' | 'MADYA' | 'UTAMA');
 
   const slug = kridaSlug || selectedKridaSlug || 'pemandu';
   const krida = KRIDA_LIST.find((k) => k.slug === slug || k.id === slug) || KRIDA_LIST[0];
