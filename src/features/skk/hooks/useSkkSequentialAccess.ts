@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../../services/api/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 
-export type SkkAccess = { skkCode: string; locked: boolean; passed: boolean; blockedBy?: string; status?: string; accessStatus?: string };
+export type SkkAccess = { level?: string; blockedLevel?: string; skkCode: string; locked: boolean; passed: boolean; blockedBy?: string; status?: string; accessStatus?: string };
 
 /** GAS is the authority for member progression. Do not infer unlocks from local catalog data. */
-export function useSkkSequentialAccess() {
+export function useSkkSequentialAccess(level: "PURWA" | "MADYA" | "UTAMA" = "PURWA") {
   const currentUser = useAuthStore((state) => state.currentUser);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const role = String(currentUser?.role || '').toLowerCase();
@@ -21,7 +21,7 @@ export function useSkkSequentialAccess() {
     if (!memberId) { setItems([]); setLoading(false); setError('Identitas anggota belum tersedia. Silakan masuk kembali.'); return; }
     setLoading(true);
     setError('');
-    apiClient.get<any>('pamong.skk.available', { member_id: memberId })
+    apiClient.get<any>('pamong.skk.available', { member_id: memberId, level })
       .then((response) => {
         if (!live) return;
         const payload = response?.data?.data ?? response?.data;
@@ -31,7 +31,7 @@ export function useSkkSequentialAccess() {
       .catch((e) => { if (live) { setItems([]); setError(e?.message || 'Gagal memuat progres SKK.'); } })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
-  }, [isMember, memberId, refreshVersion]);
+  }, [isMember, memberId, level, refreshVersion]);
   useEffect(() => {
     if (!isMember) return;
     const refresh = () => setRefreshVersion((value) => value + 1);
@@ -48,5 +48,5 @@ export function useSkkSequentialAccess() {
   const getAccess = (code: string) => items.find((item) => String(item.skkCode).toUpperCase() === String(code).toUpperCase());
   const canOpen = (code: string) => !isMember || (!loading && !error && !!getAccess(code) && !getAccess(code)?.locked);
   const refresh = () => setRefreshVersion((value) => value + 1);
-  return { isMember, items, loading, error, getAccess, canOpen, refresh };
+  return { isMember, items, loading, error, getAccess, canOpen, refresh, level };
 }
