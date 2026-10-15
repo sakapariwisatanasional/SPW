@@ -19,6 +19,7 @@ interface MemberEvidenceRecord {
   evidence_id?: string;
   member_id: string;
   skk_code: string;
+  level?: string;
   evidence_type: string;
   title: string;
   description?: string;
@@ -97,6 +98,8 @@ export const MemberPortfolioView: React.FC = () => {
   const [skkCode, setSkkCode] =
     useState('');
 
+  const [level, setLevel] = useState<'PURWA' | 'MADYA' | 'UTAMA'>('PURWA');
+
   const [title, setTitle] =
     useState('');
 
@@ -173,6 +176,11 @@ export const MemberPortfolioView: React.FC = () => {
       return;
     }
 
+    if (!/^(PM-0[1-8]|PY-0[1-6]|ME-0[1-4]|KC-0[1-5])$/i.test(skkCode.trim())) {
+      setError('Gunakan salah satu dari 23 kode SKK resmi (contoh: KC-01).');
+      return;
+    }
+
     if (!title.trim()) {
       setError(
         'Judul bukti wajib diisi.'
@@ -222,7 +230,8 @@ export const MemberPortfolioView: React.FC = () => {
         'member.evidence.add',
         {
           member_id: memberId,
-          skk_code: skkCode.trim(),
+          skk_code: skkCode.trim().toUpperCase(),
+          level,
           evidence_type:
             file
               ? 'FILE'
@@ -240,6 +249,7 @@ export const MemberPortfolioView: React.FC = () => {
       );
 
       setSkkCode('');
+      setLevel('PURWA');
       setTitle('');
       setDescription('');
       setExternalUrl('');
@@ -349,7 +359,8 @@ export const MemberPortfolioView: React.FC = () => {
               Tambahkan Bukti SKK
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Bukti wajib dikaitkan dengan SKK yang sedang dikerjakan.
+              Bukti wajib dikaitkan dengan SKK dan tingkat yang sedang aktif.
+              GAS akan menolak SKK atau tingkat yang belum terbuka.
             </p>
           </div>
 
@@ -366,6 +377,25 @@ export const MemberPortfolioView: React.FC = () => {
                 placeholder="Contoh: PM-01"
                 className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
               />
+            </div>
+
+            <div>
+              <label htmlFor="evidence-level" className="text-xs font-bold text-slate-700">
+                Tingkat Kecakapan
+              </label>
+              <select
+                id="evidence-level"
+                value={level}
+                onChange={(e) => setLevel(e.target.value as 'PURWA' | 'MADYA' | 'UTAMA')}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
+              >
+                <option value="PURWA">Purwa</option>
+                <option value="MADYA">Madya</option>
+                <option value="UTAMA">Utama</option>
+              </select>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Tingkat berikutnya baru bisa ditempuh setelah seluruh SKK tingkat sebelumnya dalam Krida ini lulus.
+              </p>
             </div>
 
             <div>
@@ -514,6 +544,10 @@ export const MemberPortfolioView: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold">
                         {item.skk_code}
+                      </span>
+
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold">
+                        {item.level ? String(item.level).toUpperCase() : 'TINGKAT LAMA / BELUM DITETAPKAN'}
                       </span>
 
                       <span
