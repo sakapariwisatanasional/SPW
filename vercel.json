@@ -2,7 +2,11 @@
   "rewrites": [
     { "source": "/verifikasi", "destination": "/index.html" },
     { "source": "/verifikasi/", "destination": "/index.html" },
-    { "source": "/verifikasi/:token", "destination": "/index.html" },
-    { "source": "/verify/:token", "destination": "/index.html" }
+    { "source": "/verifikasi/:path*", "destination": "/index.html" },
+    { "source": "/verify", "destination": "/index.html" },
+    { "source": "/verify/", "destination": "/index.html" },
+    { "source": "/verify/:path*", "destination": "/index.html" },
+    { "source": "/verify/kta/:path*", "destination": "/index.html" }
   ]
 }
+
