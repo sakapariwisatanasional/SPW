@@ -1,29 +1,42 @@
 /**
- * SPWN Apps 2.0 - Mobile-first Public KTA Verification
+ * SPWN Apps 2.0 - Public Member Verification Page
+ * Location: src/pages/public/VerificationPage.tsx
  * Route: /verifikasi
- * Preserves URL token auto-verification and existing verification store/components.
+ * -----------------------------------------------------------------
+ * Halaman verifikasi publik keaslian KTA Pramuka SAKA Pariwisata.
+ * Mengintegrasikan:
+ *   React UI -> verificationStore -> verification.api.ts -> GAS API -> VerificationResultCard
+ * Menggunakan:
+ *   - Desain Wonderful Indonesia Palette
+ *   - Abstraksi kamera useQrScanner
+ *   - Konfigurasi backend MEMBER.SHEETS.ANGGOTA
+ *   - Proteksi privasi UU PDP No. 27/2022
  */
-import React, { useEffect, useRef, useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   QrCode,
+  Sparkles,
   History,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   RotateCcw,
-  Camera,
-  ChevronDown,
-  ChevronUp,
+  Compass,
+  ArrowRight,
 } from 'lucide-react';
 import { useVerificationStore } from '../../stores/verificationStore';
 import { VerificationInputForm } from '../../features/verification/components/VerificationInputForm';
 import { QrScannerModal } from '../../features/verification/components/QrScannerModal';
 import { VerificationResultCard } from '../../components/display/VerificationResultCard';
+import { VerificationTrustBadge } from '../../components/display/VerificationTrustBadge';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Button } from '../../components/ui/Button';
+import { MEMBER } from '../../config/constants';
 
 export const VerificationPage: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const lastAutoToken = useRef('');
 
   const {
@@ -37,112 +50,222 @@ export const VerificationPage: React.FC = () => {
     resetVerification,
   } = useVerificationStore();
 
+  // Canonical QR URL: /verifikasi?token=SPWN-QR-...
+  // Backward compatible dengan URL lama /verifikasi/{token} dan ?verifyId=.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromQuery = (params.get('token') || params.get('verifyId') || '').trim();
     const pathMatch = window.location.pathname.match(/\/(?:verifikasi|verify)\/([^/]+)\/?$/i);
     const fromPath = pathMatch ? decodeURIComponent(pathMatch[1]).trim() : '';
     const fromUrl = fromQuery || fromPath;
+
     if (!fromUrl || lastAutoToken.current === fromUrl) return;
     lastAutoToken.current = fromUrl;
     void verifyToken(fromUrl);
   }, [verifyToken]);
 
-  const handleScanSuccess = (token: string) => {
+  const handleVerify = async (token: string) => {
+    await verifyToken(token);
+  };
+
+  const handleScanSuccess = (scannedToken: string) => {
     setIsScannerOpen(false);
-    void verifyToken(token);
+    verifyToken(scannedToken);
   };
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-[#F7FAFC] px-4 pb-5 pt-4 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-xl">
-        <section className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0B2F5B] via-[#0A6BA8] to-[#169CD8] p-5 text-white shadow-xl sm:p-7">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.2em] text-sky-100"><ShieldCheck className="h-3.5 w-3.5" /> Verifikasi resmi</div>
-              <h1 className="mt-1 text-2xl font-black sm:text-3xl">Cek KTA Digital</h1>
-              <p className="mt-1 text-xs text-sky-100">Scan QR adalah cara tercepat di HP.</p>
-            </div>
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/12 backdrop-blur"><QrCode className="h-7 w-7" /></div>
+    <div id="public-verification-page" className="min-h-screen py-8 sm:py-12 bg-[#F5F7FA]">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        {/* Breadcrumb / Top Indicator */}
+        <div className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <Compass className="w-3.5 h-3.5 text-[#0066B3]" />
+            <span>Layanan Publik Resmi</span>
+            <span>/</span>
+            <span className="text-slate-900 font-semibold">Verifikasi KTA Digital</span>
           </div>
 
-          {!result && !isLoading && !isRateLimited && (
-            <button
-              type="button"
-              onClick={() => setIsScannerOpen(true)}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-black text-[#0B2F5B] shadow-lg"
-            >
-              <Camera className="h-5 w-5 text-[#169CD8]" /> Scan QR KTA
-            </button>
-          )}
-        </section>
+          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+            <span className="w-2 h-2 rounded-full bg-[#009B4D] inline-block animate-pulse" />
+            <span>Pangkalan Data: {MEMBER.SHEETS.ANGGOTA}</span>
+          </div>
+        </div>
 
-        <div className="mt-4">
+        {/* Page Header Banner */}
+        <div className="text-center space-y-3 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-100 text-[#0066B3] text-xs font-bold uppercase tracking-wider">
+            <ShieldCheck className="w-4 h-4 text-[#0066B3]" />
+            <span>Sistem Otentikasi Nasional</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 font-display">
+            Pusat Verifikasi Anggota
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+            Periksa keabsahan Kartu Tanda Anggota (KTA) resmi Gerakan Pramuka SAKA Pariwisata secara real-time dan terenkripsi.
+          </p>
+        </div>
+
+        {/* SECTION 1: VERIFICATION TRUST BADGE (Official Authority) */}
+        <VerificationTrustBadge variant="banner" />
+
+        {/* SECTION 2: CORE INTERACTION & UX STATES */}
+        <div className="space-y-8">
+          {/* A. INPUT FORM (Visible when not showing result, or to re-scan) */}
           {!result && !isLoading && !isRateLimited && (
-            <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-              <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">atau masukkan token</div>
-              <VerificationInputForm
-                onOpenScanner={() => setIsScannerOpen(true)}
-                onVerifyToken={(token) => verifyToken(token)}
-                isLoading={isLoading}
-              />
-            </div>
+            <VerificationInputForm
+              onOpenScanner={() => setIsScannerOpen(true)}
+              onVerifyToken={handleVerify}
+              isLoading={isLoading}
+            />
           )}
 
+          {/* B. LOADING STATE */}
           {isLoading && (
-            <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center shadow-sm">
-              <div className="relative mx-auto h-16 w-16">
-                <div className="h-16 w-16 animate-spin rounded-full border-4 border-slate-100 border-r-[#63B32E] border-t-[#169CD8]" />
-                <QrCode className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-[#169CD8]" />
+            <div
+              id="verification-loading-state"
+              className="w-full max-w-lg mx-auto bg-white rounded-3xl border border-slate-200 shadow-lg p-8 space-y-6 text-center animate-in fade-in duration-300"
+            >
+              <div className="relative w-20 h-20 mx-auto">
+                <div className="w-20 h-20 rounded-full border-4 border-slate-100 border-t-[#0066B3] border-r-[#009B4D] animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <QrCode className="w-8 h-8 text-[#0066B3] animate-pulse" />
+                </div>
               </div>
-              <h3 className="mt-4 text-sm font-black text-[#0B2F5B]">Memvalidasi KTA...</h3>
-              <div className="mt-4 space-y-2"><Skeleton className="mx-auto h-3 w-2/3 rounded" /><Skeleton className="mx-auto h-3 w-1/2 rounded" /></div>
+
+              <div className="space-y-2">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  Memvalidasi Tanda Tangan KTA...
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Menghubungkan ke Pangkalan Data Keanggotaan Nasional SPWN ({MEMBER.SHEETS.ANGGOTA}) dan mengaudit keaslian token digital.
+                </p>
+              </div>
+
+              {/* Skeleton placeholder card */}
+              <div className="pt-2 space-y-3">
+                <Skeleton className="h-4 w-3/4 mx-auto rounded" />
+                <Skeleton className="h-4 w-1/2 mx-auto rounded" />
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Skeleton className="h-12 rounded-xl" />
+                  <Skeleton className="h-12 rounded-xl" />
+                </div>
+              </div>
             </div>
           )}
 
+          {/* C. RESULT CARD (SUCCESS OR INVALID OR RATE LIMIT) */}
           {(result || isRateLimited) && !isLoading && (
-            <div className="space-y-3">
+            <div className="space-y-6">
               <VerificationResultCard
-                result={result || { isValid: false, verifiedAt: new Date().toISOString(), message: error || 'Batas pemindaian tercapai.' }}
+                result={
+                  result || {
+                    isValid: false,
+                    verifiedAt: new Date().toISOString(),
+                    message: error || 'Batas pemindaian tercapai.',
+                  }
+                }
                 isRateLimited={isRateLimited}
-                onScanAgain={() => { resetVerification(); setIsScannerOpen(true); }}
-                onRetry={() => { if (qrToken) void verifyToken(qrToken); else resetVerification(); }}
+                onScanAgain={() => {
+                  resetVerification();
+                  setIsScannerOpen(true);
+                }}
+                onRetry={() => {
+                  if (qrToken) {
+                    verifyToken(qrToken);
+                  } else {
+                    resetVerification();
+                  }
+                }}
               />
-              <button onClick={resetVerification} className="mx-auto flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-slate-500 hover:bg-white">
-                <RotateCcw className="h-3.5 w-3.5" /> Verifikasi lainnya
-              </button>
+
+              {/* Back to form button */}
+              <div className="text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<RotateCcw className="w-4 h-4 text-slate-500" />}
+                  onClick={resetVerification}
+                >
+                  Kembali ke Form Verifikasi
+                </Button>
+              </div>
             </div>
           )}
         </div>
 
+        {/* SECTION 3: RECENT VERIFICATION AUDIT LOG (HISTORY) */}
         {history.length > 0 && (
-          <section className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
-            <button onClick={() => setHistoryOpen((v) => !v)} className="flex w-full items-center justify-between gap-3 p-4 text-left">
-              <div className="flex items-center gap-2"><History className="h-4 w-4 text-[#6F3BC5]" /><span className="text-xs font-black text-[#0B2F5B]">Riwayat ({history.length})</span></div>
-              {historyOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-            </button>
-            {historyOpen && (
-              <div className="max-h-52 overflow-y-auto border-t border-slate-100 px-4">
-                {history.map((item, idx) => (
-                  <button key={`${item.token}-${idx}`} onClick={() => void verifyToken(item.token)} className="flex w-full items-center justify-between gap-3 border-b border-slate-100 py-3 text-left last:border-0">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      {item.isValid ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <XCircle className="h-4 w-4 shrink-0 text-rose-500" />}
-                      <div className="min-w-0"><div className="truncate text-xs font-bold text-slate-700">{item.nama || item.token}</div><div className="text-[9px] text-slate-400">{item.no_kta || 'Token KTA'}</div></div>
-                    </div>
-                    <span className="text-[10px] font-bold text-[#169CD8]">Cek</span>
-                  </button>
-                ))}
+          <div
+            id="verification-history-section"
+            className="w-full max-w-xl mx-auto bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-slate-500" />
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Riwayat Pemindaian Sesi Ini ({history.length})
+                </h4>
               </div>
-            )}
-          </section>
+              <span className="text-[10px] text-slate-400">Penyimpanan Lokal Sesi</span>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {history.map((item, idx) => (
+                <div
+                  key={`${item.token}-${idx}`}
+                  className="py-2.5 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {item.isValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-800 truncate">
+                        {item.nama || item.token}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        {item.no_kta ? `KTA: ${item.no_kta} • ` : ''}
+                        {new Date(item.timestamp).toLocaleTimeString('id-ID', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })} WIB
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleVerify(item.token)}
+                    className="px-2.5 py-1 text-[11px] font-semibold text-[#0066B3] hover:bg-sky-50 rounded-lg transition-colors shrink-0"
+                  >
+                    Cek Ulang
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400"><ShieldCheck className="h-3.5 w-3.5 text-[#63B32E]" /> Data diverifikasi melalui sistem SPWN resmi</div>
+        {/* SECTION 4: TRUST & EDUCATION ACCORDION / FOOTER BADGE */}
+        <VerificationTrustBadge variant="full" />
+
+        {/* Educational Info: 4 Krida SAKA Pariwisata */}
+        <div className="text-center text-xs text-slate-400 max-w-xl mx-auto pt-4 leading-relaxed">
+          <p>
+            Kartu Tanda Anggota resmi Gerakan Pramuka Satuan Karya Pariwisata memuat 4 peminatan krida: KRIDA PEMANDU, KRIDA PENYULUH, KRIDA MICE & EVENT, dan KRIDA KULINER & CINDERAMATA.
+          </p>
+        </div>
+
       </div>
 
-      <QrScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} onScanSuccess={handleScanSuccess} />
+      {/* QR SCANNER CAMERA MODAL */}
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </div>
   );
 };
-
-export default VerificationPage;
