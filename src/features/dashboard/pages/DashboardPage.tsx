@@ -34,6 +34,7 @@ export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuthStore();
   const { setActiveView, addToast } = useUIStore();
   const [isLoadingSkeleton, setIsLoadingSkeleton] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [selectedKridaFilter, setSelectedKridaFilter] = useState('ALL');
   const [ktaTemplateSettings, setKtaTemplateSettings] = useState<KtaCardSettings | null>(null);
   const [ktaTemplateLoading, setKtaTemplateLoading] = useState(true);
@@ -80,11 +81,31 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const readDirectoryMetrics = (response: any) => {
+    // ApiResponse v2 menempatkan hasil controller di response.data.
+    // AdminDashboardService mengembalikan angka di response.data.summary,
+    // bukan array anggota. Tetap dukung bentuk array lama untuk kompatibilitas.
     const raw = response?.data ?? response;
     const container =
       raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data)
         ? raw.data
         : raw;
+
+    const summary = container?.summary ?? container?.data?.summary;
+    if (summary && typeof summary === 'object' && !Array.isArray(summary)) {
+      const toCount = (...values: unknown[]) => {
+        const value = values.find(v => v !== undefined && v !== null && v !== '');
+        const number = Number(value ?? 0);
+        return Number.isFinite(number) && number >= 0 ? number : 0;
+      };
+
+      return {
+        totalMember: toCount(summary.total_member, summary.totalMember),
+        activeMember: toCount(summary.active_member, summary.activeMember),
+        pendingMember: toCount(summary.pending_member, summary.pendingMember),
+        rejectedMember: toCount(summary.rejected_member, summary.rejectedMember),
+        totalProvince: toCount(summary.total_province, summary.totalProvince),
+      };
+    }
 
     const members = Array.isArray(container)
       ? container
@@ -94,11 +115,15 @@ export const DashboardPage: React.FC = () => {
           ? container.data
           : Array.isArray(container?.data?.members)
             ? container.data.members
-            : [];
+            : null;
+
+    if (!members) {
+      throw new Error('Format respons dashboard dari GAS tidak dikenali. Periksa kontrak admin.dashboard.summary.');
+    }
 
     const normalized = members.map((item: any) => ({
       ...item,
-      status: String(item.status || item.status_anggota || '').toUpperCase(),
+      status: String(item.status || item.status_anggota || '').trim().toUpperCase(),
     }));
 
     return {
@@ -123,6 +148,7 @@ export const DashboardPage: React.FC = () => {
   }) => {
     const { totalMember, activeMember, pendingMember, rejectedMember } = summary;
 
+    setDashboardError(null);
     setNationalIntegration({
       pangkalan: `${currentUser?.province || 'Nasional'} (${totalMember} anggota)`,
       destinasi: `${activeMember} anggota aktif`,
@@ -154,6 +180,8 @@ export const DashboardPage: React.FC = () => {
 
         console.info('Dashboard directory berhasil dimuat', summary);
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Tidak dapat mengambil data dashboard dari server.';
+        setDashboardError(message);
         console.error('Dashboard metrics gagal dimuat', error);
       }
     }
@@ -180,6 +208,8 @@ export const DashboardPage: React.FC = () => {
         message: 'Ringkasan anggota berhasil disinkronkan dari database.',
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Tidak dapat mengambil data dashboard dari server.';
+      setDashboardError(message);
       console.error('Refresh dashboard gagal', error);
 
       addToast({
@@ -414,6 +444,21 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {dashboardError && (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="font-bold">Data dashboard belum berhasil disinkronkan dari GAS.</div>
+          <div className="mt-1">{dashboardError}</div>
+          <button
+            type="button"
+            onClick={triggerSkeletonRefresh}
+            disabled={isLoadingSkeleton}
+            className="mt-2 font-semibold underline underline-offset-2 disabled:opacity-50"
+          >
+            Coba sinkronkan kembali
+          </button>
+        </div>
+      )}
 
       {/* Card-Based Metrics Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
