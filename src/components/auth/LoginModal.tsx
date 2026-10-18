@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LogIn,
   User,
@@ -6,10 +6,14 @@ import {
   Lock,
   Eye,
   EyeOff,
+  ArrowLeft,
+  Mail,
+  KeyRound,
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuthStore } from '../../stores/authStore';
+import { authApi } from '../../services/api/auth.api';
 import { useUIStore } from '../../stores/uiStore';
 
 interface LoginModalProps {
@@ -24,13 +28,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   targetViewAfterLogin,
 }) => {
   const { loginWithCredentials } = useAuthStore();
-  const { setActiveView, addToast } = useUIStore();
+  const { setActiveView, setLoginModalOpen, addToast } = useUIStore();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<'login' | 'forgot' | 'reset'>('login');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('passwordResetToken');
+    if (token) {
+      setResetToken(token);
+      setMode('reset');
+      setLoginModalOpen(true);
+      setInfoMessage('Buat kata sandi baru untuk akun Anda.');
+    }
+  }, []);
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +102,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
+  const handleRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault(); setErrorMessage(null); setInfoMessage(null);
+    if (!/^\S+@\S+\.\S+$/.test(resetEmail.trim())) { setErrorMessage('Masukkan alamat email yang valid.'); return; }
+    setIsLoading(true);
+    try {
+      const response = await authApi.requestPasswordReset(resetEmail);
+      setInfoMessage(response.message || 'Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.');
+    } catch (error: any) {
+      // Pesan generik untuk menghindari pembocoran keberadaan akun.
+      setInfoMessage('Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.');
+    } finally { setIsLoading(false); }
+  };
+
+  const handleConfirmReset = async (e: React.FormEvent) => {
+    e.preventDefault(); setErrorMessage(null); setInfoMessage(null);
+    if (newPassword.length < 8) { setErrorMessage('Kata sandi baru minimal 8 karakter.'); return; }
+    if (newPassword !== confirmNewPassword) { setErrorMessage('Konfirmasi kata sandi tidak sama.'); return; }
+    setIsLoading(true);
+    try {
+      await authApi.confirmPasswordReset(resetToken, newPassword);
+      setInfoMessage('Kata sandi berhasil diperbarui. Silakan masuk menggunakan kata sandi baru.');
+      setMode('login'); setPassword(''); setNewPassword(''); setConfirmNewPassword('');
+      const url = new URL(window.location.href); url.searchParams.delete('passwordResetToken'); window.history.replaceState({}, '', url.toString());
+    } catch (error: any) { setErrorMessage(error?.message || 'Tautan reset tidak valid atau sudah kedaluwarsa. Minta tautan baru.'); }
+    finally { setIsLoading(false); }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -89,6 +138,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       description="Sistem Administrasi Terpadu SAKA Pariwisata Network"
     >
       <div className="space-y-4 pt-1">
+        {infoMessage && <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">{infoMessage}</div>}
+        {mode === 'forgot' ? (
+          <form onSubmit={handleRequestReset} className="space-y-4">
+            <p className="text-xs text-slate-600">Masukkan email yang terdaftar. Jika cocok, kami akan mengirim tautan untuk membuat kata sandi baru.</p>
+            {errorMessage && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">{errorMessage}</div>}
+            <label className="block text-xs font-bold text-slate-800">Email terdaftar
+              <div className="relative mt-1.5"><Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"/><input type="email" required value={resetEmail} onChange={e=>setResetEmail(e.target.value)} autoComplete="email" placeholder="nama@email.com" className="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-xl bg-white text-slate-900"/></div>
+            </label>
+            <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full">Kirim Tautan Reset</Button>
+            <button type="button" onClick={()=>{setMode('login');setErrorMessage(null);setInfoMessage(null);}} className="w-full flex items-center justify-center gap-2 text-xs text-slate-600"><ArrowLeft className="w-3.5 h-3.5"/> Kembali ke Login</button>
+          </form>
+        ) : mode === 'reset' ? (
+          <form onSubmit={handleConfirmReset} className="space-y-4">
+            <p className="text-xs text-slate-600">Buat kata sandi baru minimal 8 karakter.</p>
+            {errorMessage && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">{errorMessage}</div>}
+            <label className="block text-xs font-bold text-slate-800">Kata sandi baru<input type="password" required minLength={8} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl"/></label>
+            <label className="block text-xs font-bold text-slate-800">Konfirmasi kata sandi<input type="password" required minLength={8} value={confirmNewPassword} onChange={e=>setConfirmNewPassword(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl"/></label>
+            <Button type="submit" variant="primary" size="md" isLoading={isLoading} className="w-full" leftIcon={<KeyRound className="w-4 h-4"/>}>Simpan Kata Sandi Baru</Button>
+          </form>
+        ) : (
         <form onSubmit={handleCredentialsLogin} className="space-y-4">
           {errorMessage && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in">
@@ -152,6 +221,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
           </div>
 
+          <div className="flex justify-end -mt-2">
+            <button type="button" onClick={() => { setMode('forgot'); setResetEmail(identifier.includes('@') ? identifier : ''); setErrorMessage(null); setInfoMessage(null); }} className="text-[11px] font-bold text-[#0066B3] hover:underline">Lupa Password?</button>
+          </div>
+
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
             <span>Belum memiliki akun?</span>
             <button
@@ -177,6 +250,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             Masuk Sekarang
           </Button>
         </form>
+        )}
       </div>
     </Modal>
   );
