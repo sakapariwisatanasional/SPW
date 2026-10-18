@@ -132,8 +132,7 @@ export interface RegisterMemberPayload {
   krida?: string;
   foto_url?: string;
   photo_url?: string;
-  password?: string;
-  confirm_password?: string;
+  otp_verification_token?: string;
 
   // Backward compatible & regional fields
   nama_lengkap?: string;
