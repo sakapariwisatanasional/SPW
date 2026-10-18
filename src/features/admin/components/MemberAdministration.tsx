@@ -191,76 +191,67 @@ export const MemberAdministration: React.FC = () => {
   const [drawerTab, setDrawerTab] = useState<MemberDrawerTab>('overview');
 
   const openMemberDrawer = async (m: AdminMemberRecord, tab: MemberDrawerTab = 'overview') => {
-    try {
-      // Ambil data detail terbaru dari GAS sebelum membuka drawer
-      const detail = await memberApi.detail(getBackendMemberId(m));
+    const requestedId = String(getBackendMemberId(m) || '').trim();
+    if (!requestedId) {
+      addToast({
+        type: 'error',
+        title: 'ID Anggota Tidak Tersedia',
+        message: 'Detail tidak dibuka karena baris anggota tidak memiliki ID backend yang valid.',
+      });
+      return;
+    }
 
-      const rawDetail =
-        detail?.data?.member ||
-        detail?.data ||
-        detail ||
-        {};
+    try {
+      // Gunakan endpoint administrasi yang memang mengembalikan detail untuk verifikasi.
+      const response = await memberApi.adminDetail(requestedId);
+      const rawDetail = response?.data?.member;
+
+      if (!rawDetail || typeof rawDetail !== 'object') {
+        throw new Error('Backend tidak mengembalikan record anggota.');
+      }
+
+      // Pastikan response memang milik anggota yang dipilih; jangan tampilkan profil lain.
+      const returnedIds = [
+        rawDetail.id,
+        rawDetail.member_id,
+        rawDetail.memberId,
+        rawDetail.no_kta,
+        rawDetail.nomor_kta,
+        rawDetail.nomorKTA,
+      ].map((value) => String(value || '').trim()).filter(Boolean);
+
+      if (!returnedIds.includes(requestedId)) {
+        throw new Error('ID anggota pada respons backend tidak cocok dengan anggota yang dipilih. Detail diblokir demi keamanan data.');
+      }
 
       /**
-       * Normalisasi field agar kompatibel dengan MemberDrawer.
-       * API GAS dapat mengembalikan:
-       * full_name / fullName / nama_lengkap
-       * phone / nomor_telepon
-       * sedangkan drawer memakai struktur AdminMemberRecord.
+       * Prioritaskan data dari detail GAS. Data tabel hanya boleh menjadi fallback
+       * untuk field presentasi yang tidak disediakan backend, bukan identitas.
        */
       const detailMember: AdminMemberRecord = {
         ...m,
         ...rawDetail,
-
+        id: String(rawDetail.id || requestedId),
         full_name:
-          rawDetail.full_name ||
-          rawDetail.fullName ||
-          rawDetail.nama_lengkap ||
-          m.full_name ||
-          m.nama_lengkap ||
-          m.nama ||
-          '',
-
+          rawDetail.full_name || rawDetail.fullName || rawDetail.nama_lengkap || rawDetail.nama || '',
         nama_lengkap:
-          rawDetail.nama_lengkap ||
-          rawDetail.full_name ||
-          rawDetail.fullName ||
-          m.nama_lengkap ||
-          m.full_name ||
-          m.nama ||
-          '',
-
-        email:
-          rawDetail.email ||
-          m.email ||
-          '',
-
-        nomor_telepon:
-          rawDetail.nomor_telepon ||
-          rawDetail.phone ||
-          rawDetail.whatsapp ||
-          m.nomor_telepon ||
-          '',
-
-        phone:
-          rawDetail.phone ||
-          rawDetail.nomor_telepon ||
-          rawDetail.whatsapp ||
-          m.phone ||
-          '',
-
+          rawDetail.nama_lengkap || rawDetail.full_name || rawDetail.fullName || rawDetail.nama || '',
+        email: rawDetail.email || '',
+        nomor_telepon: rawDetail.nomor_telepon || rawDetail.phone || rawDetail.telepon || rawDetail.whatsapp || '',
+        phone: rawDetail.phone || rawDetail.nomor_telepon || rawDetail.telepon || rawDetail.whatsapp || '',
       };
 
       setInspectMember(detailMember);
-
-    } catch (error) {
-      console.error('Gagal mengambil detail anggota:', error);
-
-      // Fallback: tetap buka menggunakan data dari tabel
-      setInspectMember(m);
+      setDrawerTab(tab);
+    } catch (error: any) {
+      console.error('Gagal mengambil detail anggota untuk verifikasi:', error);
+      addToast({
+        type: 'error',
+        title: 'Detail Anggota Gagal Dibuka',
+        message: error?.message || 'Data detail tidak dapat diverifikasi. Tidak ada profil cadangan yang ditampilkan.',
+      });
+      // Jangan fallback ke data tabel: mencegah drawer menampilkan profil yang salah.
     }
-
-    setDrawerTab(tab);
   };
 
   // Sync with Global Search selection from Admin Command Center
