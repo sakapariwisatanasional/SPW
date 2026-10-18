@@ -9,7 +9,7 @@
  *    - Review & Verifikasi Berkas (Admin Wilayah)
  *    - Final Approval (Admin Pusat)
  * 3. Foto profil tersimpan pada photo_url sebagai single source of truth.
- * 4. Menyimpan akun pengguna (Users) dengan password terenkripsi untuk akses portal.
+ * 4. Akun pengguna dibuat setelah verifikasi email OTP; tanpa password.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -29,9 +29,6 @@ import {
   Calendar,
   Sparkles,
   Award,
-  Lock,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import { useAdminStore } from '../../admin/stores/adminStore';
 import {
@@ -45,6 +42,7 @@ import {
 import { KRIDA_MASTER, MASTER_TINGKATAN_SAKA } from '../../../config/constants';
 import { useUIStore } from '../../../stores/uiStore';
 import { memberApi, RegisterMemberPayload } from '../../../services/api/member.api';
+import { authApi } from '../../../services/api/auth.api';
 
 export const PublicRegistrationPage: React.FC = () => {
   const isParticipantMembership = (role: string) => ['Anggota', 'Dewan Saka'].includes(role);
@@ -61,8 +59,6 @@ export const PublicRegistrationPage: React.FC = () => {
     golongan_darah: 'O',
     email: '',
     nomor_telepon: '',
-    password: '',
-    confirm_password: '',
     alamat_domisili: '',
     provinsi_id: '31',
     provinsi_nama: 'DKI JAKARTA',
@@ -80,8 +76,9 @@ export const PublicRegistrationPage: React.FC = () => {
     foto_url: '',
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registrationOtp, setRegistrationOtp] = useState('');
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpVerificationToken, setOtpVerificationToken] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>(formData.foto_url);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -207,13 +204,20 @@ export const PublicRegistrationPage: React.FC = () => {
       return;
     }
 
-    // Password validations
-    if (!formData.password || formData.password.length < 8) {
-      setErrorMsg('Kata sandi wajib diisi minimal 8 karakter.');
-      return;
-    }
-    if (formData.password !== formData.confirm_password) {
-      setErrorMsg('Konfirmasi kata sandi tidak cocok dengan kata sandi.');
+    if (!otpVerificationToken) {
+      if (!otpRequested) {
+        setIsSubmitting(true);
+        try {
+          const response = await authApi.requestOtp(formData.email.trim().toLowerCase(), 'REGISTER');
+          setOtpRequested(true);
+          setErrorMsg(null);
+          useUIStore.getState().addToast({ type: 'success', title: 'Permintaan OTP', message: response.message || 'Jika email dapat didaftarkan, OTP akan dikirim.' });
+        } catch (error: any) {
+          setErrorMsg(error?.message || 'OTP belum dapat dikirim.');
+        } finally { setIsSubmitting(false); }
+      } else {
+        setErrorMsg('Masukkan OTP dan verifikasi email sebelum melanjutkan pendaftaran.');
+      }
       return;
     }
 
@@ -237,7 +241,7 @@ export const PublicRegistrationPage: React.FC = () => {
         position: formData.tingkat_keanggotaan,
         krida: kridaName,
         foto_url: formData.foto_url,
-        password: formData.password,
+        otp_verification_token: otpVerificationToken,
 
         // Backward Compatible Aliases
         nama_lengkap: formData.nama_lengkap.trim(),
@@ -269,9 +273,8 @@ export const PublicRegistrationPage: React.FC = () => {
       const response = await memberApi.register(payload);
       const resData = (response.data || (response as any).member || {}) as any;
 
-      const registeredId =
-        resData.id ||
-        ('SPW-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+      const registeredId = resData.id || resData.member_id;
+      if (!registeredId) throw new Error('Backend tidak mengembalikan ID pendaftaran. Data tidak boleh disimulasikan di frontend.');
 
       // 3. Sinkronkan cache frontend (adminStore)
       addMember({
@@ -324,6 +327,22 @@ export const PublicRegistrationPage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleVerifyRegistrationOtp = async () => {
+    setErrorMsg(null);
+    if (!/^\d{6}$/.test(registrationOtp)) { setErrorMsg('OTP harus terdiri dari 6 digit.'); return; }
+    setIsSubmitting(true);
+    try {
+      const response = await authApi.verifyOtp(formData.email.trim().toLowerCase(), registrationOtp, 'REGISTER');
+      const data: any = response?.data;
+      const token = data?.verificationToken || data?.data?.verificationToken;
+      if (!response?.success || !token) throw new Error(response?.message || 'Verifikasi OTP tidak berhasil.');
+      setOtpVerificationToken(String(token));
+      setErrorMsg(null);
+      useUIStore.getState().addToast({ type: 'success', title: 'Email Terverifikasi', message: 'Email berhasil diverifikasi. Lanjutkan pendaftaran.' });
+    } catch (error: any) { setErrorMsg(error?.message || 'OTP salah atau kedaluwarsa.'); }
+    finally { setIsSubmitting(false); }
   };
 
   // SUCCESS SCREEN
@@ -401,8 +420,6 @@ export const PublicRegistrationPage: React.FC = () => {
                   nama_lengkap: '',
                   email: '',
                   nomor_telepon: '',
-                  password: '',
-                  confirm_password: '',
                 }));
               }}
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all"
@@ -601,7 +618,7 @@ export const PublicRegistrationPage: React.FC = () => {
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setOtpRequested(false); setOtpVerificationToken(''); setRegistrationOtp(''); }}
                 placeholder="nama@email.com"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 required
@@ -624,62 +641,15 @@ export const PublicRegistrationPage: React.FC = () => {
               <p className="text-[11px] text-slate-400 mt-1">Digunakan untuk notifikasi verifikasi status keanggotaan.</p>
             </div>
 
-            {/* Field Password & Confirm Password */}
-            <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 sm:col-span-2 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <Lock className="w-4 h-4 text-[#0066B3]" />
-                <span>Pengaturan Kata Sandi Akun Portal (Minimal 8 Karakter)</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Kata Sandi *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Minimal 8 karakter"
-                      minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Konfirmasi Kata Sandi *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirm_password}
-                      onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
-                      placeholder="Ulangi kata sandi"
-                      minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 sm:col-span-2 space-y-3">
+              <div className="text-xs font-bold text-slate-800">Verifikasi Email dengan OTP</div>
+              <p className="text-[11px] text-slate-500">OTP 6 digit berlaku 10 menit dan hanya dapat digunakan sekali. Tekan tombol daftar untuk meminta OTP terlebih dahulu.</p>
+              {otpRequested && !otpVerificationToken && <div className="flex flex-col sm:flex-row gap-2">
+                <input value={registrationOtp} onChange={e=>setRegistrationOtp(e.target.value.replace(/\D/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Masukkan 6 digit OTP" className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs tracking-widest" />
+                <button type="button" disabled={isSubmitting} onClick={handleVerifyRegistrationOtp} className="px-4 py-2 rounded-xl bg-[#0066B3] text-white text-xs font-bold disabled:opacity-50">Verifikasi OTP</button>
+              </div>}
+              {otpVerificationToken && <p className="text-xs font-semibold text-emerald-700">Email terverifikasi. Pendaftaran siap dikirim.</p>}
+              {otpRequested && !otpVerificationToken && <button type="button" disabled={isSubmitting} onClick={async()=>{try { setIsSubmitting(true); const r=await authApi.requestOtp(formData.email.trim().toLowerCase(),'REGISTER'); useUIStore.getState().addToast({type:'success',title:'OTP diminta',message:r.message||'Periksa email.'}); } catch(e:any){setErrorMsg(e?.message||'OTP gagal dikirim.');} finally{setIsSubmitting(false);} }} className="text-[11px] text-[#0066B3] font-semibold">Kirim ulang OTP</button>}
             </div>
 
             <div className="sm:col-span-2">
