@@ -92,30 +92,8 @@ export interface SpwnUser {
 
 
 
-export interface LoginPayload {
-
-  username?: string;
-
-  no_kta?: string;
-
-  email?: string;
-
-  password:string;
-
-}
-
-
-
-export interface LoginResponseData {
-  token?: string;
-  user: SpwnUser;
-  expiresAt?: string;
-}
-
-export interface PasswordResetRequestResponse { requested: boolean }
-export interface PasswordResetConfirmResponse { reset: boolean }
-
-
+export interface OtpRequestResponse { requested: boolean; message?: string }
+export interface OtpVerifyResponse { token?: string; user?: SpwnUser; expiresAt?: string; verificationToken?: string; verified?: boolean; email?: string }
 
 export interface MeResponseData {
 
@@ -131,74 +109,13 @@ export interface MeResponseData {
 
 
 
-function normalizeLoginResponse(response:any):any {
-
-
-  if(
-    response &&
-    response.data &&
-    response.data.user
-  ){
-
-    return response;
-
-  }
-
-
-
-  if(
-    response &&
-    response.data
-  ){
-
-    return {
-
-      ...response,
-
-      data:{
-
-        token:
-          response.data.token,
-
-        expiresAt:
-          response.data.expiresAt,
-
-
-        user:
-          response.data
-
-      }
-
-    };
-
-  }
-
-
-  return response;
-
-}
-
-
-
 export const authApi = {
-
-
-  login: async(
-    credentials:LoginPayload
-  ):Promise<ApiResponse<LoginResponseData>>=>{
-
-
-    const response =
-      await apiClient.post<LoginResponseData>(
-        'auth.login',
-        credentials
-      );
-
-
-    return normalizeLoginResponse(response);
-
+  requestOtp: async (email: string, purpose: 'LOGIN' | 'REGISTER' = 'LOGIN'): Promise<ApiResponse<OtpRequestResponse>> => {
+    return apiClient.post<OtpRequestResponse>('auth.otp.request', { email: email.trim().toLowerCase(), purpose }, undefined, { token: null });
   },
-
+  verifyOtp: async (email: string, otp: string, purpose: 'LOGIN' | 'REGISTER' = 'LOGIN'): Promise<ApiResponse<OtpVerifyResponse>> => {
+    return apiClient.post<OtpVerifyResponse>('auth.otp.verify', { email: email.trim().toLowerCase(), otp: otp.trim(), purpose }, undefined, { token: null });
+  },
 
 
   me: async(
@@ -230,23 +147,5 @@ export const authApi = {
     );
 
   },
-
-  requestPasswordReset: async(email:string):Promise<ApiResponse<PasswordResetRequestResponse>> => {
-    return apiClient.post<PasswordResetRequestResponse>(
-      'auth.password.reset.request',
-      { email: email.trim().toLowerCase() },
-      undefined,
-      { token: null }
-    );
-  },
-
-  confirmPasswordReset: async(token:string, newPassword:string):Promise<ApiResponse<PasswordResetConfirmResponse>> => {
-    return apiClient.post<PasswordResetConfirmResponse>(
-      'auth.password.reset.confirm',
-      { token, new_password: newPassword },
-      undefined,
-      { token: null }
-    );
-  }
 
 };
