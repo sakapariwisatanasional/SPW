@@ -225,18 +225,14 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       case 'no_kta':
         return member.no_kta || member.nationalMemberNumber || member.nomor_kta || '';
 
-      case 'position': {
-        const rawPosition =
+      case 'position':
+        return (
           member.position ||
           member.currentPosition ||
           member.jabatan_khusus ||
           member.tingkat_keanggotaan ||
-          'Anggota';
-
-        return String(rawPosition)
-          .trim()
-          .toUpperCase();
-      }
+          'Anggota'
+        );
 
       case 'tingkat': {
         const level = normalizeOrganizationLevel(member);
@@ -300,7 +296,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       }
 
       case 'kwartir':
-        return resolveKwartirDisplay(member, false);
+        return resolveKwartirDisplay(member);
 
       case 'pangkalan_gudep':
         return member.pangkalan_gudep || member.gugusDepan || member.branchName || '';
@@ -335,13 +331,35 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     }
   };
 
-  // Dynamic QR Identity: token adalah source of truth.
-  // URL dibangun ulang pada origin aplikasi aktif agar qr_url/domain lama tidak menghasilkan halaman kosong.
-  const qrToken = member?.qrToken || member?.qr_token;
-  const qrVerificationUrl = qrToken
-    ? ktaService.generateMemberQrUrl(qrToken)
-    : member?.qrUrl || member?.qr_url ||
-      (member?.id ? ktaService.generateMemberQrUrl(member.id) : `${window.location.origin}/verifikasi`);
+  // QR anggota harus selalu menunjuk ke verifikasi anggota yang bersangkutan.
+  // qr_token adalah sumber utama; jangan pernah menggantinya dengan member.id.
+  // URL dibuat pada origin frontend aktif agar domain lama di data/template tidak
+  // mengarahkan pemindai ke aplikasi yang salah.
+  const qrToken = String(member?.qrToken || member?.qr_token || '').trim();
+  const storedVerificationUrl = String(
+    member?.verificationUrl || member?.verification_url || member?.qrUrl || member?.qr_url || ''
+  ).trim();
+  const qrVerificationUrl = (() => {
+    if (qrToken) return ktaService.generateMemberQrUrl(qrToken);
+    if (!storedVerificationUrl) return '';
+
+    // Kompatibilitas QR lama: ambil token/verifyId dari URL yang tersimpan,
+    // tetapi normalisasi domain dan route ke aplikasi yang sedang dibuka.
+    try {
+      const parsed = new URL(storedVerificationUrl, window.location.origin);
+      const legacyToken = parsed.searchParams.get('token');
+      const verifyId = parsed.searchParams.get('verifyId');
+      const pathToken = parsed.pathname.match(/\/verify\/kta\/([^/]+)|\/verifikasi\/([^/]+)/i);
+      const candidate = legacyToken || (pathToken && (pathToken[1] || pathToken[2]));
+      if (candidate) return ktaService.generateMemberQrUrl(candidate);
+      if (verifyId) {
+        return `${window.location.origin}/verifikasi?verifyId=${encodeURIComponent(verifyId)}`;
+      }
+    } catch {
+      // URL lama yang tidak dapat diparse tidak boleh dijadikan QR.
+    }
+    return '';
+  })();
 
   // QR pengesah harus menggunakan qr_token / verification_url resmi anggota
   // yang dipilih di KTA Designer. Jangan pernah membentuk token dari member ID.
@@ -443,16 +461,8 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
       liveFrame?.offsetHeight || measuredHeight || designWidthPx / aspectRatio
     );
 
-    // Ukuran fisik cetak 1:1.
-    // Untuk preset CR80/KTA gunakan ISO/IEC 7810 ID-1: 85.60 × 53.98 mm,
-    // terlepas dari kemungkinan format sel Google Sheet yang pernah mengubah
-    // angka 53.98 menjadi nilai tanggal/serial.
-    const isCr80 =
-      previewSettings.preset === 'CR80_KTA' ||
-      previewSettings.preset === 'KTP';
-
-    const widthMm = isCr80 ? 85.6 : (previewSettings.widthMm || 85.6);
-    const heightMm = isCr80 ? 53.98 : (previewSettings.heightMm || 53.98);
+    const widthMm = previewSettings.widthMm || 85.6;
+    const heightMm = previewSettings.heightMm || 53.98;
     const cssPxPerMm = 96 / 25.4;
     const physicalWidthPx = widthMm * cssPxPerMm;
     const physicalHeightPx = heightMm * cssPxPerMm;
@@ -601,190 +611,102 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     const frozenBack = cloneWithFrozenStyles(backSource);
 
     // -------------------------------------------------------------------
-    // STEP 2: cetak melalui iframe terisolasi.
-    // Ini mencegah global CSS aplikasi / Tailwind / browser layout
-    // memecah FRONT dan BACK menjadi dua halaman.
+    // STEP 2: buat root khusus print berisi snapshot DOM yang sudah dibekukan.
     // -------------------------------------------------------------------
-    const existingFrame = document.getElementById(
-      'kta-print-iframe-runtime'
-    ) as HTMLIFrameElement | null;
+    const printRoot = document.createElement('div');
+    printRoot.id = 'kta-print-root-runtime';
+    printRoot.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(printRoot);
 
-    if (existingFrame) {
-      existingFrame.remove();
-    }
+    const makePrintSheet = (sideName: 'FRONT' | 'BACK', frozenCard: HTMLElement) => {
+      const sheet = document.createElement('section');
+      sheet.className = 'kta-print-sheet';
+      sheet.setAttribute('data-kta-print-side', sideName);
 
-    const printFrame = document.createElement('iframe');
-    printFrame.id = 'kta-print-iframe-runtime';
-    printFrame.setAttribute('aria-hidden', 'true');
+      const canvas = document.createElement('div');
+      canvas.className = 'kta-print-frozen-canvas';
+      canvas.style.width = `${designWidthPx}px`;
+      canvas.style.height = `${designHeightPx}px`;
+      canvas.style.transform = `scale(${printScale})`;
+      canvas.style.transformOrigin = 'top left';
 
-    Object.assign(printFrame.style, {
-      position: 'fixed',
-      right: '0',
-      bottom: '0',
-      width: '1px',
-      height: '1px',
-      border: '0',
-      opacity: '0',
-      pointerEvents: 'none',
-      zIndex: '-99999',
-    });
+      // Hilangkan ID yang berulang dari clone agar tidak mengganggu selector aplikasi.
+      frozenCard.removeAttribute('id');
+      frozenCard.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
 
-    document.body.appendChild(printFrame);
+      canvas.appendChild(frozenCard);
+      sheet.appendChild(canvas);
+      printRoot.appendChild(sheet);
+    };
 
-    const frameDocument =
-      printFrame.contentDocument ||
-      printFrame.contentWindow?.document;
+    makePrintSheet('FRONT', frozenFront);
+    makePrintSheet('BACK', frozenBack);
 
-    if (!frameDocument) {
-      try {
-        runtimeRoot.unmount();
-      } catch {
-        // no-op
+    const style = document.createElement('style');
+    style.id = 'kta-print-runtime-style';
+    style.textContent = `
+      @page {
+        size: ${widthMm}mm ${heightMm}mm;
+        margin: 0;
       }
-      sourceRoot.remove();
-      printFrame.remove();
-      return;
-    }
 
-    frameDocument.open();
-    frameDocument.write(`<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>KTA Digital SPWN</title>
-<style>
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    width: 210mm;
-    height: 297mm;
-    background: #ffffff;
-    overflow: hidden;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  #kta-print-page {
-    position: relative;
-    width: 210mm;
-    height: 297mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    page-break-after: avoid;
-    break-after: avoid-page;
-    page-break-inside: avoid;
-    break-inside: avoid-page;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .kta-slot {
-    position: absolute;
-    left: 50%;
-    width: ${widthMm}mm;
-    height: ${heightMm}mm;
-    transform: translateX(-50%);
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    page-break-before: avoid;
-    page-break-after: avoid;
-    page-break-inside: avoid;
-    break-before: avoid-page;
-    break-after: avoid-page;
-    break-inside: avoid-page;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  #kta-front {
-    top: 25mm;
-  }
-
-  #kta-back {
-    top: ${25 + heightMm + 10}mm;
-  }
-
-  .kta-frozen-canvas {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: ${designWidthPx}px;
-    height: ${designHeightPx}px;
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-    transform: scale(${printScale});
-    transform-origin: top left;
-  }
-
-  @media print {
-    html,
-    body,
-    #kta-print-page {
-      width: 210mm !important;
-      height: 297mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden !important;
-    }
-  }
-</style>
-</head>
-<body>
-  <main id="kta-print-page">
-    <section id="kta-front" class="kta-slot"></section>
-    <section id="kta-back" class="kta-slot"></section>
-  </main>
-</body>
-</html>`);
-    frameDocument.close();
-
-    const frontSlot = frameDocument.getElementById('kta-front');
-    const backSlot = frameDocument.getElementById('kta-back');
-
-    if (!frontSlot || !backSlot) {
-      try {
-        runtimeRoot.unmount();
-      } catch {
-        // no-op
+      #kta-print-root-runtime {
+        display: none;
       }
-      sourceRoot.remove();
-      printFrame.remove();
-      return;
-    }
 
-    const frontCanvas = frameDocument.createElement('div');
-    frontCanvas.className = 'kta-frozen-canvas';
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: #FFFFFF !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
 
-    const backCanvas = frameDocument.createElement('div');
-    backCanvas.className = 'kta-frozen-canvas';
+        body > *:not(#kta-print-root-runtime) {
+          display: none !important;
+        }
 
-    // Hilangkan ID berulang sebelum dipindahkan ke dokumen cetak.
-    frozenFront.removeAttribute('id');
-    frozenFront.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+        #kta-print-root-runtime {
+          display: block !important;
+          position: static !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: ${widthMm}mm !important;
+        }
 
-    frozenBack.removeAttribute('id');
-    frozenBack.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+        #kta-print-root-runtime .kta-print-sheet {
+          position: relative !important;
+          width: ${widthMm}mm !important;
+          height: ${heightMm}mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          break-after: page;
+          page-break-after: always;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
 
-    frontCanvas.appendChild(frameDocument.importNode(frozenFront, true));
-    backCanvas.appendChild(frameDocument.importNode(frozenBack, true));
+        #kta-print-root-runtime .kta-print-sheet:last-child {
+          break-after: auto;
+          page-break-after: auto;
+        }
 
-    frontSlot.appendChild(frontCanvas);
-    backSlot.appendChild(backCanvas);
+        #kta-print-root-runtime .kta-print-frozen-canvas {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
 
-    // Source React sudah tidak dibutuhkan.
+    // Source React sudah tidak dibutuhkan; frozen clone berdiri sendiri.
     try {
       runtimeRoot.unmount();
     } catch {
@@ -792,69 +714,25 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     }
     sourceRoot.remove();
 
-    // Tunggu seluruh asset di iframe siap.
-    const iframeImages = Array.from(
-      frameDocument.querySelectorAll('img')
-    ) as HTMLImageElement[];
-
-    await Promise.all(
-      iframeImages.map(
-        (img) =>
-          new Promise<void>((resolve) => {
-            if (img.complete) {
-              resolve();
-              return;
-            }
-
-            img.addEventListener('load', () => resolve(), { once: true });
-            img.addEventListener('error', () => resolve(), { once: true });
-          })
-      )
-    );
-
-    try {
-      if (frameDocument.fonts?.ready) {
-        await frameDocument.fonts.ready;
-      }
-    } catch {
-      // no-op
-    }
-
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => resolve())
-      )
-    );
-
-    const frameWindow = printFrame.contentWindow;
-
-    if (!frameWindow) {
-      printFrame.remove();
-      return;
-    }
-
     let cleaned = false;
-
-    const cleanupPrintFrame = () => {
+    const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
-      printFrame.remove();
+      printRoot.remove();
+      style.remove();
+      window.removeEventListener('afterprint', cleanup);
     };
 
-    frameWindow.addEventListener(
-      'afterprint',
-      cleanupPrintFrame,
-      { once: true }
-    );
+    window.addEventListener('afterprint', cleanup, { once: true });
 
-    frameWindow.focus();
+    // Pastikan DOM frozen ter-layout sebelum print dialog dibuka.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     window.setTimeout(() => {
-      frameWindow.print();
-
-      // Fallback browser yang tidak menembakkan afterprint.
-      window.setTimeout(cleanupPrintFrame, 60000);
-    }, 150);
+      window.print();
+      // Fallback browser yang tidak mengirim afterprint.
+      window.setTimeout(cleanup, 60000);
+    }, 100);
   };
 
   return (
@@ -1055,24 +933,13 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   title="Zone 2: Structured Auto-Flow Identity Stack"
                 >
                   {activeFrontFields.map((field) => {
-                    const canonicalField = canonicalKtaFieldKey(field.field);
-                    const isName = canonicalField === 'full_name';
-                    const isKta = canonicalField === 'no_kta';
-                    const isLevel = canonicalField === 'tingkat';
-                    const isKwartir = canonicalField === 'kwartir';
+                    const val = getFieldValue(field.field, field.customValue);
+                    const isName = canonicalKtaFieldKey(field.field) === 'full_name';
+                    const isKta = canonicalKtaFieldKey(field.field) === 'no_kta';
+                    const isLevel = canonicalKtaFieldKey(field.field) === 'tingkat';
 
-                    // Khusus field Kwartir:
-                    // - showLabel=true  => tampilkan prefix hierarki, mis. "Kwartir Cabang KOTA DEPOK"
-                    // - showLabel=false => hanya nama wilayah, mis. "KOTA DEPOK"
-                    // KWARNAS tetap "Kwartir Nasional" karena itu nama organisasi final.
-                    const val = isKwartir
-                      ? resolveKwartirDisplay(member, field.showLabel ?? false)
-                      : getFieldValue(field.field, field.customValue);
-
-                    // Kontrol label tambahan biasa. Field Kwartir dikecualikan karena
-                    // toggle "Label" pada Designer berfungsi sebagai toggle "Prefix".
+                    // Kontrol visibilitas label tambahan: disembunyikan jika layout padat atau showFieldLabels nonaktif
                     const shouldDisplayLabel =
-                      !isKwartir &&
                       field.showLabel &&
                       previewSettings.showFieldLabels !== false &&
                       !isName &&
@@ -1151,7 +1018,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                 {/* ------------------------------------------------------ */}
                 {/* ZONE 3: DYNAMIC QR CODE - TANPA EFEK & BISA DIATUR X/Y */}
                 {/* ------------------------------------------------------ */}
-                {previewSettings.showQrCode && (
+                {previewSettings.showQrCode && qrVerificationUrl && (
                   <div
                     className="absolute flex flex-col items-center justify-center select-none"
                     style={{
