@@ -196,61 +196,52 @@ export const MemberAdministration: React.FC = () => {
       addToast({
         type: 'error',
         title: 'ID Anggota Tidak Tersedia',
-        message: 'Detail tidak dibuka karena baris anggota tidak memiliki ID backend yang valid.',
+        message: 'Detail verifikasi tidak dapat dibuka karena ID anggota dari daftar kosong.',
       });
       return;
     }
 
     try {
-      // Gunakan endpoint administrasi yang memang mengembalikan detail untuk verifikasi.
+      // Gunakan endpoint administrasi, bukan endpoint detail profil umum.
+      // Drawer hanya dibuka bila backend mengembalikan record dengan ID yang sama.
       const response = await memberApi.adminDetail(requestedId);
-      const rawDetail = response?.data?.member;
+      const payload = response?.data;
+      const rawDetail = payload?.member;
+      const returnedId = String(rawDetail?.id || rawDetail?.member_id || '').trim();
 
-      if (!rawDetail || typeof rawDetail !== 'object') {
-        throw new Error('Backend tidak mengembalikan record anggota.');
+      if (!rawDetail || !returnedId || returnedId !== requestedId) {
+        throw new Error('Data detail dari backend tidak cocok dengan anggota yang dipilih. Drawer tidak dibuka untuk mencegah data tertukar.');
       }
 
-      // Pastikan response memang milik anggota yang dipilih; jangan tampilkan profil lain.
-      const returnedIds = [
-        rawDetail.id,
-        rawDetail.member_id,
-        rawDetail.memberId,
-        rawDetail.no_kta,
-        rawDetail.nomor_kta,
-        rawDetail.nomorKTA,
-      ].map((value) => String(value || '').trim()).filter(Boolean);
-
-      if (!returnedIds.includes(requestedId)) {
-        throw new Error('ID anggota pada respons backend tidak cocok dengan anggota yang dipilih. Detail diblokir demi keamanan data.');
-      }
-
-      /**
-       * Prioritaskan data dari detail GAS. Data tabel hanya boleh menjadi fallback
-       * untuk field presentasi yang tidak disediakan backend, bukan identitas.
-       */
       const detailMember: AdminMemberRecord = {
         ...m,
         ...rawDetail,
-        id: String(rawDetail.id || requestedId),
-        full_name:
-          rawDetail.full_name || rawDetail.fullName || rawDetail.nama_lengkap || rawDetail.nama || '',
-        nama_lengkap:
-          rawDetail.nama_lengkap || rawDetail.full_name || rawDetail.fullName || rawDetail.nama || '',
+        id: returnedId,
+        full_name: rawDetail.full_name || rawDetail.fullName || rawDetail.nama_lengkap || m.full_name || m.nama_lengkap || m.nama || '',
+        nama_lengkap: rawDetail.nama_lengkap || rawDetail.full_name || rawDetail.fullName || m.nama_lengkap || m.full_name || m.nama || '',
         email: rawDetail.email || '',
-        nomor_telepon: rawDetail.nomor_telepon || rawDetail.phone || rawDetail.telepon || rawDetail.whatsapp || '',
-        phone: rawDetail.phone || rawDetail.nomor_telepon || rawDetail.telepon || rawDetail.whatsapp || '',
+        nomor_telepon: String(rawDetail.nomor_telepon || rawDetail.phone || rawDetail.whatsapp || ''),
+        phone: String(rawDetail.phone || rawDetail.nomor_telepon || rawDetail.whatsapp || ''),
+        provinsi_id: String(rawDetail.provinsi_id ?? rawDetail.province_id ?? m.provinsi_id ?? ''),
+        provinsi_nama: rawDetail.provinsi_nama || rawDetail.province || m.provinsi_nama || '',
+        kabupaten_id: String(rawDetail.kabupaten_kota_id ?? rawDetail.kabupaten_id ?? m.kabupaten_id ?? ''),
+        kabupaten_nama: rawDetail.kabupaten_kota_nama || rawDetail.kabupaten_kota || rawDetail.city || m.kabupaten_nama || '',
+        kecamatan_id: String(rawDetail.kecamatan_id ?? m.kecamatan_id ?? ''),
+        wilayah_kecamatan_nama: rawDetail.kecamatan_nama || rawDetail.kecamatan || rawDetail.district || m.wilayah_kecamatan_nama || '',
+        foto_url: rawDetail.photo_url || rawDetail.foto_url || '',
+        status_anggota: rawDetail.status_anggota || rawDetail.status || m.status_anggota,
       };
 
-      setInspectMember(detailMember);
       setDrawerTab(tab);
+      setInspectMember(detailMember);
     } catch (error: any) {
-      console.error('Gagal mengambil detail anggota untuk verifikasi:', error);
+      console.error('Gagal mengambil detail administrasi anggota:', error);
       addToast({
         type: 'error',
-        title: 'Detail Anggota Gagal Dibuka',
-        message: error?.message || 'Data detail tidak dapat diverifikasi. Tidak ada profil cadangan yang ditampilkan.',
+        title: 'Detail Verifikasi Gagal Dibuka',
+        message: error?.message || 'Gagal mengambil detail anggota dari GAS. Silakan coba lagi.',
       });
-      // Jangan fallback ke data tabel: mencegah drawer menampilkan profil yang salah.
+      // Fail closed: jangan membuka data cache tabel sebagai pengganti detail backend.
     }
   };
 
@@ -868,49 +859,17 @@ export const MemberAdministration: React.FC = () => {
                         </div>
                         <button
                           type="button"
-                          onClick={async () => {
-                            try {
-                              if (isSuperAdmin) {
-                                await approveMember(
-                                  getBackendMemberId(m),
-                                  'SUPER_ADMIN_DIRECT_APPROVAL: data diperiksa dan disahkan langsung oleh Super Administrator.',
-                                  currentUser?.fullName || currentUser?.username || 'Super Administrator',
-                                  'SUPER_ADMIN'
-                                );
-                                await refreshMembersFromApi();
-                                addToast({
-                                  type: 'success',
-                                  title: 'Pengesahan Langsung Berhasil',
-                                  message: `Anggota ${m.nama_lengkap} langsung berstatus ACTIVE. Tahap review wilayah dilewati oleh kewenangan Super Administrator.`,
-                                });
-                              } else {
-                                await reviewMember(
-                                  getBackendMemberId(m),
-                                  'Berkas diverifikasi absah oleh Admin Wilayah',
-                                  'Admin Wilayah',
-                                  simulatedScope
-                                );
-                                await refreshMembersFromApi();
-                                addToast({
-                                  type: 'success',
-                                  title: 'Berkas Terverifikasi',
-                                  message: `Anggota ${m.nama_lengkap} lolos verifikasi tahap Wilayah (REVIEWED_VERIFIED).`,
-                                });
-                              }
-                            } catch (error: any) {
-                              addToast({
-                                type: 'error',
-                                title: isSuperAdmin ? 'Pengesahan Gagal' : 'Verifikasi Gagal',
-                                message: error?.message || 'Gagal memproses verifikasi anggota.',
-                              });
-                            }
+                          onClick={() => {
+                            // Buka detail anggota untuk pemeriksaan berkas terlebih dahulu.
+                            // Status tidak boleh berubah hanya karena tombol antrean diklik.
+                            void openMemberDrawer(m, 'overview');
                           }}
                           className={`px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer ${
                             isSuperAdmin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-sky-600 hover:bg-sky-700'
                           }`}
                         >
                           {isSuperAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
-                          {isSuperAdmin ? 'Sahkan Langsung' : 'Review & Verifikasi Berkas (Wilayah)'}
+                          Buka Pemeriksaan & Verifikasi
                         </button>
                       </div>
                     )}
