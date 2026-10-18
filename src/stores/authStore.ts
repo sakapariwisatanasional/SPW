@@ -217,14 +217,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginWithCredentials: async (identifier: string, password: string) => {
     const cleanId = identifier.trim().toLowerCase();
-    const cleanPass = password; // Password dapat mengandung spasi; jangan diubah.
+    // Do not trim the password: spaces can be part of a valid password.
+    const exactPassword = password;
 
-    if (!cleanId || !cleanPass) {
-      return { success: false, message: 'Email / username / nomor KTA dan kata sandi wajib diisi.' };
+    if (!cleanId || !exactPassword) {
+      return { success: false, message: 'Username / Email / Nomor KTA dan Kata Sandi wajib diisi.' };
     }
 
     try {
-      const res = await authApi.login({ username: cleanId, password: cleanPass });
+      const res = await authApi.login({ username: cleanId, password: exactPassword });
       if (!res?.success || !res.data?.token || !res.data?.user) {
         return { success: false, message: res?.message || 'Login gagal. Periksa kredensial atau status akun Anda.' };
       }
@@ -238,14 +239,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         fullName: gasUser.full_name || gasUser.nama || gasUser.username || cleanId,
         role,
         roleName: (gasUser as any).roleName || (role === ROLES.MEMBER ? 'Anggota SAKA Pariwisata' : role),
-        memberId: (gasUser as any).memberId || gasUser.id,
+        memberId: (gasUser as any).member_id || (gasUser as any).memberId || gasUser.id,
         nomor_kta: gasUser.nomor_kta || gasUser.no_kta,
         no_kta: gasUser.no_kta || gasUser.nomor_kta,
         province: gasUser.province || gasUser.kwartir_daerah || 'Indonesia',
         provinceId: gasUser.provinsi_id || '00',
         kridaName: gasUser.kridaName || gasUser.krida,
         membershipLevel: (gasUser as any).membershipLevel || (gasUser as any).position || gasUser.tingkatan || 'Anggota',
-        isActive: gasUser.status ? String(gasUser.status).toUpperCase() === 'ACTIVE' : true,
+        isActive: String(gasUser.status || '').toUpperCase() === 'ACTIVE',
         avatarUrl: (gasUser as any).avatarUrl || (gasUser as any).foto_url || (gasUser as any).photo_url || gasUser.foto || '',
         permissions: (gasUser.permissions || []) as PermissionKey[],
       };
@@ -254,8 +255,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: true, message: res.message || 'Login berhasil.', user: mappedProfile };
     } catch (error: any) {
       const message = String(error?.message || 'Tidak dapat menghubungi server autentikasi.');
-      if (/GAS2|reset password|password lama|hash/i.test(message)) {
-        return { success: false, message: 'Akun ini perlu mengatur ulang kata sandi. Gunakan menu “Lupa Password?”.' };
+      if (/format lama|GAS2|Lupa Password|reset password|hash/i.test(message)) {
+        return { success: false, message: 'Password akun ini perlu diperbarui. Gunakan menu “Lupa Password?” untuk membuat password baru.' };
       }
       return { success: false, message };
     }
@@ -281,12 +282,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    const state = get();
-    if (state.token && state.currentUser?.id) {
-      void authApi.logout(state.currentUser.id).catch((error) => {
-        console.warn('Logout server tidak dapat dikonfirmasi; sesi lokal tetap dibersihkan.', error);
-      });
-    }
     try {
       localStorage.removeItem('spwn_session_token');
       localStorage.removeItem('spwn_session_user');
