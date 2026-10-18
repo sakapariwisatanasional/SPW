@@ -107,14 +107,13 @@ export interface LoginPayload {
 
 
 export interface LoginResponseData {
-
   token?: string;
-
   user: SpwnUser;
-
   expiresAt?: string;
-
 }
+
+export interface PasswordResetRequestResponse { requested: boolean }
+export interface PasswordResetConfirmResponse { reset: boolean }
 
 
 
@@ -230,7 +229,24 @@ export const authApi = {
       }
     );
 
-  }
+  },
 
+  requestPasswordReset: async(email:string):Promise<ApiResponse<PasswordResetRequestResponse>> => {
+    return apiClient.post<PasswordResetRequestResponse>(
+      'auth.password.reset.request',
+      { email: email.trim().toLowerCase() },
+      undefined,
+      { token: null }
+    );
+  },
+
+  confirmPasswordReset: async(token:string, newPassword:string):Promise<ApiResponse<PasswordResetConfirmResponse>> => {
+    return apiClient.post<PasswordResetConfirmResponse>(
+      'auth.password.reset.confirm',
+      { token, new_password: newPassword },
+      undefined,
+      { token: null }
+    );
+  }
 
 };
