@@ -55,17 +55,6 @@ export default function App() {
 
   const isPublicUser = !isAuthenticated || currentUser.role === ROLES.PUBLIC_USER;
 
-  // Bila sesi dipulihkan di URL QR, langsung kembalikan pengguna ke dashboard.
-  // QR publik tetap tersedia untuk pengunjung yang belum login.
-  React.useEffect(() => {
-    if (!isAuthenticated || typeof window === 'undefined') return;
-    if (/^\/verifikasi(?:\/|$)/i.test(window.location.pathname)) {
-      window.history.replaceState(window.history.state, '', '/');
-      setActiveView('dashboard');
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [isAuthenticated, setActiveView]);
-
   // Role Access Guard
   const renderActiveView = () => {
     switch (activeView) {
@@ -187,13 +176,15 @@ export default function App() {
     }
   };
 
-  // URL publik dari QR harus dapat dibuka langsung, termasuk tanpa login.
-  // Jangan bergantung pada activeView yang tersimpan di UI store.
+  // URL verifikasi KTA adalah route publik yang selalu menang atas activeView
+  // tersimpan maupun status login. Jangan mengalihkan URL QR ke dashboard.
+  // Mendukung path kanonis /verifikasi dan path lama /verify.
   const isDirectVerificationRoute = typeof window !== 'undefined' && (() => {
     const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-    return path === '/verifikasi' || path.startsWith('/verifikasi/');
+    return path === '/verifikasi' || path.startsWith('/verifikasi/') ||
+      path === '/verify' || path.startsWith('/verify/');
   })();
-  if (isDirectVerificationRoute && !isAuthenticated && activeView === 'home') {
+  if (isDirectVerificationRoute) {
     return (
       <>
         <PublicLayout activeNav="verifikasi" onNavigate={(navId) => setActiveView(navId)}>
