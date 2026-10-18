@@ -132,7 +132,8 @@ export interface RegisterMemberPayload {
   krida?: string;
   foto_url?: string;
   photo_url?: string;
-  otp_verification_token?: string;
+  password?: string;
+  confirm_password?: string;
 
   // Backward compatible & regional fields
   nama_lengkap?: string;
@@ -228,6 +229,38 @@ export const memberApi = {
         : response.data,
     };
 
+  },
+
+  /**
+   * Mengambil detail anggota untuk workflow administrasi/verifikasi.
+   * Route admin.member.detail mengembalikan data berbentuk:
+   * { member, approvals, history, ktaLogs }.
+   * Dipisahkan dari member.detail agar endpoint administrasi tidak tertukar
+   * dengan endpoint profil anggota biasa.
+   */
+  adminDetail: async (memberId: string): Promise<ApiResponse<any>> => {
+    const id = String(memberId || '').trim();
+    if (!id) {
+      throw new Error('ID anggota wajib tersedia untuk membuka detail verifikasi.');
+    }
+
+    const response = await apiClient.post<any>('admin.member.detail', {
+      member_id: id,
+    });
+
+    const result = response?.data;
+    const member = result?.member;
+    if (!member || typeof member !== 'object') {
+      throw new Error('Backend tidak mengembalikan detail anggota yang valid.');
+    }
+
+    return {
+      ...response,
+      data: {
+        ...result,
+        member: normalizeMemberKtaData(member),
+      },
+    };
   },
 
   /**
