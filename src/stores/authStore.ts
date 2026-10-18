@@ -1,137 +1,18 @@
 import { create } from 'zustand';
 import { ROLES, UserRole } from '../config/constants';
 import { UserProfile } from '../types/auth';
-import { PERMISSIONS, PermissionKey, ROLE_DEFAULT_PERMISSIONS } from '../types/permissions';
+import { PermissionKey } from '../types/permissions';
 import { authApi } from '../services/api/auth.api';
 
-export const MOCK_USERS: Record<UserRole, UserProfile & { permissions: PermissionKey[] }> = {
-  [ROLES.SUPER_ADMIN]: {
-    id: 'usr-superadmin',
-    username: 'admin_saka',
-    email: 'admin_saka@spwn.id',
-    fullName: 'Super Administrator SAKA Pariwisata',
-    role: ROLES.SUPER_ADMIN,
-    roleName: 'Super Administrator',
-    province: 'DKI Jakarta',
-    provinceId: '00',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-23T08:30:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.SUPER_ADMIN],
-  },
-  [ROLES.ADMIN_PUSAT]: {
-    id: 'usr-adminpusat',
-    username: 'admin.pusat',
-    email: 'pusat@spwn.id',
-    fullName: 'Raden Mas Suryo Pratama, S.ST.Par',
-    role: ROLES.ADMIN_PUSAT,
-    roleName: 'Admin Kwarnas & Pusat',
-    province: 'DKI Jakarta',
-    provinceId: '00',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-21T07:15:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.ADMIN_PUSAT],
-  },
-  [ROLES.ADMIN_WILAYAH]: {
-    id: 'usr-adminwilayah',
-    username: 'admin.jabar',
-    email: 'kwarda.jabar@spwn.id',
-    fullName: 'Siti Nurhaliza Putri, S.Par',
-    role: ROLES.ADMIN_WILAYAH,
-    roleName: 'Admin Kwarda Jawa Barat',
-    province: 'Jawa Barat',
-    provinceId: '32',
-    cityId: '3201',
-    cityName: 'Kab. Bogor',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-20T14:20:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.ADMIN_WILAYAH],
-  },
-  [ROLES.CONTENT_MANAGER]: {
-    id: 'usr-contentmgr',
-    username: 'editor.spwn',
-    email: 'redaksi@spwn.id',
-    fullName: 'Ahmad Fauzan Wicaksono',
-    role: ROLES.CONTENT_MANAGER,
-    roleName: 'Content & Editorial Manager',
-    province: 'DI Yogyakarta',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-21T06:00:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.CONTENT_MANAGER],
-  },
-  [ROLES.TOURISM_MANAGER]: {
-    id: 'usr-tourismmgr',
-    username: 'pariwisata.lead',
-    email: 'wisata@spwn.id',
-    fullName: 'Dewi Anjani Kusuma',
-    role: ROLES.TOURISM_MANAGER,
-    roleName: 'Tourism Explorer & Destination Lead',
-    province: 'Bali',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-20T20:10:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.TOURISM_MANAGER],
-  },
-  [ROLES.COMMERCE_MANAGER]: {
-    id: 'usr-commercemgr',
-    username: 'umkm.binaan',
-    email: 'pasar@spwn.id',
-    fullName: 'Budi Santoso, SE',
-    role: ROLES.COMMERCE_MANAGER,
-    roleName: 'Commerce & UMKM Coordinator',
-    province: 'Jawa Tengah',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-21T02:45:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.COMMERCE_MANAGER],
-  },
-  [ROLES.MEMBER]: {
-    id: 'usr-member-01',
-    username: 'fajar.pramuka',
-    email: 'fajar.nusantara@gmail.com',
-    fullName: 'Fajar Nugraha Wijaya',
-    role: ROLES.MEMBER,
-    roleName: 'Anggota Aktif SAKA Pariwisata',
-    memberId: 'SPWN.32.01.2024.089',
-    nomor_kta: '00.3201.010.000089',
-    province: 'Jawa Barat',
-    provinceId: '32',
-    cityId: '3204',
-    cityName: 'Kabupaten Bandung',
-    districtId: '190',
-    districtName: 'Soreang',
-    pangkalan: 'Pangkalan Saka Pariwisata Kab. Bandung',
-    phone: '081234567890',
-    address: 'Jl. Soreang Raya No. 45, Soreang, Bandung',
-    birthPlace: 'Bandung',
-    birthDate: '1998-08-15',
-    gender: 'L',
-    bloodType: 'A',
-    kridaId: 'KRIDA_PEMANDU',
-    kridaName: 'Krida Pemandu',
-    membershipLevel: 'Anggota',
-    isActive: true,
-    status: 'ACTIVE',
-    isApproved: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-    lastLoginAt: '2026-09-21T08:00:00Z',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.MEMBER],
-  },
-  [ROLES.PUBLIC_USER]: {
-    id: 'usr-guest',
-    username: 'tamu.publik',
-    email: 'guest@publik.id',
-    fullName: 'Pengunjung Publik Nusantara',
-    role: ROLES.PUBLIC_USER,
-    roleName: 'Masyarakat Umum / Publik',
-    province: 'DKI Jakarta',
-    isActive: true,
-    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    permissions: ROLE_DEFAULT_PERMISSIONS[ROLES.PUBLIC_USER],
-  },
+const EMPTY_PUBLIC_USER: UserProfile & { permissions: PermissionKey[] } = {
+  id: '',
+  username: '',
+  email: '',
+  fullName: '',
+  role: ROLES.PUBLIC_USER,
+  roleName: 'Publik',
+  isActive: false,
+  permissions: [],
 };
 
 function getInitialAuthState(): {
@@ -142,17 +23,13 @@ function getInitialAuthState(): {
   try {
     const savedToken = localStorage.getItem('spwn_session_token');
     const savedUserStr = localStorage.getItem('spwn_session_user');
-    if (savedToken && savedUserStr) {
+    if (savedToken && savedToken.indexOf('SPWN-SES-') === 0 && savedUserStr) {
       const user = JSON.parse(savedUserStr);
       if (user && user.role && user.role !== ROLES.PUBLIC_USER) {
-        if (user.role === ROLES.SUPER_ADMIN) {
-          user.username = 'admin_saka';
-          user.email = user.email || 'admin_saka@spwn.id';
-        }
         return {
           currentUser: {
             ...user,
-            permissions: user.permissions || ROLE_DEFAULT_PERMISSIONS[user.role as UserRole] || [],
+            permissions: Array.isArray(user.permissions) ? user.permissions : [],
           },
           token: savedToken,
           isAuthenticated: true,
@@ -163,9 +40,17 @@ function getInitialAuthState(): {
     console.warn('Gagal memulihkan sesi login dari penyimpanan lokal', e);
   }
 
+  try {
+    const savedToken = localStorage.getItem('spwn_session_token');
+    if (savedToken && savedToken.indexOf('SPWN-SES-') !== 0) {
+      localStorage.removeItem('spwn_session_token');
+      localStorage.removeItem('spwn_session_user');
+    }
+  } catch { /* Penyimpanan lokal tidak tersedia; mulai sebagai publik. */ }
+
   // Publik sebagai kondisi default saat web pertama kali dibuka
   return {
-    currentUser: MOCK_USERS[ROLES.PUBLIC_USER],
+    currentUser: EMPTY_PUBLIC_USER,
     token: null,
     isAuthenticated: false,
   };
@@ -198,74 +83,80 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: initialAuth.token,
   isAuthenticated: initialAuth.isAuthenticated,
 
-  switchRole: (role: UserRole) => {
-    if (role === ROLES.PUBLIC_USER) {
-      get().logout();
-      return;
-    }
-
-    const targetUser = MOCK_USERS[role];
-    const devToken = `SPWN-DEV-TOKEN-${role}`;
-    get().setSession(targetUser, devToken);
+  // Compatibilidade temporária com componentes antigos: troca de papel/demo login desativados.
+  switchRole: (_role: UserRole) => {
+    get().logout();
   },
 
-  loginAs: (role: UserRole) => {
-    const user = MOCK_USERS[role];
-    const token = `SPWN-DEV-TOKEN-${role}`;
-    get().setSession(user, token);
+  loginAs: (_role: UserRole) => {
+    get().logout();
   },
 
   loginWithCredentials: async (identifier: string, password: string) => {
     const cleanId = identifier.trim().toLowerCase();
-    // Do not trim the password: spaces can be part of a valid password.
-    const exactPassword = password;
+    const cleanPass = password;
 
-    if (!cleanId || !exactPassword) {
+    if (!cleanId || !cleanPass) {
       return { success: false, message: 'Username / Email / Nomor KTA dan Kata Sandi wajib diisi.' };
     }
 
+    // Autentikasi produksi hanya melalui GAS. Jangan menerbitkan token mock
+    // karena token tersebut tidak pernah terdaftar di CacheService backend.
     try {
-      const res = await authApi.login({ username: cleanId, password: exactPassword });
-      if (!res?.success || !res.data?.token || !res.data?.user) {
-        return { success: false, message: res?.message || 'Login gagal. Periksa kredensial atau status akun Anda.' };
+      const res = await authApi.login({
+        username: cleanId,
+        password: cleanPass,
+      });
+
+      const data: any = res && res.data;
+      const gasUser = data && (data.user || data);
+      const token = data && data.token;
+
+      if (!res || !res.success || !gasUser || !token || !gasUser.id || !gasUser.role) {
+        return {
+          success: false,
+          message: (res && res.message) || 'Login GAS tidak mengembalikan sesi dan identitas pengguna yang valid. Periksa respons backend.',
+        };
       }
 
-      const gasUser = res.data.user;
-      const role = (gasUser.role || ROLES.MEMBER) as UserRole;
-      const mappedProfile: UserProfile & { permissions?: PermissionKey[] } = {
-        id: gasUser.id,
-        username: gasUser.username || gasUser.nama || cleanId,
+      const role = gasUser.role as UserRole;
+      const mappedProfile: UserProfile = {
+        id: String(gasUser.id || ''),
+        username: gasUser.username || gasUser.nama || gasUser.fullName || cleanId,
         email: gasUser.email || cleanId,
-        fullName: gasUser.full_name || gasUser.nama || gasUser.username || cleanId,
+        fullName: gasUser.fullName || gasUser.full_name || gasUser.nama || gasUser.username || cleanId,
         role,
-        roleName: (gasUser as any).roleName || (role === ROLES.MEMBER ? 'Anggota SAKA Pariwisata' : role),
-        memberId: (gasUser as any).member_id || (gasUser as any).memberId || gasUser.id,
-        nomor_kta: gasUser.nomor_kta || gasUser.no_kta,
-        no_kta: gasUser.no_kta || gasUser.nomor_kta,
-        province: gasUser.province || gasUser.kwartir_daerah || 'Indonesia',
-        provinceId: gasUser.provinsi_id || '00',
-        kridaName: gasUser.kridaName || gasUser.krida,
-        membershipLevel: (gasUser as any).membershipLevel || (gasUser as any).position || gasUser.tingkatan || 'Anggota',
-        isActive: String(gasUser.status || '').toUpperCase() === 'ACTIVE',
-        avatarUrl: (gasUser as any).avatarUrl || (gasUser as any).foto_url || (gasUser as any).photo_url || gasUser.foto || '',
-        permissions: (gasUser.permissions || []) as PermissionKey[],
-      };
+        roleName: gasUser.roleName || role,
+        memberId: gasUser.memberId || gasUser.member_id || gasUser.id || '',
+        nomor_kta: gasUser.nomorKTA || gasUser.nomor_kta || gasUser.no_kta || '',
+        no_kta: gasUser.no_kta || gasUser.nomor_kta || gasUser.nomorKTA || '',
+        province: gasUser.province || gasUser.kwartir_daerah || '',
+        provinceId: gasUser.provinsi_id || '',
+        kridaName: gasUser.kridaName || gasUser.krida || '',
+        membershipLevel: gasUser.membershipLevel || gasUser.position || gasUser.tingkatan || '',
+        isActive: gasUser.isActive !== false,
+        avatarUrl: gasUser.avatarUrl || gasUser.foto_url || gasUser.photo_url || gasUser.foto || '',
+        permissions: gasUser.permissions || [],
+      } as UserProfile;
 
-      get().setSession(mappedProfile, res.data.token);
-      return { success: true, message: res.message || 'Login berhasil.', user: mappedProfile };
-    } catch (error: any) {
-      const message = String(error?.message || 'Tidak dapat menghubungi server autentikasi.');
-      if (/format lama|GAS2|Lupa Password|reset password|hash/i.test(message)) {
-        return { success: false, message: 'Password akun ini perlu diperbarui. Gunakan menu “Lupa Password?” untuk membuat password baru.' };
+      if (!mappedProfile.id) {
+        return { success: false, message: 'Login GAS tidak mengembalikan ID pengguna. Sesi tidak disimpan.' };
       }
-      return { success: false, message };
+
+      get().setSession(mappedProfile, String(token));
+      return { success: true, message: 'Login berhasil melalui GAS.', user: mappedProfile };
+    } catch (apiErr: any) {
+      console.warn('Otentikasi GAS API gagal:', apiErr && apiErr.message ? apiErr.message : apiErr);
+      return {
+        success: false,
+        message: (apiErr && apiErr.message) || 'Tidak dapat memverifikasi akun ke GAS. Periksa koneksi dan deployment backend.',
+      };
     }
   },
 
   setSession: (user, token) => {
-    const permissions = user.permissions && user.permissions.length > 0 
-      ? user.permissions 
-      : ROLE_DEFAULT_PERMISSIONS[user.role] || [];
+    // Permission hanya berasal dari respons backend; jangan memberi hak akses default di frontend.
+    const permissions = Array.isArray(user.permissions) ? user.permissions : [];
       
     try {
       localStorage.setItem('spwn_session_token', token);
@@ -290,7 +181,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({
-      currentUser: MOCK_USERS[ROLES.PUBLIC_USER],
+      currentUser: EMPTY_PUBLIC_USER,
       token: null,
       isAuthenticated: false,
     });
@@ -305,11 +196,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ...updates,
     };
 
-    // Update in memory mock cache for active persona
-    if (currentUser.role && MOCK_USERS[currentUser.role]) {
-      Object.assign(MOCK_USERS[currentUser.role], updates);
-    }
-
     try {
       localStorage.setItem('spwn_active_profile_' + currentUser.id, JSON.stringify(updatedUser));
       localStorage.setItem('spwn_session_user', JSON.stringify(updatedUser));
@@ -320,48 +206,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ currentUser: updatedUser });
   },
 
-  resetCurrentUserPassword: async (oldPassword: string, newPassword: string) => {
-    const { currentUser } = get();
-    if (!currentUser || !currentUser.id) {
-      throw new Error('Sesi pengguna tidak valid');
-    }
-
-    if (!newPassword || newPassword.length < 6) {
-      throw new Error('Password baru minimal terdiri dari 6 karakter!');
-    }
-
-    // Record password change event in local history
-    try {
-      const historyKey = `SPWN_PASS_HISTORY_${currentUser.id}`;
-      const existing = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      existing.unshift({
-        timestamp: new Date().toISOString(),
-        actorId: currentUser.id,
-        actorRole: currentUser.role,
-        note: 'Password berhasil diubah oleh pengguna sendiri.',
-      });
-      localStorage.setItem(historyKey, JSON.stringify(existing));
-    } catch (e) {
-      console.warn('Failed writing password history', e);
-    }
-
+  resetCurrentUserPassword: async (_oldPassword: string, _newPassword: string) => {
     return {
-      success: true,
-      message: 'Kata sandi berhasil diperbarui dengan aman.',
+      success: false,
+      message: 'Perubahan kata sandi lokal dinonaktifkan. Gunakan endpoint reset kata sandi resmi di backend GAS.',
     };
   },
 
   hasPermission: (permission: PermissionKey) => {
     const { currentUser } = get();
     if (!currentUser || !currentUser.permissions) return false;
-    if (currentUser.role === ROLES.SUPER_ADMIN) return true;
     return currentUser.permissions.includes(permission);
   },
 
   hasAnyPermission: (permissions: PermissionKey[]) => {
     const { currentUser } = get();
     if (!currentUser || !currentUser.permissions) return false;
-    if (currentUser.role === ROLES.SUPER_ADMIN) return true;
     return permissions.some(p => currentUser.permissions.includes(p));
   },
 
