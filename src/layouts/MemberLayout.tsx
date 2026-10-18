@@ -69,7 +69,7 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
   activeTab: controlledTab,
   onTabChange,
 }) => {
-  const { currentUser, switchRole } = useAuthStore();
+  const { currentUser, logout } = useAuthStore();
   const { addToast, setActiveView } = useUIStore();
   const {
     qaPerspective,
@@ -367,7 +367,8 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
           <button
             onClick={() => {
               sessionStorage.removeItem('spwn_simulated_from_superadmin');
-              switchRole(ROLES.PUBLIC_USER);
+              logout();
+              setActiveView('home');
             }}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 border-2 border-transparent hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-colors cursor-pointer"
           >
@@ -433,6 +434,9 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
                   {currentUser.fullName.charAt(0)}
                 </div>
               )}
+            </button>
+            <button type="button" onClick={() => { logout(); setActiveView('home'); }} className="w-8 h-8 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 grid place-items-center" aria-label="Keluar sesi" title="Keluar sesi">
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
