@@ -217,114 +217,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginWithCredentials: async (identifier: string, password: string) => {
     const cleanId = identifier.trim().toLowerCase();
-    const cleanPass = password.trim();
+    const cleanPass = password; // Password dapat mengandung spasi; jangan diubah.
 
     if (!cleanId || !cleanPass) {
-      return { success: false, message: 'Username / Email / Nomor KTA dan Kata Sandi wajib diisi.' };
-    }
-
-    // 1. Verifikasi Kredensial Khusus Super Administrator (Default Kredensial Resmi)
-    // Username: admin_saka
-    // Password: sakapariwisata#2026!
-    const isSuperAdminAlias = (
-      cleanId === 'admin_saka' ||
-      cleanId === 'admin_saka@spwn.id' ||
-      cleanId === 'sakapariwisatanasional@gmail.com' ||
-      cleanId === 'superadmin.spwn' ||
-      cleanId === 'superadmin@spwn.id' ||
-      cleanId === 'admin'
-    );
-
-    if (isSuperAdminAlias) {
-      if (cleanPass === 'sakapariwisata#2026!') {
-        const superAdminUser = MOCK_USERS[ROLES.SUPER_ADMIN];
-        const token = `SPWN-SESSION-SUPERADMIN-${Date.now().toString(36)}`;
-        get().setSession(superAdminUser, token);
-        return {
-          success: true,
-          message: 'Berhasil masuk sebagai Super Administrator SPWN Nasional!',
-          user: superAdminUser,
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Kata sandi tidak sesuai untuk akun Super Administrator (admin_saka). Silakan periksa kembali.',
-        };
-      }
+      return { success: false, message: 'Email / username / nomor KTA dan kata sandi wajib diisi.' };
     }
 
     try {
-      // 2. Coba otentikasi ke backend Google Apps Script API jika online
-      const res = await authApi.login({
-        username: cleanId,
-        password: cleanPass
-      });
-
-      if (res && res.success && res.data && res.data.token) {
-        const gasUser = res.data.user;
-        const role = (gasUser.role || ROLES.MEMBER) as UserRole;
-        const mappedProfile: UserProfile = {
-          id: gasUser.id || ('usr-' + Math.random().toString(36).slice(2, 7)),
-          username: gasUser.nama || cleanId,
-          email: gasUser.email || cleanId,
-          fullName: gasUser.nama || cleanId,
-          role: role,
-          roleName: role === ROLES.MEMBER ? 'Anggota SAKA Pariwisata' : (gasUser.role || 'Pengurus'),
-          memberId: gasUser.member_id || gasUser.id,
-          nomor_kta: gasUser.nomor_kta || gasUser.no_kta,
-          no_kta: gasUser.nomor_kta || gasUser.no_kta,
-          province: gasUser.kwartir_daerah || 'Indonesia',
-          provinceId: gasUser.provinsi_id || '00',
-          kridaName: gasUser.krida,
-          membershipLevel: gasUser.membershipLevel || gasUser.position || gasUser.tingkatan || 'Anggota',
-          isActive: true,
-          avatarUrl:
-            gasUser.foto_url ||
-            gasUser.photo_url ||
-            gasUser.foto ||
-            ''
-        };
-
-        get().setSession(mappedProfile, res.data.token);
-        return { success: true, message: 'Login berhasil!', user: mappedProfile };
+      const res = await authApi.login({ username: cleanId, password: cleanPass });
+      if (!res?.success || !res.data?.token || !res.data?.user) {
+        return { success: false, message: res?.message || 'Login gagal. Periksa kredensial atau status akun Anda.' };
       }
-    } catch (apiErr: any) {
-      console.warn('Otentikasi GAS API:', apiErr.message);
-    }
 
-    // 3. Fallback akun terdaftar resmi lainnya (Member / Pengurus)
-    const matchedRole = (Object.keys(MOCK_USERS) as UserRole[]).find((r) => {
-      if (r === ROLES.SUPER_ADMIN || r === ROLES.PUBLIC_USER) return false;
-      const u = MOCK_USERS[r];
-      return (
-        u.email.toLowerCase() === cleanId ||
-        u.username.toLowerCase() === cleanId ||
-        (u.nomor_kta && u.nomor_kta.toLowerCase() === cleanId) ||
-        (cleanId === 'member' && r === ROLES.MEMBER) ||
-        (cleanId === 'pusat' && r === ROLES.ADMIN_PUSAT) ||
-        (cleanId === 'wilayah' && r === ROLES.ADMIN_WILAYAH)
-      );
-    });
+      const gasUser = res.data.user;
+      const role = (gasUser.role || ROLES.MEMBER) as UserRole;
+      const mappedProfile: UserProfile & { permissions?: PermissionKey[] } = {
+        id: gasUser.id,
+        username: gasUser.username || gasUser.nama || cleanId,
+        email: gasUser.email || cleanId,
+        fullName: gasUser.full_name || gasUser.nama || gasUser.username || cleanId,
+        role,
+        roleName: (gasUser as any).roleName || (role === ROLES.MEMBER ? 'Anggota SAKA Pariwisata' : role),
+        memberId: (gasUser as any).memberId || gasUser.id,
+        nomor_kta: gasUser.nomor_kta || gasUser.no_kta,
+        no_kta: gasUser.no_kta || gasUser.nomor_kta,
+        province: gasUser.province || gasUser.kwartir_daerah || 'Indonesia',
+        provinceId: gasUser.provinsi_id || '00',
+        kridaName: gasUser.kridaName || gasUser.krida,
+        membershipLevel: (gasUser as any).membershipLevel || (gasUser as any).position || gasUser.tingkatan || 'Anggota',
+        isActive: gasUser.status ? String(gasUser.status).toUpperCase() === 'ACTIVE' : true,
+        avatarUrl: (gasUser as any).avatarUrl || (gasUser as any).foto_url || (gasUser as any).photo_url || gasUser.foto || '',
+        permissions: (gasUser.permissions || []) as PermissionKey[],
+      };
 
-    if (matchedRole) {
-      // Verifikasi password untuk akun pengujian lainnya
-      if (cleanPass === 'sakapariwisata#2026!' || cleanPass === 'pramuka123' || cleanPass.length >= 6) {
-        const user = MOCK_USERS[matchedRole];
-        const token = `SPWN-SESSION-${matchedRole}-${Date.now().toString(36)}`;
-        get().setSession(user, token);
-        return { success: true, message: `Berhasil masuk sebagai ${user.roleName}`, user };
-      } else {
-        return {
-          success: false,
-          message: 'Kata sandi tidak sesuai. Silakan coba kembali.',
-        };
+      get().setSession(mappedProfile, res.data.token);
+      return { success: true, message: res.message || 'Login berhasil.', user: mappedProfile };
+    } catch (error: any) {
+      const message = String(error?.message || 'Tidak dapat menghubungi server autentikasi.');
+      if (/GAS2|reset password|password lama|hash/i.test(message)) {
+        return { success: false, message: 'Akun ini perlu mengatur ulang kata sandi. Gunakan menu “Lupa Password?”.' };
       }
+      return { success: false, message };
     }
-
-    return {
-      success: false,
-      message: 'Kredensial tidak cocok. Silakan periksa kembali email/nomor KTA dan password Anda.',
-    };
   },
 
   setSession: (user, token) => {
@@ -347,6 +281,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    const state = get();
+    if (state.token && state.currentUser?.id) {
+      void authApi.logout(state.currentUser.id).catch((error) => {
+        console.warn('Logout server tidak dapat dikonfirmasi; sesi lokal tetap dibersihkan.', error);
+      });
+    }
     try {
       localStorage.removeItem('spwn_session_token');
       localStorage.removeItem('spwn_session_user');
