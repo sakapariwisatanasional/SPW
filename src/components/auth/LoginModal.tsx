@@ -107,11 +107,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (!/^\S+@\S+\.\S+$/.test(resetEmail.trim())) { setErrorMessage('Masukkan alamat email yang valid.'); return; }
     setIsLoading(true);
     try {
-      const response = await authApi.requestPasswordReset(resetEmail);
-      setInfoMessage(response.message || 'Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.');
+      const response = await authApi.requestPasswordReset(resetEmail.trim().toLowerCase());
+      if (response && (response.success === false || (response as any).ok === false)) {
+        throw new Error(response.message || 'Layanan pemulihan kata sandi menolak permintaan.');
+      }
+      // Respons sukses tetap generik agar tidak membocorkan apakah email terdaftar.
+      setInfoMessage(response?.message || 'Jika email terdaftar dan aktif, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.');
     } catch (error: any) {
-      // Pesan generik untuk menghindari pembocoran keberadaan akun.
-      setInfoMessage('Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.');
+      // Jangan menyatakan pengiriman berhasil ketika GAS atau MailApp gagal.
+      // Pesan ini tidak mengungkap apakah alamat email terdaftar.
+      setErrorMessage('Permintaan reset belum dapat diproses. Silakan coba lagi beberapa saat lagi. Jika masalah berlanjut, hubungi administrator.');
     } finally { setIsLoading(false); }
   };
 
