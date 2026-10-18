@@ -23,7 +23,7 @@ function getInitialAuthState(): {
   try {
     const savedToken = localStorage.getItem('spwn_session_token');
     const savedUserStr = localStorage.getItem('spwn_session_user');
-    if (savedToken && savedToken.indexOf('SPWN-SES-') === 0 && savedUserStr) {
+    if (savedToken && savedToken.indexOf('SPWN-OTP-SES-') === 0 && savedUserStr) {
       const user = JSON.parse(savedUserStr);
       if (user && user.role && user.role !== ROLES.PUBLIC_USER) {
         return {
@@ -42,7 +42,7 @@ function getInitialAuthState(): {
 
   try {
     const savedToken = localStorage.getItem('spwn_session_token');
-    if (savedToken && savedToken.indexOf('SPWN-SES-') !== 0) {
+    if (savedToken && savedToken.indexOf('SPWN-OTP-SES-') !== 0) {
       localStorage.removeItem('spwn_session_token');
       localStorage.removeItem('spwn_session_user');
     }
@@ -64,6 +64,8 @@ interface AuthState {
   // Actions
   switchRole: (role: UserRole) => void;
   loginAs: (role: UserRole) => void;
+  requestLoginOtp: (email: string) => Promise<{ success: boolean; message: string }>;
+  loginWithOtp: (email: string, otp: string) => Promise<{ success: boolean; message: string; user?: UserProfile }>;
   loginWithCredentials: (identifier: string, password: string) => Promise<{ success: boolean; message: string; user?: UserProfile }>;
   setSession: (user: UserProfile & { permissions?: PermissionKey[] }, token: string) => void;
   logout: () => void;
@@ -92,67 +94,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     get().logout();
   },
 
-  loginWithCredentials: async (identifier: string, password: string) => {
-    const cleanId = identifier.trim().toLowerCase();
-    const cleanPass = password;
-
-    if (!cleanId || !cleanPass) {
-      return { success: false, message: 'Username / Email / Nomor KTA dan Kata Sandi wajib diisi.' };
-    }
-
-    // Autentikasi produksi hanya melalui GAS. Jangan menerbitkan token mock
-    // karena token tersebut tidak pernah terdaftar di CacheService backend.
+  requestLoginOtp: async (email: string) => {
     try {
-      const res = await authApi.login({
-        username: cleanId,
-        password: cleanPass,
-      });
-
-      const data: any = res && res.data;
-      const gasUser = data && (data.user || data);
-      const token = data && data.token;
-
-      if (!res || !res.success || !gasUser || !token || !gasUser.id || !gasUser.role) {
-        return {
-          success: false,
-          message: (res && res.message) || 'Login GAS tidak mengembalikan sesi dan identitas pengguna yang valid. Periksa respons backend.',
-        };
-      }
-
-      const role = gasUser.role as UserRole;
-      const mappedProfile: UserProfile = {
-        id: String(gasUser.id || ''),
-        username: gasUser.username || gasUser.nama || gasUser.fullName || cleanId,
-        email: gasUser.email || cleanId,
-        fullName: gasUser.fullName || gasUser.full_name || gasUser.nama || gasUser.username || cleanId,
-        role,
-        roleName: gasUser.roleName || role,
-        memberId: gasUser.memberId || gasUser.member_id || gasUser.id || '',
-        nomor_kta: gasUser.nomorKTA || gasUser.nomor_kta || gasUser.no_kta || '',
-        no_kta: gasUser.no_kta || gasUser.nomor_kta || gasUser.nomorKTA || '',
-        province: gasUser.province || gasUser.kwartir_daerah || '',
-        provinceId: gasUser.provinsi_id || '',
-        kridaName: gasUser.kridaName || gasUser.krida || '',
-        membershipLevel: gasUser.membershipLevel || gasUser.position || gasUser.tingkatan || '',
-        isActive: gasUser.isActive !== false,
-        avatarUrl: gasUser.avatarUrl || gasUser.foto_url || gasUser.photo_url || gasUser.foto || '',
-        permissions: gasUser.permissions || [],
-      } as UserProfile;
-
-      if (!mappedProfile.id) {
-        return { success: false, message: 'Login GAS tidak mengembalikan ID pengguna. Sesi tidak disimpan.' };
-      }
-
-      get().setSession(mappedProfile, String(token));
-      return { success: true, message: 'Login berhasil melalui GAS.', user: mappedProfile };
-    } catch (apiErr: any) {
-      console.warn('Otentikasi GAS API gagal:', apiErr && apiErr.message ? apiErr.message : apiErr);
-      return {
-        success: false,
-        message: (apiErr && apiErr.message) || 'Tidak dapat memverifikasi akun ke GAS. Periksa koneksi dan deployment backend.',
-      };
+      const response = await authApi.requestOtp(email, 'LOGIN');
+      return { success: !!response?.success, message: response?.message || 'Jika email terdaftar dan aktif, OTP akan dikirim.' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Permintaan OTP gagal.' };
     }
   },
+
+  loginWithOtp: async (email: string, otp: string) => {
+    try {
+      const response = await authApi.verifyOtp(email, otp, 'LOGIN');
+      const data: any = response?.data;
+      const gasUser = data?.user || data;
+      const token = data?.token;
+      if (!response?.success || !gasUser?.id || !gasUser?.role || !token) {
+        return { success: false, message: response?.message || 'GAS tidak mengembalikan sesi autentikasi yang valid.' };
+      }
+      const role = gasUser.role as UserRole;
+      const mappedProfile: UserProfile = {
+        id: String(gasUser.id), username: gasUser.username || gasUser.nama || gasUser.fullName || email,
+        email: gasUser.email || email, fullName: gasUser.fullName || gasUser.full_name || gasUser.nama || gasUser.username || email,
+        role, roleName: gasUser.roleName || role, memberId: gasUser.memberId || gasUser.member_id || '',
+        nomor_kta: gasUser.nomorKTA || gasUser.nomor_kta || gasUser.no_kta || '', no_kta: gasUser.no_kta || gasUser.nomor_kta || gasUser.nomorKTA || '',
+        province: gasUser.province || gasUser.kwartir_daerah || '', provinceId: gasUser.provinsi_id || '',
+        kridaName: gasUser.kridaName || gasUser.krida || '', membershipLevel: gasUser.membershipLevel || gasUser.position || gasUser.tingkatan || '',
+        isActive: gasUser.isActive !== false, avatarUrl: gasUser.avatarUrl || gasUser.photo_url || gasUser.foto || '',
+        permissions: Array.isArray(gasUser.permissions) ? gasUser.permissions : [],
+      } as UserProfile;
+      get().setSession(mappedProfile, String(token));
+      return { success: true, message: 'Login OTP berhasil.', user: mappedProfile };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Verifikasi OTP gagal.' };
+    }
+  },
+
+  // Password login is intentionally disabled; all authentication must use GAS OTP.
+  loginWithCredentials: async (_identifier: string, _password: string) => ({ success: false, message: 'Login password telah dinonaktifkan. Gunakan OTP email.' }),
 
   setSession: (user, token) => {
     // Permission hanya berasal dari respons backend; jangan memberi hak akses default di frontend.
@@ -173,6 +152,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    const existingToken = get().token;
+    const existingUserId = get().currentUser?.id;
+    if (existingToken && existingUserId) {
+      void authApi.logout(existingUserId).catch(() => undefined);
+    }
     try {
       localStorage.removeItem('spwn_session_token');
       localStorage.removeItem('spwn_session_user');
