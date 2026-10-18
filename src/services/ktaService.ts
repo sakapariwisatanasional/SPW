@@ -242,12 +242,22 @@ export const ktaService = {
   },
 
   /**
-   * Menghasilkan URL verifikasi dinamis tanpa hardcoded domain.
-   * Menggunakan SPWN_SYSTEM.PUBLIC_URL sebagai konfigurasi utama.
+   * Menghasilkan URL verifikasi anggota untuk QR KTA.
+   * Saat berjalan di browser, gunakan origin aplikasi yang sedang aktif agar QR
+   * tidak mengarah ke domain lama dari konfigurasi. Di luar browser gunakan
+   * SPWN_SYSTEM.PUBLIC_URL sebagai fallback.
    */
   generateMemberQrUrl: (qrToken: string): string => {
-    const baseUrl = SPWN_SYSTEM.PUBLIC_URL.replace(/\/+$/, '');
-    return `${baseUrl}/verifikasi?token=${encodeURIComponent(qrToken)}`;
+    const token = String(qrToken || '').trim();
+    if (!token) return '';
+    const browserOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : '';
+    const configuredOrigin = String(SPWN_SYSTEM.PUBLIC_URL || '').replace(/\/+$/, '');
+    const baseUrl = (browserOrigin || configuredOrigin).replace(/\/+$/, '');
+    if (!baseUrl) return '';
+    return `${baseUrl}/verifikasi?token=${encodeURIComponent(token)}`;
   },
 
   /**
