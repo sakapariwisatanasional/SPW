@@ -249,7 +249,15 @@ export const memberApi = {
     });
 
     const result = response?.data;
-    const member = result?.member;
+    // Backend aktif dapat mengembalikan { member, approvals, ... } atau
+    // record anggota langsung pada data. Dukung keduanya tanpa fallback ke
+    // anggota lain dari cache frontend.
+    const member = result?.member && typeof result.member === 'object'
+      ? result.member
+      : result && typeof result === 'object' && (result.id || result.member_id)
+        ? result
+        : null;
+
     if (!member || typeof member !== 'object') {
       throw new Error('Backend tidak mengembalikan detail anggota yang valid.');
     }
@@ -257,7 +265,7 @@ export const memberApi = {
     return {
       ...response,
       data: {
-        ...result,
+        ...(result && typeof result === 'object' ? result : {}),
         member: normalizeMemberKtaData(member),
       },
     };
