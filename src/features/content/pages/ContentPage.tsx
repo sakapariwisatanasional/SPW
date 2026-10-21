@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Newspaper, Plus, ExternalLink, RefreshCw, AlertCircle, Link as LinkIcon, Clock3, Pencil, Trash2, ImageOff } from 'lucide-react';
+import { Newspaper, Plus, ExternalLink, RefreshCw, AlertCircle, Link as LinkIcon, Clock3, Pencil, Trash2, ImageOff, Upload, X } from 'lucide-react';
 import { Card, Badge, Modal, Button } from '../../../components/ui';
 import { useAuthStore } from '../../../stores/authStore';
 import { useUIStore } from '../../../stores/uiStore';
@@ -34,6 +34,8 @@ export const ContentPage: React.FC = () => {
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<string[]>([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   const canSubmit = useMemo(() => {
     if (!isAuthenticated || !currentUser) return false;
@@ -100,6 +102,47 @@ export const ContentPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSubmit]);
 
+  const uploadThumbnailFile = async (file?: File) => {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      addToast({ type: 'error', title: 'Format tidak didukung', message: 'Pilih gambar JPG, PNG, atau WebP.' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      addToast({ type: 'error', title: 'Ukuran terlalu besar', message: 'Ukuran gambar maksimal 5 MB.' });
+      return;
+    }
+    setUploadingThumbnail(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('File gambar tidak dapat dibaca.'));
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          const comma = result.indexOf(',');
+          if (comma < 0) return reject(new Error('Format data gambar tidak valid.'));
+          resolve(result.slice(comma + 1));
+        };
+        reader.readAsDataURL(file);
+      });
+      const response = await contentApi.uploadThumbnail({
+        file_name: file.name,
+        mime_type: file.type,
+        base64_data: base64,
+      });
+      if (response?.success === false || !response?.data?.thumbnail_url) {
+        throw new Error(response?.message || 'GAS tidak mengembalikan URL thumbnail.');
+      }
+      setThumbnailUrl(response.data.thumbnail_url);
+      addToast({ type: 'success', title: 'Thumbnail diunggah', message: 'Gambar tersimpan di Google Drive.' });
+    } catch (error: any) {
+      addToast({ type: 'error', title: 'Upload gagal', message: error?.message || 'Gagal mengunggah gambar ke Google Drive.' });
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!url.trim()) {
@@ -109,11 +152,12 @@ export const ContentPage: React.FC = () => {
     setSubmitting(true);
     try {
       const response = editingItem
-        ? await contentApi.update(editingItem.id, { url: url.trim(), caption: caption.trim(), description: caption.trim(), content_type: editingItem.content_type || 'BERITA' })
-        : await contentApi.submitLink(url.trim(), caption.trim(), 'BERITA');
+        ? await contentApi.update(editingItem.id, { url: url.trim(), caption: caption.trim(), description: caption.trim(), content_type: editingItem.content_type || 'BERITA', thumbnail_url: thumbnailUrl })
+        : await contentApi.submitLink(url.trim(), caption.trim(), 'BERITA', thumbnailUrl);
       if (response?.success === false) throw new Error(response.message || 'GAS menolak penyimpanan Warta.');
       setUrl('');
       setCaption('');
+      setThumbnailUrl('');
       setEditingItem(null);
       setModalOpen(false);
       await load();
@@ -134,6 +178,7 @@ export const ContentPage: React.FC = () => {
     setEditingItem(item);
     setUrl(item.url || '');
     setCaption(item.description || '');
+    setThumbnailUrl(item.thumbnail_url || '');
     setModalOpen(true);
   };
 
@@ -142,6 +187,7 @@ export const ContentPage: React.FC = () => {
     setEditingItem(null);
     setUrl('');
     setCaption('');
+    setThumbnailUrl('');
   };
 
   const removeItem = async (item: ContentItem) => {
@@ -174,7 +220,7 @@ export const ContentPage: React.FC = () => {
           <button type="button" onClick={() => void load()} className="w-10 h-10 rounded-xl border border-slate-200 bg-white grid place-items-center" aria-label="Muat ulang" disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          {canSubmit && <button type="button" onClick={() => { setEditingItem(null); setUrl(""); setCaption(""); setModalOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#7E57C2] px-3 text-white shadow-sm hover:bg-[#6841B0]" aria-label="Tambah Warta"><Plus className="w-5 h-5" /><span className="hidden sm:inline text-xs font-bold">Bagikan Warta</span></button>}
+          {canSubmit && <button type="button" onClick={() => { setEditingItem(null); setUrl(""); setCaption(""); setThumbnailUrl(""); setModalOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#7E57C2] px-3 text-white shadow-sm hover:bg-[#6841B0]" aria-label="Tambah Warta"><Plus className="w-5 h-5" /><span className="hidden sm:inline text-xs font-bold">Bagikan Warta</span></button>}
         </div>
       </div>
 
@@ -240,7 +286,19 @@ export const ContentPage: React.FC = () => {
         <form onSubmit={submit} className="space-y-3">
           <div><label className="text-xs font-bold text-slate-700">URL publikasi</label><input value={url} onChange={event => setUrl(event.target.value)} placeholder="https://..." type="url" required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 bg-white text-slate-900" /></div>
           <div><label className="text-xs font-bold text-slate-700">Caption</label><textarea value={caption} onChange={event => setCaption(event.target.value)} rows={4} placeholder="Tuliskan konteks singkat untuk anggota lain..." className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 bg-white text-slate-900" /></div>
-          <Button type="submit" disabled={submitting} leftIcon={<LinkIcon className="w-4 h-4" />}>{submitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Kirim untuk Verifikasi'}</Button>
+          <div className="rounded-xl border border-dashed border-slate-300 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2"><label className="text-xs font-bold text-slate-700">Thumbnail publikasi (opsional)</label><span className="text-[10px] text-slate-500">JPG, PNG, WebP · maks. 5 MB</span></div>
+            {thumbnailUrl && <img src={thumbnailUrl} alt="Pratinjau thumbnail" className="w-full max-h-48 aspect-video object-cover rounded-lg bg-slate-100" />}
+            <div className="flex flex-wrap items-center gap-2">
+              <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold ${uploadingThumbnail ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Upload className="w-4 h-4" /> {uploadingThumbnail ? 'Mengunggah ke Drive...' : thumbnailUrl ? 'Ganti gambar' : 'Unggah gambar ke Drive'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploadingThumbnail} onChange={event => { void uploadThumbnailFile(event.target.files?.[0]); event.currentTarget.value = ''; }} />
+              </label>
+              {thumbnailUrl && <button type="button" onClick={() => setThumbnailUrl('')} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs text-rose-700"><X className="w-3 h-3"/> Hapus thumbnail</button>}
+            </div>
+            <p className="text-[11px] text-slate-500">Jika thumbnail otomatis tidak tersedia, unggah gambar di sini. URL gambar akan disimpan bersama Warta melalui GAS.</p>
+          </div>
+          <Button type="submit" disabled={submitting || uploadingThumbnail} leftIcon={<LinkIcon className="w-4 h-4" />}>{submitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Kirim untuk Verifikasi'}</Button>
         </form>
       </Modal>
     </div>
