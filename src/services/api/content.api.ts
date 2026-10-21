@@ -61,6 +61,9 @@ export const contentApi = {
   previewLink: async (url: string): Promise<ApiResponse<{ url: string; title: string; description: string; thumbnail_url: string }>> =>
     apiClient.post<{ url: string; title: string; description: string; thumbnail_url: string }>('content.preview', { url }),
 
+  uploadThumbnail: async (payload: { file_name: string; mime_type: string; base64_data: string }): Promise<ApiResponse<{ thumbnail_url: string; drive_file_id: string }>> =>
+    apiClient.post<{ thumbnail_url: string; drive_file_id: string }>('content.uploadThumbnail', payload as unknown as Record<string, unknown>),
+
   submitLink: async (url: string, caption = '', contentType = 'BERITA'): Promise<ApiResponse<ContentItem>> =>
     apiClient.post<ContentItem>('content.create', {
       url,
