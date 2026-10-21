@@ -58,6 +58,9 @@ export const contentApi = {
   create: async (payload: CreateContentPayload): Promise<ApiResponse<ContentItem>> =>
     apiClient.post<ContentItem>('content.create', payload as Record<string, unknown>),
 
+  previewLink: async (url: string): Promise<ApiResponse<{ url: string; title: string; description: string; thumbnail_url: string }>> =>
+    apiClient.post<{ url: string; title: string; description: string; thumbnail_url: string }>('content.preview', { url }),
+
   submitLink: async (url: string, caption = '', contentType = 'BERITA'): Promise<ApiResponse<ContentItem>> =>
     apiClient.post<ContentItem>('content.create', {
       url,
