@@ -24,6 +24,9 @@ export const ContributionModerationPage: React.FC = () => {
   const [createPreviewError, setCreatePreviewError] = useState('');
   const [linkPreview, setLinkPreview] = useState<{ title?: string; description?: string; thumbnail_url?: string; url?: string } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState('');
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -75,11 +78,42 @@ export const ContributionModerationPage: React.FC = () => {
     setCreating(true);
     setCreatePreviewError('');
     try {
-      const response = await contentApi.create({ url: sourceUrl.trim(), description: sourceCaption.trim(), caption: sourceCaption.trim(), content_type: 'BERITA' });
-      if (response?.success === false) throw new Error(response.message || 'GAS menolak penambahan konten.');
+      let thumbnailUrl = linkPreview?.thumbnail_url || '';
+      if (thumbnailFile) {
+        setUploadingThumbnail(true);
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Gagal membaca gambar.'));
+          reader.onerror = () => reject(new Error('Gagal membaca gambar.'));
+          reader.readAsDataURL(thumbnailFile);
+        });
+        const commaIndex = dataUrl.indexOf(',');
+        if (commaIndex < 0) throw new Error('Format gambar tidak valid.');
+        const uploadResponse = await contentApi.uploadThumbnail({
+          file_name: thumbnailFile.name,
+          mime_type: thumbnailFile.type,
+          base64_data: dataUrl.slice(commaIndex + 1)
+        });
+        if (uploadResponse?.success === false) throw new Error(uploadResponse.message || 'Gagal mengunggah thumbnail ke Google Drive.');
+        const uploadData: any = uploadResponse?.data;
+        const uploaded = uploadData?.data || uploadData;
+        thumbnailUrl = String(uploaded?.thumbnail_url || uploaded?.url || '');
+        if (!thumbnailUrl) throw new Error('GAS tidak mengembalikan URL thumbnail Drive.');
+      }
+      const finalPayload = {
+        url: sourceUrl.trim(),
+        description: sourceCaption.trim(),
+        caption: sourceCaption.trim(),
+        content_type: 'BERITA',
+        thumbnail_url: thumbnailUrl
+      };
+      const finalResponse = await contentApi.create(finalPayload);
+      if (finalResponse?.success === false) throw new Error(finalResponse.message || 'GAS menolak penambahan konten.');
       setSourceUrl('');
       setSourceCaption('');
       setLinkPreview(null);
+      setThumbnailFile(null);
+      setThumbnailPreview('');
       setShowCreateForm(false);
       addToast({ type:'success', title:'Konten tersimpan', message:'Konten disimpan melalui GAS dan masuk ke antrean verifikasi.' });
       await load();
@@ -88,6 +122,7 @@ export const ContributionModerationPage: React.FC = () => {
       addToast({ type:'error', title:'Gagal menambahkan konten', message:e?.message || 'Terjadi kesalahan saat menyimpan konten.' });
     } finally {
       setCreating(false);
+      setUploadingThumbnail(false);
     }
   };
 
@@ -143,10 +178,37 @@ export const ContributionModerationPage: React.FC = () => {
             <div><label className="block text-xs font-bold text-slate-700 mb-1">URL sumber publikasi</label><input type="url" required value={sourceUrl} onChange={e=>{setSourceUrl(e.target.value);setLinkPreview(null)}} placeholder="https://www.instagram.com/... atau tautan YouTube/TikTok" className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"/><p className="mt-1 text-[11px] text-slate-500">URL ini akan disimpan sebagai tautan sumber yang dapat dibuka pembaca.</p><button type="button" onClick={()=>void previewContentLink()} disabled={previewing} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 disabled:opacity-50"><ExternalLink className="w-3.5 h-3.5"/>{previewing?'Memeriksa tautan...':'Pratinjau tautan'}</button></div>
             <div><label className="block text-xs font-bold text-slate-700 mb-1">Caption / konteks (opsional)</label><textarea value={sourceCaption} onChange={e=>setSourceCaption(e.target.value)} rows={3} placeholder="Tambahkan konteks untuk anggota lain..." className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"/></div>
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#F7F8F4] min-h-[150px]">{linkPreview?.thumbnail_url ? <img src={linkPreview.thumbnail_url} alt={linkPreview.title || 'Pratinjau publikasi'} referrerPolicy="no-referrer" className="aspect-video w-full object-cover" onError={()=>setLinkPreview(previous=>previous?{...previous,thumbnail_url:''}:previous)}/> : <div className="min-h-[150px] p-4 flex flex-col items-center justify-center text-center"><ImageIcon className="w-8 h-8 text-slate-300"/><p className="mt-2 text-xs font-bold text-slate-600">{linkPreview ? 'Thumbnail tidak tersedia' : 'Pratinjau thumbnail'}</p><p className="mt-1 text-[11px] text-slate-500">{linkPreview ? 'URL sumber tetap disimpan; platform tidak memberikan gambar yang dapat dimuat.' : 'Tempel URL lalu pilih Pratinjau tautan.'}</p></div>}{linkPreview && <div className="p-3 bg-white"><p className="text-xs font-bold text-slate-800 line-clamp-2">{linkPreview.title}</p>{linkPreview.url && <a href={linkPreview.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#0B5CAB]"><ExternalLink className="w-3 h-3"/>Buka sumber</a>}</div>}</div>
+          <div className="space-y-2">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#F7F8F4] min-h-[150px]">
+              {thumbnailPreview ? <img src={thumbnailPreview} alt="Pratinjau thumbnail yang dipilih" className="aspect-video w-full object-cover" /> : linkPreview?.thumbnail_url ? <img src={linkPreview.thumbnail_url} alt={linkPreview.title || 'Pratinjau publikasi'} referrerPolicy="no-referrer" className="aspect-video w-full object-cover" onError={()=>setLinkPreview(previous=>previous?{...previous,thumbnail_url:''}:previous)}/> : <div className="min-h-[150px] p-4 flex flex-col items-center justify-center text-center"><ImageIcon className="w-8 h-8 text-slate-300"/><p className="mt-2 text-xs font-bold text-slate-600">{linkPreview ? 'Thumbnail tidak tersedia' : 'Pratinjau thumbnail'}</p><p className="mt-1 text-[11px] text-slate-500">{linkPreview ? 'Unggah gambar sendiri jika platform tidak menyediakan thumbnail.' : 'Tempel URL lalu pilih Pratinjau tautan.'}</p></div>}
+              {(linkPreview || thumbnailFile) && <div className="p-3 bg-white"><p className="text-xs font-bold text-slate-800 line-clamp-2">{linkPreview?.title || thumbnailFile?.name}</p>{linkPreview?.url && <a href={linkPreview.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-[#0B5CAB]"><ExternalLink className="w-3 h-3"/>Buka sumber</a>}</div>}
+            </div>
+            <label className="block rounded-xl border border-dashed border-violet-300 bg-violet-50/60 p-3 cursor-pointer hover:bg-violet-50">
+              <span className="flex items-center gap-2 text-xs font-bold text-violet-800"><ImageIcon className="w-4 h-4"/>{thumbnailFile ? 'Ganti gambar thumbnail' : 'Thumbnail tidak muncul? Unggah gambar'}</span>
+              <span className="mt-1 block text-[11px] text-slate-500">JPG, PNG, atau WebP · maksimal 5 MB. Gambar akan diunggah ke Google Drive melalui GAS.</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full text-xs text-slate-600" onChange={event => {
+                const file = event.target.files?.[0] || null;
+                if (!file) return;
+                if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+                  addToast({ type:'error', title:'Format gambar tidak didukung', message:'Pilih gambar JPG, PNG, atau WebP.' });
+                  event.currentTarget.value = '';
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  addToast({ type:'error', title:'Gambar terlalu besar', message:'Ukuran maksimum gambar adalah 5 MB.' });
+                  event.currentTarget.value = '';
+                  return;
+                }
+                setThumbnailFile(file);
+                const reader = new FileReader();
+                reader.onload = () => setThumbnailPreview(typeof reader.result === 'string' ? reader.result : '');
+                reader.readAsDataURL(file);
+              }} />
+            </label>
+          </div>
         </div>
         {createPreviewError && <div className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{createPreviewError}</div>}
-        <div className="flex justify-end gap-2"><button type="button" onClick={()=>{setShowCreateForm(false);setSourceUrl('');setSourceCaption('');setLinkPreview(null);setCreatePreviewError('')}} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600">Batal</button><button type="submit" disabled={creating} className="inline-flex items-center gap-2 rounded-xl bg-[#6F3BC5] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><LinkIcon className="w-4 h-4"/>{creating?'Menyimpan...':'Simpan konten'}</button></div>
+        <div className="flex justify-end gap-2"><button type="button" onClick={()=>{setShowCreateForm(false);setSourceUrl('');setSourceCaption('');setLinkPreview(null);setThumbnailFile(null);setThumbnailPreview('');setCreatePreviewError('')}} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600">Batal</button><button type="submit" disabled={creating} className="inline-flex items-center gap-2 rounded-xl bg-[#6F3BC5] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><LinkIcon className="w-4 h-4"/>{uploadingThumbnail?'Mengunggah ke Drive...':creating?'Menyimpan...':'Simpan konten'}</button></div>
       </form>}
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar">
