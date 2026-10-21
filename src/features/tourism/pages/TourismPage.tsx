@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Compass, MapPin, RefreshCw, AlertCircle, Plus, CalendarDays, PackageOpen } from 'lucide-react';
+import { Compass, MapPin, RefreshCw, AlertCircle, Plus, CalendarDays, PackageOpen, Upload, X } from 'lucide-react';
 import { Card, Badge, Modal, Button } from '../../../components/ui';
 import { tourismApi, Destination, TourPackage } from '../../../services/api/tourism.api';
 import { useAuthStore } from '../../../stores/authStore';
@@ -15,6 +15,7 @@ export const TourismPage:React.FC=()=>{
   const [search,setSearch]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const [modal,setModal]=useState(false),[submitting,setSubmitting]=useState(false);
   const [form,setForm]=useState({nama_paket:'',deskripsi:'',harga:'',durasi:'',lokasi:'',kontak:'',url:'',foto_utama:''});
+  const [uploadingPhoto,setUploadingPhoto]=useState(false);
   const canSubmit=isAuthenticated&&!!currentUser&&currentUser.role!==ROLES.PUBLIC_USER;
 
   const load=async()=>{setLoading(true);setError('');try{
@@ -25,6 +26,27 @@ export const TourismPage:React.FC=()=>{
   useEffect(()=>{void load();},[canSubmit]);
 
   const filtered=useMemo(()=>{const q=search.trim().toLowerCase();return destinations.filter(d=>!q||[d.nama_destinasi,d.kategori,d.lokasi].some(v=>String(v||'').toLowerCase().includes(q)));},[destinations,search]);
+
+  const uploadPackagePhoto=async(file?:File)=>{
+    if(!file)return;
+    const allowed=['image/jpeg','image/png','image/webp'];
+    if(!allowed.includes(file.type)){addToast({type:'error',title:'Format tidak didukung',message:'Pilih gambar JPG, PNG, atau WebP.'});return;}
+    if(file.size>5*1024*1024){addToast({type:'error',title:'Ukuran terlalu besar',message:'Ukuran gambar maksimal 5 MB.'});return;}
+    setUploadingPhoto(true);
+    try{
+      const base64=await new Promise<string>((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onerror=()=>reject(new Error('File gambar tidak dapat dibaca.'));
+        reader.onload=()=>{const result=String(reader.result||'');const comma=result.indexOf(',');if(comma<0)return reject(new Error('Format data gambar tidak valid.'));resolve(result.slice(comma+1));};
+        reader.readAsDataURL(file);
+      });
+      const response=await tourismApi.uploadThumbnail({file_name:file.name,mime_type:file.type,base64_data:base64});
+      if(response?.success===false||!response?.data?.thumbnail_url)throw new Error(response?.message||'GAS tidak mengembalikan URL thumbnail.');
+      setForm(previous=>({...previous,foto_utama:response.data.thumbnail_url}));
+      addToast({type:'success',title:'Foto tersimpan',message:'Foto paket wisata berhasil diunggah ke Google Drive.'});
+    }catch(error:any){addToast({type:'error',title:'Upload foto gagal',message:error?.message||'Gagal mengunggah foto ke Google Drive.'});}
+    finally{setUploadingPhoto(false);}
+  };
 
   const submit=async(e:React.FormEvent)=>{e.preventDefault();if(!form.nama_paket.trim())return;setSubmitting(true);try{await tourismApi.submitPackage({...form,harga:Number(form.harga||0)});setForm({nama_paket:'',deskripsi:'',harga:'',durasi:'',lokasi:'',kontak:'',url:'',foto_utama:''});setModal(false);setTab('mine');const m=await tourismApi.listMyPackages();setMine(Array.isArray(m.data)?m.data:[]);addToast({type:'success',title:'Paket wisata terkirim',message:'Paket akan tampil umum setelah diverifikasi.'});}catch(e:any){addToast({type:'error',title:'Gagal mengirim paket',message:e?.message||'Terjadi kesalahan.'});}finally{setSubmitting(false);}};
 
@@ -39,6 +61,14 @@ export const TourismPage:React.FC=()=>{
       (tab==='packages'?packages:mine).length===0?<Card><p className="text-sm text-slate-500">Belum ada paket wisata pada bagian ini.</p></Card>:<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{(tab==='packages'?packages:mine).map(p=><article key={p.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden"><div className="aspect-[16/9] bg-slate-100">{p.foto_utama?<img src={p.foto_utama} alt={p.nama_paket} className="w-full h-full object-cover"/>:<div className="w-full h-full grid place-items-center"><PackageOpen className="w-9 h-9 text-slate-300"/></div>}</div><div className="p-3 space-y-1.5"><div className="flex items-start justify-between gap-2"><h3 className="font-extrabold text-sm">{p.nama_paket}</h3>{tab==='mine'&&<Badge variant={String(p.status).toUpperCase()==='ACTIVE'?'green':String(p.status).toUpperCase()==='REJECTED'?'red':'gray'}>{p.status}</Badge>}</div>{p.lokasi&&<p className="text-xs text-slate-500 inline-flex items-center gap-1"><MapPin className="w-3 h-3"/>{p.lokasi}</p>}<div className="flex justify-between text-xs"><span className="inline-flex gap-1 items-center text-slate-500"><CalendarDays className="w-3 h-3"/>{p.durasi||'-'}</span><strong className="text-[#43A047]">{formatCurrencyIDR(Number(p.harga||0))}</strong></div>{p.deskripsi&&<p className="text-xs text-slate-600 line-clamp-2">{p.deskripsi}</p>}</div></article>)}</div>
     )}
 
-    <Modal isOpen={modal} onClose={()=>setModal(false)} title="Tambah Paket Wisata" description="Paket akan berstatus PENDING sampai diverifikasi pengurus."><form onSubmit={submit} className="space-y-3"><input required value={form.nama_paket} onChange={e=>setForm({...form,nama_paket:e.target.value})} placeholder="Nama paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><textarea value={form.deskripsi} onChange={e=>setForm({...form,deskripsi:e.target.value})} rows={3} placeholder="Deskripsi paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><div className="grid grid-cols-2 gap-2"><input value={form.harga} onChange={e=>setForm({...form,harga:e.target.value})} inputMode="numeric" placeholder="Harga" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.durasi} onChange={e=>setForm({...form,durasi:e.target.value})} placeholder="Durasi" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={form.lokasi} onChange={e=>setForm({...form,lokasi:e.target.value})} placeholder="Lokasi" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.kontak} onChange={e=>setForm({...form,kontak:e.target.value})} placeholder="Kontak/WhatsApp" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="URL informasi/pemesanan (opsional)" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.foto_utama} onChange={e=>setForm({...form,foto_utama:e.target.value})} placeholder="URL foto paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><Button type="submit" disabled={submitting}>{submitting?'Mengirim...':'Kirim untuk Verifikasi'}</Button></form></Modal>
+    <Modal isOpen={modal} onClose={()=>setModal(false)} title="Tambah Paket Wisata" description="Paket akan berstatus PENDING sampai diverifikasi pengurus."><form onSubmit={submit} className="space-y-3"><input required value={form.nama_paket} onChange={e=>setForm({...form,nama_paket:e.target.value})} placeholder="Nama paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><textarea value={form.deskripsi} onChange={e=>setForm({...form,deskripsi:e.target.value})} rows={3} placeholder="Deskripsi paket" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><div className="grid grid-cols-2 gap-2"><input value={form.harga} onChange={e=>setForm({...form,harga:e.target.value})} inputMode="numeric" placeholder="Harga" className="rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.durasi} onChange={e=>setForm({...form,durasi:e.target.value})} placeholder="Durasi" className="rounded-xl border border-slate-200 px-3 py-2.5"/></div><input value={form.lokasi} onChange={e=>setForm({...form,lokasi:e.target.value})} placeholder="Lokasi" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.kontak} onChange={e=>setForm({...form,kontak:e.target.value})} placeholder="Kontak/WhatsApp" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="URL informasi/pemesanan (opsional)" className="w-full rounded-xl border border-slate-200 px-3 py-2.5"/><div className="rounded-xl border border-dashed border-slate-300 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2"><label className="text-xs font-bold text-slate-700">Foto utama paket wisata</label><span className="text-[10px] text-slate-500">JPG, PNG, WebP · maks. 5 MB</span></div>
+      {form.foto_utama && <img src={form.foto_utama} alt="Pratinjau foto paket wisata" className="w-full aspect-video object-cover rounded-lg bg-slate-100"/>}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold ${uploadingPhoto?'opacity-50 pointer-events-none':''}`}><Upload className="w-4 h-4"/>{uploadingPhoto?'Mengunggah ke Drive...':form.foto_utama?'Ganti foto':'Unggah foto ke Drive'}<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploadingPhoto} onChange={e=>{void uploadPackagePhoto(e.target.files?.[0]);e.currentTarget.value='';}}/></label>
+        {form.foto_utama&&<button type="button" onClick={()=>setForm({...form,foto_utama:''})} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs text-rose-700"><X className="w-3 h-3"/>Hapus foto</button>}
+      </div>
+      <p className="text-[11px] text-slate-500">Gambar diunggah ke Drive melalui GAS dan URL-nya dikirim bersama data paket wisata. Pratinjau kartu menggunakan rasio 16:9.</p>
+    </div><Button type="submit" disabled={submitting||uploadingPhoto}>{submitting?'Mengirim...':'Kirim untuk Verifikasi'}</Button></form></Modal>
   </div>;
 };
