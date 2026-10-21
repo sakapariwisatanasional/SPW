@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { createRoot } from 'react-dom/client';
 import {
   CreditCard,
   Printer,
@@ -71,6 +72,7 @@ export const KtaManagementCenter: React.FC = () => {
   // Batch Print Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBatchPreviewOpen, setIsBatchPreviewOpen] = useState(false);
+  const [isPrintingBatch, setIsPrintingBatch] = useState(false);
 
   // KTA Template Designer Modal
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
@@ -136,6 +138,187 @@ export const KtaManagementCenter: React.FC = () => {
   const activeKtaMembers = useMemo(() => {
     return scopedMembers.filter((m) => m.status_anggota === 'ACTIVE' && Boolean(m.no_kta || m.nomor_kta));
   }, [scopedMembers]);
+
+  // Cetak batch A4 duplex: 10 kartu per halaman (2 kolom x 5 baris).
+  // Data anggota dan template tetap bersumber dari store/GAS, tanpa data contoh.
+  const handlePrintBatch = async () => {
+    if (isPrintingBatch) return;
+    if (!templateSettings) {
+      addToast({ type: 'error', title: 'Template KTA Belum Tersedia',
+        message: templateError || 'Template KTA harus berhasil dimuat dari GAS sebelum mencetak.' });
+      return;
+    }
+
+    const selectedMembers = activeKtaMembers.filter((member) =>
+      selectedIds.includes(getBackendMemberId(member))
+    );
+    if (!selectedMembers.length) {
+      addToast({ type: 'info', title: 'Belum Ada KTA Dipilih',
+        message: 'Pilih minimal satu anggota sebelum mencetak batch.' });
+      return;
+    }
+
+    // Gunakan ukuran fisik yang disimpan pada template GAS; ID-1 hanya fallback kompatibilitas.
+    const cardWidthMm = Number(templateSettings.widthMm) > 0 ? Number(templateSettings.widthMm) : 85.6;
+    const cardHeightMm = Number(templateSettings.heightMm) > 0 ? Number(templateSettings.heightMm) : 53.98;
+    const pagePaddingMm = 5;
+    const columnGapMm = 8;
+    const rowGapMm = 3;
+    const usableWidthMm = 210 - pagePaddingMm * 2;
+    const usableHeightMm = 297 - pagePaddingMm * 2;
+    const columns = Math.max(1, Math.min(2, Math.floor((usableWidthMm + columnGapMm) / (cardWidthMm + columnGapMm))));
+    const rows = Math.max(1, Math.floor((usableHeightMm + rowGapMm) / (cardHeightMm + rowGapMm)));
+    const cardsPerPage = columns * rows;
+    const gridWidthMm = columns * cardWidthMm + (columns - 1) * columnGapMm;
+    const gridHeightMm = rows * cardHeightMm + (rows - 1) * rowGapMm;
+
+    setIsPrintingBatch(true);
+    let printRoot: HTMLDivElement | null = null;
+    let reactRoot: ReturnType<typeof createRoot> | null = null;
+    let printStyle: HTMLStyleElement | null = null;
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener('afterprint', cleanup);
+      try { reactRoot?.unmount(); } catch { /* Root mungkin sudah dilepas. */ }
+      printRoot?.remove();
+      printStyle?.remove();
+      setIsPrintingBatch(false);
+    };
+
+    try {
+      document.getElementById('kta-a4-batch-print-root')?.remove();
+      document.getElementById('kta-a4-batch-print-style')?.remove();
+      printRoot = document.createElement('div');
+      printRoot.id = 'kta-a4-batch-print-root';
+      printRoot.setAttribute('aria-hidden', 'true');
+      Object.assign(printRoot.style, {
+        position: 'fixed', left: '-100000px', top: '0', width: '210mm',
+        visibility: 'visible', pointerEvents: 'none', zIndex: '-99999',
+      });
+      document.body.appendChild(printRoot);
+      reactRoot = createRoot(printRoot);
+
+      const pages: Array<{ key: string; side: 'FRONT' | 'BACK'; members: Array<AdminMemberRecord | null> }> = [];
+      for (let start = 0; start < selectedMembers.length; start += cardsPerPage) {
+        const slots: Array<AdminMemberRecord | null> = selectedMembers.slice(start, start + cardsPerPage);
+        while (slots.length < cardsPerPage) slots.push(null);
+        const pageNumber = Math.floor(start / cardsPerPage) + 1;
+        pages.push({ key: `${pageNumber}-front`, side: 'FRONT', members: slots });
+        const backs: Array<AdminMemberRecord | null> = [];
+        for (let row = 0; row < rows; row += 1) {
+          for (let column = 0; column < columns; column += 1) {
+            const mirroredColumn = columns - 1 - column;
+            backs.push(slots[row * columns + mirroredColumn] || null);
+          }
+        }
+        pages.push({ key: `${pageNumber}-back`, side: 'BACK', members: backs });
+      }
+
+      reactRoot.render(
+        <div className="kta-a4-print-document">
+          {pages.map((page) => (
+            <section key={page.key} className="kta-a4-print-page">
+              <div className="kta-a4-print-grid">
+                {page.members.map((member, index) => (
+                  <div className="kta-a4-print-slot" key={`${page.key}-${index}`}>
+                    {member && (
+                      <DigitalMemberCard
+                        member={mapMemberToKtaBinding(member)}
+                        previewSettings={templateSettings}
+                        side={page.side}
+                        showControls={false}
+                        scale={1}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      );
+
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      );
+      try { if (document.fonts?.ready) await document.fonts.ready; } catch { /* Browser lama. */ }
+      await Promise.all(Array.from(printRoot.querySelectorAll('img')).map((img) =>
+        new Promise<void>((resolve) => {
+          const image = img as HTMLImageElement;
+          if (image.complete) { resolve(); return; }
+          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        })
+      ));
+      await new Promise<void>((resolve) => requestAnimationFrame(resolve));
+
+      printStyle = document.createElement('style');
+      printStyle.id = 'kta-a4-batch-print-style';
+      printStyle.textContent = `
+        @page { size: A4 portrait; margin: 0; }
+        #kta-a4-batch-print-root { display: none; }
+        @media print {
+          html, body {
+            width: 210mm !important; margin: 0 !important; padding: 0 !important;
+            overflow: visible !important; background: #fff !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+          }
+          body > *:not(#kta-a4-batch-print-root) { display: none !important; }
+          #kta-a4-batch-print-root {
+            display: block !important; position: static !important; left: auto !important;
+            top: auto !important; width: 210mm !important; margin: 0 !important;
+            padding: 0 !important; visibility: visible !important; z-index: auto !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-page {
+            box-sizing: border-box !important; width: 210mm !important; height: 297mm !important;
+            padding: 5mm !important; margin: 0 !important; overflow: hidden !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            break-after: page !important; page-break-after: always !important;
+            position: relative !important; -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-page:last-child {
+            break-after: auto !important; page-break-after: auto !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-grid {
+            display: grid !important; grid-template-columns: repeat(${columns}, ${cardWidthMm}mm) !important;
+            grid-template-rows: repeat(${rows}, ${cardHeightMm}mm) !important;
+            column-gap: ${columnGapMm}mm !important; row-gap: ${rowGapMm}mm !important;
+            width: ${gridWidthMm}mm !important; height: ${gridHeightMm}mm !important;
+            align-content: center !important; justify-content: center !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-slot {
+            box-sizing: border-box !important; width: ${cardWidthMm}mm !important; height: ${cardHeightMm}mm !important;
+            overflow: hidden !important; display: flex !important; align-items: center !important;
+            justify-content: center !important; margin: 0 !important; padding: 0 !important;
+            break-inside: avoid !important; page-break-inside: avoid !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-slot > div {
+            width: ${cardWidthMm}mm !important; height: ${cardHeightMm}mm !important;
+            min-width: ${cardWidthMm}mm !important; max-width: ${cardWidthMm}mm !important;
+            margin: 0 !important; padding: 0 !important; gap: 0 !important; overflow: hidden !important;
+          }
+          #kta-a4-batch-print-root .kta-a4-print-slot > div > div {
+            width: ${cardWidthMm}mm !important; min-width: ${cardWidthMm}mm !important; max-width: ${cardWidthMm}mm !important;
+            height: ${cardHeightMm}mm !important; max-height: ${cardHeightMm}mm !important;
+            aspect-ratio: ${cardWidthMm} / ${cardHeightMm} !important; transform: none !important;
+            transition: none !important;
+          }
+        }
+      `;
+      document.head.appendChild(printStyle);
+      window.addEventListener('afterprint', cleanup, { once: true });
+      await new Promise<void>((resolve) => requestAnimationFrame(resolve));
+      window.print();
+      window.setTimeout(cleanup, 60000);
+    } catch (error: any) {
+      cleanup();
+      addToast({ type: 'error', title: 'Cetak Massal Gagal',
+        message: error?.message || 'Gagal menyiapkan lembar cetak KTA A4.' });
+    }
+  };
 
   // Handle Regenerate Submit
   const handleRegenSubmit = async (e: React.FormEvent) => {
@@ -386,13 +569,12 @@ export const KtaManagementCenter: React.FC = () => {
               <button
                 type="button"
                 disabled={selectedIds.length === 0}
-                onClick={() => {
-                  window.print();
-                }}
+                onClick={() => void handlePrintBatch()}
+                disabled={selectedIds.length === 0 || isPrintingBatch || templateLoading || !templateSettings}
                 className="px-4 py-2 rounded-xl bg-[#009B4D] hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Cetak Batch ({selectedIds.length})
+                {isPrintingBatch ? 'Menyiapkan Cetak...' : `Cetak A4 Duplex (${selectedIds.length})`}
               </button>
             </div>
           </div>
@@ -649,15 +831,16 @@ export const KtaManagementCenter: React.FC = () => {
                 <h3 className="text-base font-bold text-slate-900">
                   KTA Batch Preview ({selectedIds.length} Kartu Dipilih)
                 </h3>
-                <p className="text-xs text-slate-500">Pratinjau lembar cetak massal ID-1 SAKA Pariwisata sesuai template KTA Designer</p>
+                <p className="text-xs text-slate-500">Cetak A4 dua sisi; jumlah kartu per lembar mengikuti ukuran fisik template KTA Designer</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="px-4 py-1.5 rounded-xl bg-[#009B4D] hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  onClick={() => void handlePrintBatch()}
+                  disabled={isPrintingBatch || templateLoading || !templateSettings}
+                  className="px-4 py-1.5 rounded-xl bg-[#009B4D] hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Printer className="w-4 h-4" /> Cetak Sekarang
+                  <Printer className="w-4 h-4" /> {isPrintingBatch ? 'Menyiapkan Cetak...' : 'Cetak A4 Duplex'}
                 </button>
                 <button
                   type="button"
