@@ -20,6 +20,8 @@ export const tourismApi = {
   getDestination: async (id:string):Promise<ApiResponse<Destination>> => apiClient.get<Destination>('tourism.destination',{id}),
   createDestination: async (payload:Partial<Destination>):Promise<ApiResponse<Destination>> => apiClient.post<Destination>('tourism.createDestination',payload as Record<string,unknown>),
   listPackages: async (params?:Record<string,string|number>):Promise<ApiResponse<TourPackage[]>> => normalizeList<TourPackage>(await apiClient.get<any>('tourism.packages',params)),
+  uploadThumbnail: async (payload: { file_name: string; mime_type: string; base64_data: string }): Promise<ApiResponse<{ thumbnail_url: string; drive_file_id: string }>> =>
+    apiClient.post<{ thumbnail_url: string; drive_file_id: string }>('content.uploadThumbnail', payload as unknown as Record<string, unknown>),
   submitPackage: async (payload:Partial<TourPackage>):Promise<ApiResponse<TourPackage>> => apiClient.post<TourPackage>('tourism.package.submit',payload as Record<string,unknown>),
   listMyPackages: async ():Promise<ApiResponse<TourPackage[]>> => normalizeList<TourPackage>(await apiClient.get<any>('tourism.package.mine')),
   listPendingPackages: async ():Promise<ApiResponse<TourPackage[]>> => normalizeList<TourPackage>(await apiClient.get<any>('tourism.package.pending')),
