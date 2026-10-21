@@ -66,6 +66,15 @@ export const contentApi = {
       content_type: contentType,
     }),
 
+  update: async (contentId: string, payload: { url: string; caption?: string; description?: string; content_type?: string }): Promise<ApiResponse<ContentItem>> =>
+    apiClient.post<ContentItem>('content.update', {
+      content_id: contentId,
+      ...payload,
+    }),
+
+  delete: async (contentId: string): Promise<ApiResponse<unknown>> =>
+    apiClient.post<unknown>('content.delete', { content_id: contentId }),
+
   approve: async (contentId: string): Promise<ApiResponse<unknown>> =>
     apiClient.post<unknown>('content.approve', { content_id: contentId }),
 
