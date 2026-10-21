@@ -30,7 +30,10 @@ export const ContentPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [caption, setCaption] = useState('');
-  const [submitting, setSubmitting] = useState(false);\n  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);\n  const [deletingId, setDeletingId] = useState<string | null>(null);\n  const [failedImages, setFailedImages] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<string[]>([]);
 
   const canSubmit = useMemo(() => {
     if (!isAuthenticated || !currentUser) return false;
