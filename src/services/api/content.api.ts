@@ -64,15 +64,16 @@ export const contentApi = {
   uploadThumbnail: async (payload: { file_name: string; mime_type: string; base64_data: string }): Promise<ApiResponse<{ thumbnail_url: string; drive_file_id: string }>> =>
     apiClient.post<{ thumbnail_url: string; drive_file_id: string }>('content.uploadThumbnail', payload as unknown as Record<string, unknown>),
 
-  submitLink: async (url: string, caption = '', contentType = 'BERITA'): Promise<ApiResponse<ContentItem>> =>
+  submitLink: async (url: string, caption = '', contentType = 'BERITA', thumbnailUrl = ''): Promise<ApiResponse<ContentItem>> =>
     apiClient.post<ContentItem>('content.create', {
       url,
       caption,
       description: caption,
       content_type: contentType,
+      ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
     }),
 
-  update: async (contentId: string, payload: { url: string; caption?: string; description?: string; content_type?: string }): Promise<ApiResponse<ContentItem>> =>
+  update: async (contentId: string, payload: { url: string; caption?: string; description?: string; content_type?: string; thumbnail_url?: string }): Promise<ApiResponse<ContentItem>> =>
     apiClient.post<ContentItem>('content.update', {
       content_id: contentId,
       ...payload,
