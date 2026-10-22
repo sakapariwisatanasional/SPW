@@ -87,10 +87,10 @@ export const SkkDetailPage: React.FC<{
     ? 'Status penilaian sedang diperiksa. Panduan tetap dapat dibaca.'
     : error
       ? `Status penilaian belum dapat diverifikasi (${error}). Panduan tetap dapat dibaca.`
-      : access?.blockedBy
-        ? `Panduan SKK ini tetap dapat dibaca. Untuk memulai penilaian, selesaikan ${access.blockedBy} dan tunggu keputusan lulus dari Pamong Saka.`
-        : access?.blockedLevel
-          ? `Panduan SKK ini tetap dapat dibaca. Penilaian mengikuti urutan tingkat ${access.blockedLevel}.`
+      : access?.blockedLevel
+        ? `Panduan SKK ini tetap dapat dibaca. Penilaian tingkat ini menunggu kelulusan seluruh SKK tingkat ${access.blockedLevel} pada krida yang sama.`
+        : access?.blockedBy
+          ? `Panduan SKK ini tetap dapat dibaca. Untuk mengajukan penilaian, selesaikan ${access.blockedBy} terlebih dahulu.`
           : 'Panduan SKK Nasional tetap dapat dibaca. Akses penilaian mengikuti status dan urutan SKK dari server.';
 
   return (
