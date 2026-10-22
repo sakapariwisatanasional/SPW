@@ -52,6 +52,7 @@ import { MemberPortfolioView } from '../features/membership/components/MemberPor
 import { MemberActivityView } from '../features/membership/components/MemberActivityView';
 import { MemberProfileView } from '../features/membership/components/MemberProfileView';
 import { SkkLearningCenterPage } from '../features/skk/pages/SkkLearningCenterPage';
+import { SkkDetailPage } from '../features/skk/pages/SkkDetailPage';
 import { TourismPage } from '../features/tourism/pages/TourismPage';
 import { ContentPage } from '../features/content/pages/ContentPage';
 import { CommercePage } from '../features/commerce/pages/CommercePage';
@@ -185,10 +186,28 @@ export const MemberLayout: React.FC<MemberLayoutProps> = ({
     { id: 'wisata', label: 'Wisata', icon: Compass },
   ];
 
-  // Render view corresponding to activeTab
+  // Render view corresponding to activeTab.
+  // Preserve public SKK navigation after login: App passes activeView into this
+  // shell, so SKK learning/detail routes must be handled here instead of falling
+  // through to the default member dashboard.
   const renderCurrentView = () => {
     if (children && activeTab === 'custom') {
       return children;
+    }
+
+    if (activeTab === 'skk-learning' || activeTab === 'skk' || activeTab === 'krida') {
+      return <SkkLearningCenterPage />;
+    }
+
+    if (activeTab.startsWith('skk-')) {
+      const code = activeTab.slice(4).toUpperCase();
+      return <SkkDetailPage skkCode={code} />;
+    }
+
+    if (activeTab.startsWith('krida-')) {
+      // Krida detail is not required to enter the SKK learning center;
+      // route to the learning center rather than accidentally showing dashboard.
+      return <SkkLearningCenterPage />;
     }
 
     switch (activeTab) {
