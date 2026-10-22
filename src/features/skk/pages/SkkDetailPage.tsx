@@ -83,15 +83,15 @@ export const SkkDetailPage: React.FC<{
 
   const access = getAccess(codeToDisplay);
   const assessmentLocked = isMember && !canOpen(codeToDisplay);
-  const lockMessage = loading
+  const accessNotice = loading
     ? 'Status penilaian sedang diperiksa. Panduan tetap dapat dibaca.'
     : error
-      ? `Status penilaian belum dapat diverifikasi (${error}). Panduan tetap dapat dibaca.`
-      : access?.blockedLevel
-        ? `Panduan SKK ini tetap dapat dibaca. Penilaian tingkat ini menunggu kelulusan seluruh SKK tingkat ${access.blockedLevel} pada krida yang sama.`
-        : access?.blockedBy
-          ? `Panduan SKK ini tetap dapat dibaca. Untuk mengajukan penilaian, selesaikan ${access.blockedBy} terlebih dahulu.`
-          : 'Panduan SKK Nasional tetap dapat dibaca. Akses penilaian mengikuti status dan urutan SKK dari server.';
+      ? 'Status penilaian belum dapat diverifikasi. Panduan tetap dapat dibaca; coba muat ulang sebelum mengajukan penilaian.'
+      : access?.blockedBy
+        ? `Panduan tetap dapat dibaca. Untuk penilaian, selesaikan ${access.blockedBy} dan tunggu keputusan Pamong Saka.`
+        : access?.blockedLevel
+          ? `Panduan tetap dapat dibaca. Penilaian mengikuti urutan tingkat ${access.blockedLevel}.`
+          : 'Panduan SKK Nasional dapat dibaca. Akses pengajuan penilaian mengikuti status resmi dari server.';
 
   return (
     <div className="space-y-6">
@@ -100,8 +100,8 @@ export const SkkDetailPage: React.FC<{
           <div className="flex items-start gap-3">
             <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div>
-              <h2 className="text-sm font-bold">Panduan tetap tersedia untuk dibaca</h2>
-              <p className="mt-1 text-sm leading-relaxed">{lockMessage}</p>
+              <h2 className="text-sm font-bold">Panduan tersedia untuk dipelajari</h2>
+              <p className="mt-1 text-sm leading-relaxed">{accessNotice}</p>
               <button className="mt-3 rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white" onClick={handleBackToLearningCenter}>Kembali ke daftar SKK</button>
             </div>
           </div>
