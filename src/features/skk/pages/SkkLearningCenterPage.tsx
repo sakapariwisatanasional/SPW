@@ -7,7 +7,7 @@ import {
   GraduationCap,
   Search,
   ChevronRight,
-  LockKeyhole,
+  BookOpen,
   CheckCircle2,
   Award,
 } from 'lucide-react';
@@ -61,8 +61,9 @@ export const SkkLearningCenterPage: React.FC = () => {
       });
   }, [activeKrida, search]);
 
+  // Panduan SKK Nasional bersifat edukatif dan dapat dibaca seluruh anggota.
+  // Pembatasan urutan tetap diterapkan pada proses penilaian/penyelesaian di backend.
   const openSkk = (code: string) => {
-    if (!canOpen(code)) return;
     setSelectedSkkCode(code);
     setActiveView(`skk-${String(code).toLowerCase()}`);
   };
@@ -150,9 +151,8 @@ export const SkkLearningCenterPage: React.FC = () => {
                 <button
                   key={code}
                   onClick={() => openSkk(code)}
-                  disabled={locked}
-                  title={locked ? (access?.blockedBy ? `Selesaikan ${access.blockedBy} dan tunggu kelulusan Pamong Saka` : 'Menunggu verifikasi status SKK') : undefined}
-                  className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-purple-200 enabled:hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                  title={locked ? 'Panduan tetap dapat dibaca; urutan penilaian mengikuti ketentuan SKK.' : 'Buka panduan SKK'}
+                  className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
                 >
                   <div className="min-w-0">
                     <span
@@ -163,9 +163,9 @@ export const SkkLearningCenterPage: React.FC = () => {
                     </span>
                     <div className="mt-2 text-xs font-black uppercase tracking-wide text-[#0066B3]">{code}</div>
                     <div className="mt-0.5 line-clamp-2 text-sm font-black leading-5 text-[#0B2F5B]">{name}</div>
-                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Terkunci • Luluskan ${access.blockedBy} terlebih dahulu` : access?.blockedLevel ? `Tuntaskan ${access.blockedLevel} pada Krida ini` : 'Status belum dapat diverifikasi') : passed ? 'Lulus • Lihat materi' : 'Aktif • Buka materi'}</div>
+                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Panduan terbuka • Penilaian setelah lulus ${access.blockedBy}` : access?.blockedLevel ? `Panduan terbuka • Penilaian mengikuti tingkat ${access.blockedLevel}` : 'Panduan terbuka • Status penilaian perlu diverifikasi') : passed ? 'Lulus • Baca kembali panduan' : 'Panduan tersedia • Buka materi'}</div>
                   </div>
-                  {locked ? <LockKeyhole className="h-4 w-4 shrink-0 text-slate-400" /> : passed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />}
+                  {locked ? <BookOpen className="h-4 w-4 shrink-0 text-purple-500" /> : passed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />}
                 </button>
               );
             })}
