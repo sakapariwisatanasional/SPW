@@ -61,8 +61,9 @@ export const SkkLearningCenterPage: React.FC = () => {
       });
   }, [activeKrida, search]);
 
-  // Panduan bersifat edukatif dan selalu dapat dibaca. Urutan SKK tetap
-  // diverifikasi server saat anggota mengajukan bukti atau penilaian.
+  // Membaca panduan berbeda dari memulai/mengajukan penilaian.
+  // Semua anggota boleh membuka materi; pembatasan penilaian tetap ditegakkan
+  // pada alur pengajuan/penilaian oleh backend.
   const openSkk = (code: string) => {
     setSelectedSkkCode(code);
     setActiveView(`skk-${String(code).toLowerCase()}`);
@@ -151,7 +152,7 @@ export const SkkLearningCenterPage: React.FC = () => {
                 <button
                   key={code}
                   onClick={() => openSkk(code)}
-                  title={locked ? 'Panduan tetap dapat dibaca; urutan penilaian mengikuti ketentuan SKK.' : 'Buka panduan SKK'}
+                  title={locked ? 'Panduan dapat dibaca; akses penilaian mengikuti progres SKK.' : 'Buka panduan SKK'}
                   className="group flex min-h-[112px] items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
                 >
                   <div className="min-w-0">
@@ -163,7 +164,7 @@ export const SkkLearningCenterPage: React.FC = () => {
                     </span>
                     <div className="mt-2 text-xs font-black uppercase tracking-wide text-[#0066B3]">{code}</div>
                     <div className="mt-0.5 line-clamp-2 text-sm font-black leading-5 text-[#0B2F5B]">{name}</div>
-                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedLevel ? `Panduan terbuka • Penilaian setelah lulus tingkat ${access.blockedLevel}` : access?.blockedBy ? `Panduan terbuka • Penilaian setelah lulus ${access.blockedBy}` : 'Panduan terbuka • Status penilaian diverifikasi server') : passed ? 'Lulus • Baca kembali panduan' : 'Panduan tersedia • Buka materi'}</div>
+                    <div className="mt-1 text-[9px] font-semibold text-slate-500">{locked ? (access?.blockedBy ? `Panduan terbuka • Penilaian setelah lulus ${access.blockedBy}` : access?.blockedLevel ? `Panduan terbuka • Penilaian mengikuti tingkat ${access.blockedLevel}` : 'Panduan terbuka • Status penilaian perlu diverifikasi') : passed ? 'Lulus • Baca kembali panduan' : 'Panduan tersedia • Buka materi'}</div>
                   </div>
                   {locked ? <BookOpen className="h-4 w-4 shrink-0 text-purple-500" /> : passed ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />}
                 </button>
