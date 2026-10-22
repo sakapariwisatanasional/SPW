@@ -81,16 +81,32 @@ export const SkkDetailPage: React.FC<{
     },
   ];
 
-  if (isMember && !canOpen(codeToDisplay)) {
-    const blocker = getAccess(codeToDisplay)?.blockedBy;
-    return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 space-y-3">
-      <h2 className="text-xl font-bold text-amber-900">SKK belum dapat dibuka</h2>
-      <p className="text-sm text-amber-800">{loading ? 'Memeriksa status SKK…' : error || (blocker ? `Selesaikan ${blocker} dan tunggu keputusan lulus Pamong Saka sebelum mengerjakan ${codeToDisplay}.` : 'SKK ini belum tersedia untuk akun Anda.')}</p>
-      <button className="rounded-lg bg-amber-900 px-4 py-2 text-white" onClick={() => setActiveView('skk-learning')}>Kembali ke daftar SKK</button>
-    </div>;
-  }
+  const access = getAccess(codeToDisplay);
+  const assessmentLocked = isMember && !canOpen(codeToDisplay);
+  const lockMessage = loading
+    ? 'Status penilaian sedang diperiksa. Panduan tetap dapat dibaca.'
+    : error
+      ? `Status penilaian belum dapat diverifikasi (${error}). Panduan tetap dapat dibaca.`
+      : access?.blockedBy
+        ? `Panduan SKK ini tetap dapat dibaca. Untuk memulai penilaian, selesaikan ${access.blockedBy} dan tunggu keputusan lulus dari Pamong Saka.`
+        : access?.blockedLevel
+          ? `Panduan SKK ini tetap dapat dibaca. Penilaian mengikuti urutan tingkat ${access.blockedLevel}.`
+          : 'Panduan SKK Nasional tetap dapat dibaca. Akses penilaian mengikuti status dan urutan SKK dari server.';
+
   return (
     <div className="space-y-6">
+      {assessmentLocked && (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <div className="flex items-start gap-3">
+            <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <h2 className="text-sm font-bold">Panduan tetap tersedia untuk dibaca</h2>
+              <p className="mt-1 text-sm leading-relaxed">{lockMessage}</p>
+              <button className="mt-3 rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white" onClick={handleBackToLearningCenter}>Kembali ke daftar SKK</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Navigation Breadcrumbs & Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
         <div className="flex items-center gap-2 text-xs text-slate-500">
