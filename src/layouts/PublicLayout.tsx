@@ -79,12 +79,16 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({
             className="flex min-w-0 items-center gap-2.5 text-left"
             aria-label="Beranda SAKA Pariwisata"
           >
-            <div className="relative h-9 w-10 shrink-0 sm:h-11 sm:w-12">
-              <span className="absolute left-0 top-3 h-4 w-7 -rotate-12 rounded-full border-[4px] border-[#63B32E] border-r-transparent sm:border-[5px]" />
-              <span className="absolute left-3 top-0 h-7 w-5 rotate-[28deg] rounded-full border-[4px] border-[#6F3BC5] border-l-transparent sm:left-4 sm:h-8 sm:border-[5px]" />
-              <span className="absolute left-4 top-1 h-7 w-6 rotate-[48deg] rounded-full border-[4px] border-[#F7941D] border-b-transparent sm:left-5 sm:top-2 sm:h-8 sm:w-7 sm:border-[5px]" />
-              <span className="absolute left-5 top-1 h-8 w-7 rotate-[72deg] rounded-full border-[4px] border-[#169CD8] border-t-transparent sm:left-6 sm:top-2 sm:h-10 sm:w-8 sm:border-[5px]" />
-              <span className="absolute left-6 top-0 h-6 w-7 rotate-[98deg] rounded-full border-[4px] border-[#EC2F78] border-l-transparent sm:left-7 sm:top-1 sm:h-7 sm:w-8 sm:border-[5px]" />
+            <div className="grid h-10 w-10 shrink-0 place-items-center sm:h-12 sm:w-12">
+              <img
+                src="/logo.png"
+                alt="Logo resmi SAKA Pariwisata"
+                width={48}
+                height={48}
+                loading="eager"
+                decoding="async"
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[12px] font-black tracking-[0.08em] text-[#0B2F5B] sm:text-[15px]">SAKA PARIWISATA</div>
