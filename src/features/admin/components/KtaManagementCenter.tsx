@@ -158,19 +158,42 @@ export const KtaManagementCenter: React.FC = () => {
       return;
     }
 
-    // Gunakan ukuran fisik yang disimpan pada template GAS; ID-1 hanya fallback kompatibilitas.
+    // Satu KTA = satu baris berisi sisi depan dan belakang berdampingan.
+    // Untuk ukuran ID-1 85.6 x 53.98 mm, A4 portrait memuat 5 KTA lengkap/lembar.
     const cardWidthMm = Number(templateSettings.widthMm) > 0 ? Number(templateSettings.widthMm) : 85.6;
     const cardHeightMm = Number(templateSettings.heightMm) > 0 ? Number(templateSettings.heightMm) : 53.98;
-    const pagePaddingMm = 5;
-    const columnGapMm = 8;
+    const pageWidthMm = 210;
+    const pageHeightMm = 297;
+    const sideGapMm = 4;
     const rowGapMm = 3;
-    const usableWidthMm = 210 - pagePaddingMm * 2;
-    const usableHeightMm = 297 - pagePaddingMm * 2;
-    const columns = Math.max(1, Math.min(2, Math.floor((usableWidthMm + columnGapMm) / (cardWidthMm + columnGapMm))));
-    const rows = Math.max(1, Math.floor((usableHeightMm + rowGapMm) / (cardHeightMm + rowGapMm)));
-    const cardsPerPage = columns * rows;
-    const gridWidthMm = columns * cardWidthMm + (columns - 1) * columnGapMm;
-    const gridHeightMm = rows * cardHeightMm + (rows - 1) * rowGapMm;
+    const horizontalMarginMm = 5;
+    const verticalMarginMm = 5;
+    const pairWidthMm = cardWidthMm * 2 + sideGapMm;
+    const usableHeightMm = pageHeightMm - verticalMarginMm * 2;
+    const rowsPerPage = Math.floor((usableHeightMm + rowGapMm) / (cardHeightMm + rowGapMm));
+    if (pairWidthMm > pageWidthMm - horizontalMarginMm * 2) {
+      addToast({
+        type: 'error', title: 'Ukuran Template Tidak Muat di A4',
+        message: `Dua sisi kartu (${pairWidthMm.toFixed(1)} mm) tidak muat berdampingan pada A4 portrait. Periksa ukuran kartu di template Spreadsheet.`,
+      });
+      return;
+    }
+    if (rowsPerPage < 1) {
+      addToast({ type: 'error', title: 'Ukuran Kartu Tidak Muat', message: 'Tinggi kartu dari template lebih besar dari area cetak A4.' });
+      return;
+    }
+
+    const designWidthPx = 448;
+    const cardAspectRatio = cardWidthMm / cardHeightMm;
+    const designHeightPx = designWidthPx / cardAspectRatio;
+    const cardPrintScale = (cardWidthMm * 96 / 25.4) / designWidthPx;
+    const pageMembers: Array<{ key: string; members: AdminMemberRecord[] }> = [];
+    for (let start = 0; start < selectedMembers.length; start += rowsPerPage) {
+      pageMembers.push({
+        key: `sheet-${Math.floor(start / rowsPerPage) + 1}`,
+        members: selectedMembers.slice(start, start + rowsPerPage),
+      });
+    }
 
     setIsPrintingBatch(true);
     let printRoot: HTMLDivElement | null = null;
@@ -194,45 +217,36 @@ export const KtaManagementCenter: React.FC = () => {
       printRoot.id = 'kta-a4-batch-print-root';
       printRoot.setAttribute('aria-hidden', 'true');
       Object.assign(printRoot.style, {
-        position: 'fixed', left: '-100000px', top: '0', width: '210mm',
+        position: 'fixed', left: '-100000px', top: '0', width: `${pageWidthMm}mm`,
         visibility: 'visible', pointerEvents: 'none', zIndex: '-99999',
       });
       document.body.appendChild(printRoot);
       reactRoot = createRoot(printRoot);
 
-      const pages: Array<{ key: string; side: 'FRONT' | 'BACK'; members: Array<AdminMemberRecord | null> }> = [];
-      for (let start = 0; start < selectedMembers.length; start += cardsPerPage) {
-        const slots: Array<AdminMemberRecord | null> = selectedMembers.slice(start, start + cardsPerPage);
-        while (slots.length < cardsPerPage) slots.push(null);
-        const pageNumber = Math.floor(start / cardsPerPage) + 1;
-        pages.push({ key: `${pageNumber}-front`, side: 'FRONT', members: slots });
-        const backs: Array<AdminMemberRecord | null> = [];
-        for (let row = 0; row < rows; row += 1) {
-          for (let column = 0; column < columns; column += 1) {
-            const mirroredColumn = columns - 1 - column;
-            backs.push(slots[row * columns + mirroredColumn] || null);
-          }
-        }
-        pages.push({ key: `${pageNumber}-back`, side: 'BACK', members: backs });
-      }
-
       reactRoot.render(
         <div className="kta-a4-print-document">
-          {pages.map((page) => (
+          {pageMembers.map((page) => (
             <section key={page.key} className="kta-a4-print-page">
               <div className="kta-a4-print-grid">
-                {page.members.map((member, index) => (
-                  <div className="kta-a4-print-slot" key={`${page.key}-${index}`}>
-                    {member && (
-                      <DigitalMemberCard
-                        member={mapMemberToKtaBinding(member)}
-                        previewSettings={templateSettings}
-                        side={page.side}
-                        showControls={false}
-                        scale={1}
-                      />
-                    )}
-                  </div>
+                {page.members.map((member) => (
+                  <React.Fragment key={getBackendMemberId(member)}>
+                    {(['FRONT', 'BACK'] as const).map((side) => (
+                      <div className="kta-a4-print-slot" key={`${getBackendMemberId(member)}-${side}`}>
+                        <div className="kta-batch-design-canvas" style={{
+                          width: `${designWidthPx}px`, height: `${designHeightPx}px`,
+                          transform: `scale(${cardPrintScale})`, transformOrigin: 'top left',
+                        }}>
+                          <DigitalMemberCard
+                            member={mapMemberToKtaBinding(member)}
+                            previewSettings={templateSettings}
+                            side={side}
+                            showControls={false}
+                            scale={1}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </React.Fragment>
                 ))}
               </div>
             </section>
@@ -240,9 +254,7 @@ export const KtaManagementCenter: React.FC = () => {
         </div>
       );
 
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(resolve))
-      );
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       try { if (document.fonts?.ready) await document.fonts.ready; } catch { /* Browser lama. */ }
       await Promise.all(Array.from(printRoot.querySelectorAll('img')).map((img) =>
         new Promise<void>((resolve) => {
@@ -252,7 +264,29 @@ export const KtaManagementCenter: React.FC = () => {
           image.addEventListener('error', () => resolve(), { once: true });
         })
       ));
-      await new Promise<void>((resolve) => requestAnimationFrame(resolve));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      // Bekukan warna/font/layout computed dari renderer template sebelum masuk print mode.
+      // Ini mencegah warna teks berubah karena stylesheet @media print atau default browser.
+      Array.from(printRoot.querySelectorAll<HTMLElement>('.kta-batch-design-canvas')).forEach((canvas) => {
+        const elements = [canvas, ...Array.from(canvas.querySelectorAll<HTMLElement | SVGElement>('*'))];
+        elements.forEach((element) => {
+          const computed = window.getComputedStyle(element);
+          const inline = (element as HTMLElement).style;
+          [
+            'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-align',
+            'text-transform', 'line-height', 'letter-spacing', 'background-color', 'background-image',
+            'border-color', 'border-width', 'border-style', 'opacity', 'display', 'position',
+            'left', 'right', 'top', 'bottom', 'width', 'height', 'padding', 'margin', 'transform',
+            'transform-origin', 'object-fit', 'object-position', 'overflow', 'white-space',
+          ].forEach((property) => {
+            const value = computed.getPropertyValue(property);
+            if (value) inline.setProperty(property, value, 'important');
+          });
+          inline.setProperty('-webkit-print-color-adjust', 'exact', 'important');
+          inline.setProperty('print-color-adjust', 'exact', 'important');
+        });
+      });
 
       printStyle = document.createElement('style');
       printStyle.id = 'kta-a4-batch-print-style';
@@ -267,50 +301,59 @@ export const KtaManagementCenter: React.FC = () => {
           }
           body > *:not(#kta-a4-batch-print-root) { display: none !important; }
           #kta-a4-batch-print-root {
-            display: block !important; position: static !important; left: auto !important;
-            top: auto !important; width: 210mm !important; margin: 0 !important;
-            padding: 0 !important; visibility: visible !important; z-index: auto !important;
+            display: block !important; position: static !important; width: 210mm !important;
+            margin: 0 !important; padding: 0 !important; visibility: visible !important;
           }
           #kta-a4-batch-print-root .kta-a4-print-page {
             box-sizing: border-box !important; width: 210mm !important; height: 297mm !important;
-            padding: 5mm !important; margin: 0 !important; overflow: hidden !important;
-            display: flex !important; align-items: center !important; justify-content: center !important;
+            margin: 0 !important; padding: ${verticalMarginMm}mm ${horizontalMarginMm}mm !important;
+            overflow: hidden !important; display: flex !important; align-items: center !important;
+            justify-content: center !important; position: relative !important;
             break-after: page !important; page-break-after: always !important;
-            position: relative !important; -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
           }
           #kta-a4-batch-print-root .kta-a4-print-page:last-child {
             break-after: auto !important; page-break-after: auto !important;
           }
           #kta-a4-batch-print-root .kta-a4-print-grid {
-            display: grid !important; grid-template-columns: repeat(${columns}, ${cardWidthMm}mm) !important;
-            grid-template-rows: repeat(${rows}, ${cardHeightMm}mm) !important;
-            column-gap: ${columnGapMm}mm !important; row-gap: ${rowGapMm}mm !important;
-            width: ${gridWidthMm}mm !important; height: ${gridHeightMm}mm !important;
+            display: grid !important; grid-template-columns: repeat(2, ${cardWidthMm}mm) !important;
+            grid-template-rows: repeat(${rowsPerPage}, ${cardHeightMm}mm) !important;
+            column-gap: ${sideGapMm}mm !important; row-gap: ${rowGapMm}mm !important;
+            width: ${pairWidthMm}mm !important;
+            height: ${rowsPerPage * cardHeightMm + (rowsPerPage - 1) * rowGapMm}mm !important;
             align-content: center !important; justify-content: center !important;
           }
           #kta-a4-batch-print-root .kta-a4-print-slot {
             box-sizing: border-box !important; width: ${cardWidthMm}mm !important; height: ${cardHeightMm}mm !important;
-            overflow: hidden !important; display: flex !important; align-items: center !important;
-            justify-content: center !important; margin: 0 !important; padding: 0 !important;
-            break-inside: avoid !important; page-break-inside: avoid !important;
+            position: relative !important; overflow: hidden !important; display: block !important;
+            margin: 0 !important; padding: 0 !important; break-inside: avoid !important; page-break-inside: avoid !important;
           }
-          #kta-a4-batch-print-root .kta-a4-print-slot > div {
-            width: ${cardWidthMm}mm !important; height: ${cardHeightMm}mm !important;
-            min-width: ${cardWidthMm}mm !important; max-width: ${cardWidthMm}mm !important;
-            margin: 0 !important; padding: 0 !important; gap: 0 !important; overflow: hidden !important;
+          #kta-a4-batch-print-root .kta-a4-print-slot .kta-batch-design-canvas {
+            position: absolute !important; left: 0 !important; top: 0 !important;
+            width: ${designWidthPx}px !important; height: ${designHeightPx}px !important;
+            max-width: none !important; min-width: 0 !important;
+            transform: scale(${cardPrintScale}) !important; transform-origin: top left !important;
+            margin: 0 !important; padding: 0 !important; overflow: hidden !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
           }
-          #kta-a4-batch-print-root .kta-a4-print-slot > div > div {
-            width: ${cardWidthMm}mm !important; min-width: ${cardWidthMm}mm !important; max-width: ${cardWidthMm}mm !important;
-            height: ${cardHeightMm}mm !important; max-height: ${cardHeightMm}mm !important;
-            aspect-ratio: ${cardWidthMm} / ${cardHeightMm} !important; transform: none !important;
-            transition: none !important;
+          #kta-a4-batch-print-root .kta-batch-design-canvas > #digital-member-card-wrapper {
+            width: ${designWidthPx}px !important; min-width: ${designWidthPx}px !important;
+            max-width: ${designWidthPx}px !important; margin: 0 !important; padding: 0 !important; gap: 0 !important;
+          }
+          #kta-a4-batch-print-root .kta-batch-design-canvas > #digital-member-card-wrapper > div:first-child {
+            width: ${designWidthPx}px !important; min-width: ${designWidthPx}px !important;
+            max-width: ${designWidthPx}px !important; height: ${designHeightPx}px !important;
+            aspect-ratio: ${cardWidthMm} / ${cardHeightMm} !important; transform: none !important; transition: none !important;
+          }
+          #kta-a4-batch-print-root .kta-batch-design-canvas,
+          #kta-a4-batch-print-root .kta-batch-design-canvas * {
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
           }
         }
       `;
       document.head.appendChild(printStyle);
       window.addEventListener('afterprint', cleanup, { once: true });
-      await new Promise<void>((resolve) => requestAnimationFrame(resolve));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       window.print();
       window.setTimeout(cleanup, 60000);
     } catch (error: any) {
@@ -550,9 +593,12 @@ export const KtaManagementCenter: React.FC = () => {
 
               {selectedIds.length > 0 && (
                 <span className="text-xs text-[#0066B3] font-semibold bg-blue-50 px-2 py-0.5 rounded-full">
-                  {selectedIds.length} kartu dipilih
+                  {selectedIds.length} KTA dipilih
                 </span>
               )}
+              <span className="text-[11px] text-slate-500">
+                Depan + belakang berdampingan · hingga 5 KTA per lembar A4 untuk ukuran ID-1
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -568,13 +614,12 @@ export const KtaManagementCenter: React.FC = () => {
 
               <button
                 type="button"
-                disabled={selectedIds.length === 0}
                 onClick={() => void handlePrintBatch()}
                 disabled={selectedIds.length === 0 || isPrintingBatch || templateLoading || !templateSettings}
                 className="px-4 py-2 rounded-xl bg-[#009B4D] hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2"
               >
                 <Printer className="w-3.5 h-3.5" />
-                {isPrintingBatch ? 'Menyiapkan Cetak...' : `Cetak A4 Duplex (${selectedIds.length})`}
+                {isPrintingBatch ? 'Menyiapkan Cetak...' : `Cetak A4 Satu Lembar (${selectedIds.length})`}
               </button>
             </div>
           </div>
@@ -831,7 +876,7 @@ export const KtaManagementCenter: React.FC = () => {
                 <h3 className="text-base font-bold text-slate-900">
                   KTA Batch Preview ({selectedIds.length} Kartu Dipilih)
                 </h3>
-                <p className="text-xs text-slate-500">Cetak A4 dua sisi; jumlah kartu per lembar mengikuti ukuran fisik template KTA Designer</p>
+                <p className="text-xs text-slate-500">Sisi depan dan belakang berdampingan. Ukuran dan warna mengikuti template Spreadsheet; kartu per lembar mengikuti tinggi kartu.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -840,7 +885,7 @@ export const KtaManagementCenter: React.FC = () => {
                   disabled={isPrintingBatch || templateLoading || !templateSettings}
                   className="px-4 py-1.5 rounded-xl bg-[#009B4D] hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Printer className="w-4 h-4" /> {isPrintingBatch ? 'Menyiapkan Cetak...' : 'Cetak A4 Duplex'}
+                  <Printer className="w-4 h-4" /> {isPrintingBatch ? 'Menyiapkan Cetak...' : 'Cetak A4 Satu Lembar'}
                 </button>
                 <button
                   type="button"
