@@ -172,7 +172,14 @@ export const KtaManagementCenter: React.FC = () => {
       const ktaNumber = String(
         m.no_kta || m.nomor_kta || (m as any).nomorKTA || (m as any).nationalMemberNumber || ''
       ).trim();
-      return memberStatus === 'ACTIVE' && Boolean(ktaNumber);
+      // KTA_GENERATED adalah status lifecycle yang dipakai store setelah
+      // penerbitan KTA. Anggota dengan nomor KTA tetap dapat dicetak ulang.
+      // ACTIVE juga tetap didukung untuk record lama yang belum bermigrasi.
+      const isEligibleMemberStatus =
+        memberStatus === 'ACTIVE' || memberStatus === 'KTA_GENERATED';
+      const ktaStatus = String((m as any).kta_status || '').trim().toUpperCase();
+      const isKtaUsable = !ktaStatus || ktaStatus === 'ACTIVE';
+      return isEligibleMemberStatus && Boolean(ktaNumber) && isKtaUsable;
     });
   }, [scopedMembers]);
 
