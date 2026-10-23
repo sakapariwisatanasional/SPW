@@ -48,6 +48,8 @@ export const KtaManagementCenter: React.FC = () => {
   const { addToast } = useUIStore();
   const {
     members,
+    membersLoading,
+    membersError,
     ktaLogs,
     simulatedScope,
     scopeProvinceId,
@@ -107,8 +109,37 @@ export const KtaManagementCenter: React.FC = () => {
   };
 
   useEffect(() => {
+    // Halaman KTA harus memuat database anggota sendiri. Jangan bergantung
+    // pada dashboard/halaman lain yang mungkin belum pernah memanggil loadMembers().
     void loadTemplateSettings();
+    void loadMembers();
   }, []);
+
+  const refreshKtaDatabase = async () => {
+    try {
+      const loaded = await loadMembers();
+      if (Array.isArray(loaded) && loaded.length > 0) {
+        addToast({
+          type: 'success',
+          title: 'Database KTA Diperbarui',
+          message: `${loaded.length} data anggota berhasil dimuat dari GAS.`,
+        });
+      } else {
+        const currentError = useAdminStore.getState().membersError;
+        addToast({
+          type: currentError ? 'error' : 'info',
+          title: currentError ? 'Database KTA Gagal Dimuat' : 'Database KTA Kosong',
+          message: currentError || 'GAS berhasil merespons, tetapi belum ada data anggota yang dapat ditampilkan.',
+        });
+      }
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Database KTA Gagal Dimuat',
+        message: error?.message || 'Gagal memuat data anggota dari GAS.',
+      });
+    }
+  };
 
 
   // Filter members based on regional scope
@@ -136,8 +167,19 @@ export const KtaManagementCenter: React.FC = () => {
 
   // Anggota aktif dengan KTA terbit
   const activeKtaMembers = useMemo(() => {
-    return scopedMembers.filter((m) => m.status_anggota === 'ACTIVE' && Boolean(m.no_kta || m.nomor_kta));
+    return scopedMembers.filter((m) => {
+      const memberStatus = String(m.status_anggota || m.status || '').trim().toUpperCase();
+      const ktaNumber = String(
+        m.no_kta || m.nomor_kta || (m as any).nomorKTA || (m as any).nationalMemberNumber || ''
+      ).trim();
+      return memberStatus === 'ACTIVE' && Boolean(ktaNumber);
+    });
   }, [scopedMembers]);
+
+  useEffect(() => {
+    const validIds = new Set(activeKtaMembers.map((member) => String(getBackendMemberId(member))));
+    setSelectedIds((current) => current.filter((id) => validIds.has(String(id))));
+  }, [activeKtaMembers]);
 
   // Cetak batch A4 duplex: 10 kartu per halaman (2 kolom x 5 baris).
   // Data anggota dan template tetap bersumber dari store/GAS, tanpa data contoh.
@@ -604,6 +646,15 @@ export const KtaManagementCenter: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => void refreshKtaDatabase()}
+                disabled={membersLoading}
+                className="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-700 font-bold text-xs transition-all flex items-center gap-2"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${membersLoading ? 'animate-spin' : ''}`} />
+                {membersLoading ? 'Memuat Database...' : 'Muat Ulang Database'}
+              </button>
+              <button
+                type="button"
                 disabled={selectedIds.length === 0}
                 onClick={() => setIsBatchPreviewOpen(true)}
                 className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-2"
@@ -624,9 +675,34 @@ export const KtaManagementCenter: React.FC = () => {
             </div>
           </div>
 
+          {membersLoading && (
+            <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Mengambil database anggota dan status KTA dari backend GAS...
+            </div>
+          )}
+
+          {!membersLoading && membersError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 space-y-2">
+              <p className="font-bold">Database KTA gagal dimuat dari GAS.</p>
+              <p>{membersError}</p>
+              <p className="text-xs">Periksa sesi admin, endpoint <code>admin.member.list</code>, dan log Executions pada proyek GAS. Tidak ada data dummy yang akan ditampilkan.</p>
+              <button type="button" onClick={() => void refreshKtaDatabase()} className="rounded-lg bg-red-800 px-3 py-2 text-xs font-bold text-white">Coba Muat Ulang</button>
+            </div>
+          )}
+
+          {!membersLoading && !membersError && activeKtaMembers.length === 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center space-y-2">
+              <CreditCard className="mx-auto h-8 w-8 text-amber-700" />
+              <p className="font-bold text-amber-950">Belum ada anggota aktif dengan nomor KTA yang dapat dicetak.</p>
+              <p className="text-sm text-amber-900">Data anggota berhasil dimuat, tetapi tidak ada record yang memenuhi status ACTIVE dan memiliki nomor KTA. Periksa status anggota dan kolom nomor KTA pada data backend.</p>
+              <button type="button" onClick={() => void refreshKtaDatabase()} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900">Muat Ulang Database</button>
+            </div>
+          )}
+
           {/* Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeKtaMembers.map((m) => (
+            {!membersLoading && !membersError && activeKtaMembers.map((m) => (
               <div
                 key={getBackendMemberId(m)}
                 className={`bg-white rounded-2xl p-4 border transition-all shadow-xs flex flex-col justify-between ${
