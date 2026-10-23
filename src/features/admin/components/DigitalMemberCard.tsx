@@ -446,32 +446,25 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     const existingStyle = document.getElementById('kta-print-runtime-style');
     if (existingStyle) existingStyle.remove();
 
-    // Ambil ukuran kanvas preview aktual. Fallback 448px = Tailwind max-w-md.
-    const liveFrame = document.querySelector(
-      '#digital-member-card-wrapper > div:first-child'
-    ) as HTMLElement | null;
+    // Kanvas desain KANONIK: jangan membaca ukuran preview/viewport pengguna.
+    // 448 CSS px adalah lebar desain tetap (max-w-md). Seluruh browser merender
+    // sumber pada ukuran yang sama sebelum diskalakan ke ukuran fisik template.
+    const designWidthPx = 448;
+    const designHeightPx = designWidthPx / aspectRatio;
 
-    const measuredWidth = liveFrame?.getBoundingClientRect().width || 448;
-    const measuredHeight = liveFrame?.getBoundingClientRect().height || measuredWidth / aspectRatio;
-
-    // Jika parent preview sedang memakai transform scale, gunakan ukuran desain sebelum transform.
-    const designWidthPx = Math.max(320, liveFrame?.offsetWidth || measuredWidth || 448);
-    const designHeightPx = Math.max(
-      1,
-      liveFrame?.offsetHeight || measuredHeight || designWidthPx / aspectRatio
-    );
-
-    const widthMm = previewSettings.widthMm || 85.6;
-    const heightMm = previewSettings.heightMm || 53.98;
+    const widthMm = Number(previewSettings.widthMm) > 0 ? Number(previewSettings.widthMm) : 85.6;
+    const heightMm = Number(previewSettings.heightMm) > 0 ? Number(previewSettings.heightMm) : 53.98;
     const cssPxPerMm = 96 / 25.4;
     const physicalWidthPx = widthMm * cssPxPerMm;
     const physicalHeightPx = heightMm * cssPxPerMm;
 
-    // Uniform scale: jangan pernah meregangkan X/Y berbeda karena akan mengubah desain.
-    const printScale = Math.min(
-      physicalWidthPx / designWidthPx,
-      physicalHeightPx / designHeightPx
-    );
+    // Rasio kanvas berasal dari widthMm/heightMm template, sehingga satu skala
+    // seragam mempertahankan font, jarak, posisi QR, dan proporsi seluruh elemen.
+    const printScale = physicalWidthPx / designWidthPx;
+    const expectedPhysicalHeightPx = designHeightPx * printScale;
+    if (Math.abs(expectedPhysicalHeightPx - physicalHeightPx) > 1.5) {
+      throw new Error('Rasio ukuran kanvas tidak sesuai template KTA. Periksa widthMm dan heightMm di Spreadsheet.');
+    }
 
     // -------------------------------------------------------------------
     // STEP 1: render sumber FRONT/BACK secara off-screen pada ukuran preview.
@@ -495,8 +488,8 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
 
     const runtimeRoot = createRoot(sourceRoot);
     runtimeRoot.render(
-      <div style={{ width: `${designWidthPx}px` }}>
-        <div data-kta-source-side="FRONT" style={{ width: `${designWidthPx}px` }}>
+      <div style={{ width: `${designWidthPx}px`, height: `${designHeightPx}px` }}>
+        <div data-kta-source-side="FRONT" style={{ width: `${designWidthPx}px`, height: `${designHeightPx}px` }}>
           <DigitalMemberCard
             member={member}
             previewSettings={previewSettings}
@@ -505,7 +498,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
             scale={1}
           />
         </div>
-        <div data-kta-source-side="BACK" style={{ width: `${designWidthPx}px` }}>
+        <div data-kta-source-side="BACK" style={{ width: `${designWidthPx}px`, height: `${designHeightPx}px` }}>
           <DigitalMemberCard
             member={member}
             previewSettings={previewSettings}
@@ -521,6 +514,21 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
+
+    // Paksa kedua sisi ke kanvas desain yang sama, bahkan pada viewport mobile
+    // ketika class sm:max-w-md belum aktif. Ini menghilangkan ketergantungan
+    // ukuran sumber terhadap breakpoint browser pengguna.
+    Array.from(sourceRoot.querySelectorAll<HTMLElement>(
+      '#digital-member-card-wrapper > div:first-child'
+    )).forEach((frame) => {
+      frame.style.setProperty('width', `${designWidthPx}px`, 'important');
+      frame.style.setProperty('min-width', `${designWidthPx}px`, 'important');
+      frame.style.setProperty('max-width', 'none', 'important');
+      frame.style.setProperty('height', `${designHeightPx}px`, 'important');
+      frame.style.setProperty('aspect-ratio', `${widthMm} / ${heightMm}`, 'important');
+      frame.style.setProperty('transform', 'none', 'important');
+      frame.style.setProperty('transition', 'none', 'important');
+    });
 
     try {
       if (document.fonts?.ready) await document.fonts.ready;
@@ -618,89 +626,69 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     printRoot.setAttribute('aria-hidden', 'true');
     document.body.appendChild(printRoot);
 
-    const makePrintSheet = (sideName: 'FRONT' | 'BACK', frozenCard: HTMLElement) => {
-      const sheet = document.createElement('section');
-      sheet.className = 'kta-print-sheet';
-      sheet.setAttribute('data-kta-print-side', sideName);
+    // Cetak satu KTA pada SATU lembar A4: sisi depan dan belakang berdampingan.
+    // Dengan demikian hasil tidak bergantung pada opsi duplex printer/browser.
+    const sheet = document.createElement('section');
+    sheet.className = 'kta-print-sheet';
+    const pair = document.createElement('div');
+    pair.className = 'kta-print-pair';
 
+    const makeCanvas = (frozenCard: HTMLElement) => {
       const canvas = document.createElement('div');
       canvas.className = 'kta-print-frozen-canvas';
       canvas.style.width = `${designWidthPx}px`;
       canvas.style.height = `${designHeightPx}px`;
       canvas.style.transform = `scale(${printScale})`;
       canvas.style.transformOrigin = 'top left';
-
-      // Hilangkan ID yang berulang dari clone agar tidak mengganggu selector aplikasi.
+      // ID duplikat dari dua salinan DOM tidak boleh mengubah selector saat print.
       frozenCard.removeAttribute('id');
       frozenCard.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
-
       canvas.appendChild(frozenCard);
-      sheet.appendChild(canvas);
-      printRoot.appendChild(sheet);
+      pair.appendChild(canvas);
     };
 
-    makePrintSheet('FRONT', frozenFront);
-    makePrintSheet('BACK', frozenBack);
+    makeCanvas(frozenFront);
+    makeCanvas(frozenBack);
+    sheet.appendChild(pair);
+    printRoot.appendChild(sheet);
 
     const style = document.createElement('style');
     style.id = 'kta-print-runtime-style';
     style.textContent = `
-      @page {
-        size: ${widthMm}mm ${heightMm}mm;
-        margin: 0;
-      }
-
-      #kta-print-root-runtime {
-        display: none;
-      }
-
+      @page { size: A4 portrait; margin: 0; }
+      #kta-print-root-runtime { display: none; }
       @media print {
         html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: visible !important;
-          background: #FFFFFF !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          width: 210mm !important; height: auto !important; margin: 0 !important; padding: 0 !important;
+          overflow: visible !important; background: #fff !important;
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
-
-        body > *:not(#kta-print-root-runtime) {
-          display: none !important;
-        }
-
+        body > *:not(#kta-print-root-runtime) { display: none !important; }
         #kta-print-root-runtime {
-          display: block !important;
-          position: static !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          width: ${widthMm}mm !important;
+          display: block !important; position: static !important; width: 210mm !important;
+          margin: 0 !important; padding: 0 !important; visibility: visible !important;
         }
-
         #kta-print-root-runtime .kta-print-sheet {
-          position: relative !important;
-          width: ${widthMm}mm !important;
-          height: ${heightMm}mm !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-          break-after: page;
-          page-break-after: always;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          box-sizing: border-box !important; width: 210mm !important; height: 297mm !important;
+          margin: 0 !important; padding: 0 !important; overflow: hidden !important;
+          display: flex !important; align-items: center !important; justify-content: center !important;
+          break-after: auto !important; page-break-after: auto !important;
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
-
-        #kta-print-root-runtime .kta-print-sheet:last-child {
-          break-after: auto;
-          page-break-after: auto;
+        #kta-print-root-runtime .kta-print-pair {
+          display: grid !important; grid-template-columns: ${widthMm}mm ${widthMm}mm !important;
+          column-gap: 4mm !important; width: ${2*widthMm+4}mm !important;
+          height: ${heightMm}mm !important; align-items: start !important;
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
-
         #kta-print-root-runtime .kta-print-frozen-canvas {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: visible !important;
+          position: relative !important; width: ${designWidthPx}px !important; height: ${designHeightPx}px !important;
+          margin: 0 !important; padding: 0 !important; overflow: hidden !important;
+          transform: scale(${printScale}) !important; transform-origin: top left !important;
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
+        #kta-print-root-runtime .kta-print-frozen-canvas, #kta-print-root-runtime .kta-print-frozen-canvas * {
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
       }
     `;
@@ -742,7 +730,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
     >
       {/* CARD CONTAINER WITH CR80 RATIO & SCALING */}
       <div
-        className="w-full max-w-sm sm:max-w-md relative transition-transform duration-200"
+        className="w-full max-w-md relative transition-transform duration-200"
         style={{
           aspectRatio: `${aspectRatio}`,
           transform: `scale(${scale})`,
@@ -755,6 +743,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           style={{
             backgroundColor: bgColor,
             borderRadius: `${(previewSettings.cornerRadiusMm || 3.18) * 3.78}px`,
+            fontFamily: 'Arial, Helvetica, sans-serif',
           }}
         >
           {/* Custom Background Image from Google Drive / Cloud
@@ -785,6 +774,35 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
             </div>
           )}
 
+          {/* Elemen teks bebas dari template Spreadsheet KTA_TEMPLATE.
+              Renderer ini memakai properti template asli (posisi, ukuran, warna, font). */}
+          {(previewSettings.textElements || [])
+            .filter((element) => element.side === currentSide && String(element.text || '').trim())
+            .map((element) => (
+              <div
+                key={`template-text-${element.id}`}
+                className="absolute pointer-events-none overflow-hidden"
+                style={{
+                  left: `${element.x ?? 0}%`,
+                  top: `${element.y ?? 0}%`,
+                  width: `${element.width ?? 100}%`,
+                  fontSize: `${Number(element.fontSize) || 8}px`,
+                  fontWeight: element.fontWeight === 'black' ? 900 : element.fontWeight === 'bold' ? 700 : element.fontWeight === 'medium' ? 500 : 400,
+                  color: element.color || '#FFFFFF',
+                  textAlign: element.align || 'left',
+                  textTransform: element.textTransform || 'none',
+                  lineHeight: 1.1,
+                  zIndex: 30,
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                }}
+              >
+                {element.text}
+              </div>
+            ))}
+
           {/* Aesthetic Motif Overlay - Hanya jika diaktifkan secara eksplisit */}
           {previewSettings.showBackgroundPattern && (
             <>
@@ -798,7 +816,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           {/* FRONT SIDE: 3-ZONE HYBRID LAYOUT                               */}
           {/* ============================================================== */}
           {isFront && (
-            <div className="relative z-10 w-full h-full p-3 sm:p-4 flex flex-col justify-between">
+            <div className="relative z-10 w-full h-full p-4 flex flex-col justify-between">
               {/* -------------------------------------------------------- */}
               {/* HEADER AREA: Safe Zone for Logo, Org Title & Badge      */}
               {/* -------------------------------------------------------- */}
@@ -825,10 +843,10 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                     ) : null}
 
                     <div className="min-w-0">
-                      <h3 className="text-[11px] sm:text-xs font-black tracking-wider uppercase leading-none truncate">
+                      <h3 className="text-xs font-black tracking-wider uppercase leading-none truncate">
                         {previewSettings.frontOrganizationTitle || 'GERAKAN PRAMUKA INDONESIA'}
                       </h3>
-                      <p className="text-[7.5px] sm:text-[8.5px] text-slate-200 uppercase tracking-wider mt-0.5 font-bold truncate">
+                      <p className="text-[8.5px] text-slate-200 uppercase tracking-wider mt-0.5 font-bold truncate">
                         {previewSettings.frontOrganizationSubtitle || 'SAKA PARIWISATA NASIONAL'}
                       </p>
                     </div>
@@ -891,13 +909,13 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
               {/* -------------------------------------------------------- */}
               {/* 3-ZONE CARD BODY: Photo (1) + Identity (2) + QR (3)     */}
               {/* -------------------------------------------------------- */}
-              <div className="flex-1 my-2 flex items-center gap-2 sm:gap-2.5 min-h-0 overflow-hidden relative">
+              <div className="flex-1 my-2 flex items-center gap-2.5 min-h-0 overflow-hidden relative">
                 {/* ------------------------------------------------------ */}
                 {/* ZONE 1: PHOTO AREA (0% - 26%)                         */}
                 {/* ------------------------------------------------------ */}
                 {showMemberPhoto && (
                 <div
-                  className="w-[24%] sm:w-[25%] aspect-[3/4] rounded-lg overflow-hidden border-2 border-white/40 bg-slate-900 shadow-md shrink-0 flex items-center justify-center relative"
+                  className="w-[25%] aspect-[3/4] rounded-lg overflow-hidden border-2 border-white/40 bg-slate-900 shadow-md shrink-0 flex items-center justify-center relative"
                   title="Zone 1: Foto Anggota"
                 >
                   {member?.photoUrl ? (
@@ -912,7 +930,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                       <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center mb-1">
                         <Award className="w-3.5 h-3.5 text-slate-300" />
                       </div>
-                      <span className="text-[6.5px] sm:text-[7px] font-bold text-slate-300 leading-tight uppercase">
+                      <span className="text-[7px] font-bold text-slate-300 leading-tight uppercase">
                         PAS FOTO
                       </span>
                     </div>
@@ -971,6 +989,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                             className="font-mono font-bold tracking-wider truncate"
                             style={{
                               fontSize: `${Math.max(8, (field.fontSize || 10) * effectiveScale)}px`,
+                              fontFamily: 'Courier New, Courier, monospace',
                               color: field.color || '#F7941D',
                             }}
                           >
@@ -1056,7 +1075,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                       />
                     </div>
                     {previewSettings.showQrCaption && (
-                      <span className="text-[6px] text-slate-300 font-mono tracking-tighter mt-0.5 text-center truncate">
+                      <span className="text-[6px] text-slate-300 font-mono tracking-tighter mt-0.5 text-center truncate" style={{ fontFamily: 'Courier New, Courier, monospace' }}>
                         {previewSettings.qrCaptionText || 'VERIFIKASI QR'}
                       </span>
                     )}
@@ -1068,14 +1087,14 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
               {/* FOOTER AREA: Validity & Reference System                */}
               {/* -------------------------------------------------------- */}
               {((previewSettings.showFrontValidityText ?? true) || (previewSettings.showFrontMemberId ?? true)) && (
-                <div className="pt-1.5 border-t border-white/20 flex items-center justify-between text-[6.5px] sm:text-[7px] text-slate-300 shrink-0">
+                <div className="pt-1.5 border-t border-white/20 flex items-center justify-between text-[7px] text-slate-300 shrink-0">
                   {(previewSettings.showFrontValidityText ?? true) ? (
                     <span className="truncate">
                       {previewSettings.frontValidityText || 'Berlaku Selama Menjadi Anggota Aktif'}
                     </span>
                   ) : <span />}
                   {(previewSettings.showFrontMemberId ?? true) && (
-                    <span className="font-mono text-slate-400 shrink-0 pl-2">
+                    <span className="font-mono text-slate-400 shrink-0 pl-2" style={{ fontFamily: 'Courier New, Courier, monospace' }}>
                       {member?.id || 'SPWN-MEMBER'}
                     </span>
                   )}
@@ -1088,7 +1107,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
           {/* BACK SIDE RENDERING (SEMUA ELEMEN DAPAT DIATUR X, Y & ON/OFF)  */}
           {/* ============================================================== */}
           {!isFront && (
-            <div className="relative z-10 w-full h-full overflow-hidden p-3 sm:p-3.5 select-none">
+            <div className="relative z-10 w-full h-full overflow-hidden p-3.5 select-none">
               {/* Back Logos (Hanya muncul jika ditambahkan melalui KTA Desainer, dengan posisi X, Y bebas diatur) */}
               {(previewSettings.logos || [])
                 .filter((l) => l.side === 'BACK' && l.visible !== false && l.url)
@@ -1206,7 +1225,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                     width: '38%',
                   }}
                 >
-                  <p className="text-[6.5px] sm:text-[7px] text-slate-300 font-medium whitespace-nowrap">
+                  <p className="text-[7px] text-slate-300 font-medium whitespace-nowrap">
                     {previewSettings.issueLocationDate || 'Jakarta, 17 Agustus 2024'}
                   </p>
                 </div>
@@ -1319,7 +1338,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
               {/* 9. Back Footer (Aktif/Nonaktif & X, Y) */}
               {(previewSettings.showBackFooter ?? true) && (
                 <div
-                  className="absolute pt-1 border-t border-white/20 flex items-center justify-between text-[6px] sm:text-[6.5px] text-slate-400 pointer-events-none"
+                  className="absolute pt-1 border-t border-white/20 flex items-center justify-between text-[6.5px] text-slate-400 pointer-events-none"
                   style={{
                     left: `${previewSettings.backFooterX ?? 4}%`,
                     top: `${previewSettings.backFooterY ?? 92}%`,
@@ -1329,7 +1348,7 @@ export const DigitalMemberCard: React.FC<DigitalMemberCardProps> = ({
                   <span className="truncate">
                     {previewSettings.backFooterLeftText || 'Sekretariat SAKA Pariwisata Nasional • spwn.id'}
                   </span>
-                  <span className="shrink-0 pl-1 font-mono">
+                  <span className="shrink-0 pl-1 font-mono" style={{ fontFamily: 'Courier New, Courier, monospace' }}>
                     {previewSettings.backFooterRightText || 'ISO/IEC 7810 ID-1 Standard'}
                   </span>
                 </div>
