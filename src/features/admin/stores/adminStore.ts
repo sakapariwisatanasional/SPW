@@ -643,7 +643,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     const member = get().members.find((m) => m.id === memberId);
     const oldStatus = member?.status_anggota || 'PENDING';
 
-    await apiClient.post('member.reject', {
+    await apiClient.post('admin.member.reject', {
       member_id: memberId,
       notes,
       reviewer_name: reviewerName,
@@ -653,17 +653,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     await get().loadMembers();
 
     set((state) => {
-      const updatedMembers = state.members.map((m) => {
-        if (m.id === memberId) {
-          return {
-            ...m,
-            status_anggota: 'REJECTED' as MemberAdminStatus,
-            status: 'REJECTED',
-            updated_at: nowIso,
-          };
-        }
-        return m;
-      });
+      const updatedMembers = state.members; // Sudah dimuat ulang dari GAS.
 
       const newApproval: MemberApprovalEntry = {
         id: 'APP-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
