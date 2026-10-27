@@ -24,6 +24,36 @@ export const Providers: React.FC<ProvidersProps> = ({ children }) => {
     });
   }, [token]);
 
+  // Read the current GAS account on startup, every minute, and on return to tab.
+  useEffect(() => {
+    if (!token) return;
+    let running = false;
+    const refresh = async () => {
+      if (running || document.hidden) return;
+      running = true;
+      try { await useAuthStore.getState().validateSession(); }
+      finally { running = false; }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 60000);
+    const syncLogout = (event: StorageEvent) => {
+      if ((event.key === 'spwn_session_token' && event.newValue !== token) || event.key === null) {
+        useAuthStore.getState().clearSession();
+      }
+    };
+    window.addEventListener('storage', syncLogout);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('storage', syncLogout);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [token]);
+
   return (
     <>
       {children}
