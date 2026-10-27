@@ -1460,7 +1460,7 @@ export const MemberAdministration: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!rejectWorkflowModal.notes.trim()) {
                       addToast({
                         type: 'error',
@@ -1470,8 +1470,9 @@ export const MemberAdministration: React.FC = () => {
                       return;
                     }
 
+                    try {
                     if (rejectWorkflowModal.actionType === 'REVISION') {
-                      requestRevisionMember(
+                      await requestRevisionMember(
                         rejectWorkflowModal.memberId,
                         rejectWorkflowModal.notes.trim(),
                         rejectWorkflowModal.stage === 'WILAYAH' ? 'Admin Wilayah' : 'Admin Pusat',
@@ -1483,7 +1484,7 @@ export const MemberAdministration: React.FC = () => {
                         message: 'Status anggota diubah ke REVISION_REQUIRED dengan catatan.',
                       });
                     } else {
-                      rejectMember(
+                      await rejectMember(
                         rejectWorkflowModal.memberId,
                         rejectWorkflowModal.notes.trim(),
                         rejectWorkflowModal.stage === 'WILAYAH' ? 'Admin Wilayah' : 'Admin Pusat',
@@ -1496,6 +1497,9 @@ export const MemberAdministration: React.FC = () => {
                       });
                     }
                     setRejectWorkflowModal(null);
+                    } catch (error: any) {
+                      addToast({ type:'error', title:'Gagal menyimpan', message:error?.message || 'GAS gagal memproses permintaan.' });
+                    }
                   }}
                   className={`px-4 py-2 rounded-xl text-white text-xs font-bold shadow-xs cursor-pointer ${
                     rejectWorkflowModal.actionType === 'REVISION'
