@@ -69,6 +69,8 @@ interface AuthState {
   loginWithCredentials: (identifier: string, password: string) => Promise<{ success: boolean; message: string; user?: UserProfile }>;
   setSession: (user: UserProfile & { permissions?: PermissionKey[] }, token: string) => void;
   logout: () => void;
+  validateSession: () => Promise<void>;
+  clearSession: () => void;
   updateCurrentUserProfile: (updates: Partial<UserProfile>) => void;
   resetCurrentUserPassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   
@@ -95,6 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   requestLoginOtp: async (email: string) => {
+    if (get().isAuthenticated && get().token) return { success:false, message:'Anda masih login. Logout terlebih dahulu untuk masuk kembali.' };
     try {
       const response = await authApi.requestOtp(email, 'LOGIN');
       return { success: !!response?.success, message: response?.message || 'Jika email terdaftar dan aktif, OTP akan dikirim.' };
@@ -149,6 +152,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       token,
       isAuthenticated: true,
     });
+  },
+
+  validateSession: async () => {
+    const token = get().token;
+    if (!token) return;
+    try {
+      const response = await authApi.me(get().currentUser.id);
+      if (get().token !== token) return;
+      const data: any = response.data;
+      const user = data?.user || data;
+      if (!user?.id || !user?.role) return;
+      get().setSession({ ...user, permissions:Array.isArray(user.permissions) ? user.permissions : [] }, token);
+    } catch (error: any) {
+      // Network/5xx failures preserve the session for the next retry.
+      if (get().token === token && error?.statusCode === 401) get().clearSession();
+    }
+  },
+
+  clearSession: () => {
+    try {
+      localStorage.removeItem('spwn_session_token');
+      localStorage.removeItem('spwn_session_user');
+    } catch { /* Storage unavailable */ }
+    set({ currentUser:EMPTY_PUBLIC_USER, token:null, isAuthenticated:false });
   },
 
   logout: () => {
