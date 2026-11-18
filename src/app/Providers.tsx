@@ -8,6 +8,7 @@ import { useUIStore } from '../stores/uiStore';
 import { apiClient } from '../services/api/apiClient';
 import { useAuthStore } from '../stores/authStore';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { InstallAppPrompt } from '../components/pwa/InstallAppPrompt';
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -57,6 +58,7 @@ export const Providers: React.FC<ProvidersProps> = ({ children }) => {
   return (
     <>
       {children}
+      <InstallAppPrompt />
 
       {/* Global Toast Notification Stack */}
       <aside
