@@ -308,3 +308,25 @@ html.dark input:disabled, html.dark select:disabled, html.dark textarea:disabled
   .wi-hover-lift { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
   .wi-hover-lift:hover { transform: translateY(-3px); box-shadow: 0 22px 50px rgba(15,35,63,.12); }
 }
+
+/* SPWN Progressive Web App install invitation */
+.spwn-install-card{position:fixed;z-index:80;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:620px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:13px 14px;background:#fff;border:1px solid #dbe5ef;border-radius:18px;box-shadow:0 12px 40px rgba(16,35,63,.2);font-family:var(--font-sans)}
+.spwn-install-icon{width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:#f0f7fc;display:grid;place-items:center;overflow:hidden}
+.spwn-install-icon img{width:100%;height:100%;object-fit:contain;padding:4px}
+.spwn-install-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.spwn-install-copy strong{font-size:13px;color:#10233f;line-height:1.3}
+.spwn-install-copy span{font-size:11px;color:#64748b;line-height:1.35}
+.spwn-install-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:10px;background:#0066b3;color:white;font-weight:700;font-size:12px;padding:11px 14px;white-space:nowrap;cursor:pointer}
+.spwn-install-action:hover{background:#00518f}
+.spwn-install-close,.spwn-install-help-close{border:0;background:transparent;color:#64748b;padding:5px;cursor:pointer}
+.spwn-install-backdrop{position:fixed;inset:0;z-index:90;background:rgba(8,20,38,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.spwn-install-help{position:relative;width:100%;max-width:440px;background:#fff;border-radius:22px;padding:26px 22px calc(22px + env(safe-area-inset-bottom));box-shadow:0 20px 60px rgba(0,0,0,.25);color:#10233f}
+.spwn-install-help-close{position:absolute;right:15px;top:15px}
+.spwn-install-icon-large{width:60px;height:60px;margin-bottom:15px}
+.spwn-install-help h2{font-size:19px;font-weight:800;margin:0 0 18px}
+.spwn-install-help ol{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:14px}
+.spwn-install-help li{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.55;color:#334155}
+.spwn-install-help li svg{flex:0 0 19px;color:#0066b3;margin-top:1px}
+.spwn-install-note{font-size:11px;color:#64748b;margin:16px 0 0}
+.spwn-install-done{width:100%;margin-top:20px}
+@media(min-width:768px){.spwn-install-card{left:auto;right:24px;bottom:24px;margin:0;width:560px}.spwn-install-backdrop{align-items:center}}
